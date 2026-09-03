@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from sle.certification import certification_record, load_certification  # noqa: E402
+from sle.frontier import load_frozen_wave, validate_family_waves  # noqa: E402
 from sle.provenance import finalize_report_trust, source_provenance  # noqa: E402
 from sle.registry import list_tasks  # noqa: E402
 
@@ -250,6 +251,11 @@ def audit() -> dict:
         missing_metadata = [k for k in REQUIRED_METADATA if k not in spec.metadata]
         citation_ids = rec.get("citation_ids", [])
         issues = []
+        try:
+            wave = load_frozen_wave(spec)
+        except ValueError as exc:
+            wave = None
+            issues.append("invalid frontier wave: %s" % exc)
         if rec["status"] in TASK_CARD_REQUIRED_STATUSES:
             card_path = spec.task_dir / "TASK_CARD.yaml"
             if not card_path.is_file():
@@ -267,6 +273,9 @@ def audit() -> dict:
             "task": spec.task_id, "status": rec["status"], "reason": rec["reason"],
             "missing_files": missing_files, "missing_metadata": missing_metadata,
             "citation_ids": citation_ids, "issues": issues,
+            "task_family_id": wave.task_family_id if wave else spec.task_id,
+            "wave_id": wave.wave_id if wave else None,
+            "wave_manifest_sha256": wave.manifest_sha256 if wave else None,
         })
     orphaned = sorted(set(manifest["tasks"]) - ids)
     missing_manifest = sorted(ids - set(manifest["tasks"]))
@@ -275,6 +284,7 @@ def audit() -> dict:
         digest = hashlib.sha256(_normalized_oracle(spec.task_dir / "verification/evaluator.py").encode()).hexdigest()
         duplicate_groups.setdefault(digest, []).append(spec.task_id)
     duplicates = [v for v in duplicate_groups.values() if len(v) > 1]
+    family_issues = validate_family_waves(specs)
     return {
         "schema_version": 1,
         "trust_status": "TRUSTED_CERTIFICATION_AUDIT",
@@ -284,6 +294,7 @@ def audit() -> dict:
         "missing_manifest_records": missing_manifest,
         "orphaned_manifest_records": orphaned,
         "duplicate_oracle_groups": duplicates,
+        "frontier_family_issues": family_issues,
         "task_card_required_count": sum(
             record["status"] in TASK_CARD_REQUIRED_STATUSES for record in records
         ),
@@ -296,6 +307,7 @@ def audit() -> dict:
         "passed": (
             not missing_manifest
             and not orphaned
+            and not family_issues
             and not any(r["issues"] for r in records)
         ),
     }
