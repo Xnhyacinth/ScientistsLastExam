@@ -19,6 +19,7 @@ from typing import Any, Callable, Optional
 
 from ..evaluate import evaluate_candidate, INVALID_SCORE
 from ..evaluation_ledger import EvaluationLedger, RunLease
+from ..frontier import frontier_binding
 from ..llm import LLMClient
 from ..metric_visibility import score_only_metrics, search_visible_metrics
 from ..spec import TaskSpec
@@ -402,7 +403,7 @@ def _greedy_rewrite_impl(
         resume and manifest_path.is_file()
         and not checkpoint_path.exists() and trajectory_path.is_file()
     )
-    ensure_run_manifest(
+    run_manifest = ensure_run_manifest(
         workdir, spec=spec, llm=llm, algorithm="greedy_rewrite", seed=seed,
         feedback_mode=feedback_mode, resume=resume,
         protocol={
@@ -433,9 +434,40 @@ def _greedy_rewrite_impl(
         if active_wall_horizon_s is not None else None
     )
     evaluation_ledger = EvaluationLedger(workdir)
-    frozen_task_contract = task_contract_sha256(spec)
-    frozen_task_package = task_package_sha256(spec)
-    frozen_runtime_source = runtime_source_sha256()
+    frozen_task_contract = str(run_manifest["task_contract_sha256"])
+    frozen_task_package = str(run_manifest["task_package_sha256"])
+    frozen_runtime_source = str(run_manifest["runtime_source_sha256"])
+    frozen_frontier = {
+        key: str(run_manifest[key])
+        for key in ("task_family_id", "wave_id", "wave_manifest_sha256")
+        if key in run_manifest
+    }
+
+    def evaluate_frozen_candidate() -> dict[str, Any]:
+        expected = {
+            "task_contract_sha256": frozen_task_contract,
+            "task_package_sha256": frozen_task_package,
+            "runtime_source_sha256": frozen_runtime_source,
+            **frozen_frontier,
+        }
+        before = {
+            "task_contract_sha256": task_contract_sha256(spec),
+            "task_package_sha256": task_package_sha256(spec),
+            "runtime_source_sha256": runtime_source_sha256(),
+            **frontier_binding(spec),
+        }
+        if before != expected:
+            raise RuntimeError("frozen task/runtime binding changed before evaluation")
+        metrics = evaluate_candidate(spec, cand_path, timeout_s=timeout_s)
+        after = {
+            "task_contract_sha256": task_contract_sha256(spec),
+            "task_package_sha256": task_package_sha256(spec),
+            "runtime_source_sha256": runtime_source_sha256(),
+            **frontier_binding(spec),
+        }
+        if after != expected:
+            raise RuntimeError("frozen task/runtime binding changed during evaluation")
+        return metrics
 
     def validate_committed_evaluation_receipts(
         events: list[dict[str, Any]],
@@ -456,6 +488,7 @@ def _greedy_rewrite_impl(
                 and request.get("task_contract_sha256") == frozen_task_contract
                 and request.get("task_package_sha256") == frozen_task_package
                 and request.get("runtime_source_sha256") == frozen_runtime_source
+                and all(request.get(key) == value for key, value in frozen_frontier.items())
                 and request.get("step") == int(event["step"])
                 and request.get("candidate_sha256") == event["candidate_sha256"]
                 and receipt["metrics"] == (event.get("metrics") or {})
@@ -589,11 +622,12 @@ def _greedy_rewrite_impl(
                 "task_contract_sha256": frozen_task_contract,
                 "task_package_sha256": frozen_task_package,
                 "runtime_source_sha256": frozen_runtime_source,
+                **frozen_frontier,
                 "step": 0,
                 "candidate_sha256": sha256_text(baseline_src),
                 "evaluator_timeout_seconds": float(timeout_s),
             },
-            lambda: evaluate_candidate(spec, cand_path, timeout_s=timeout_s),
+            evaluate_frozen_candidate,
             clock=time.monotonic,
         )
         metrics = dict(baseline_receipt["metrics"])
@@ -994,13 +1028,14 @@ def _greedy_rewrite_impl(
                     "task_contract_sha256": frozen_task_contract,
                     "task_package_sha256": frozen_task_package,
                     "runtime_source_sha256": frozen_runtime_source,
+                    **frozen_frontier,
                     "step": int(it),
                     "candidate_sha256": sha256_text(code),
                     "parent_sha256": parent_sha,
                     "prompt_sha256": sha256_text(prompt),
                     "evaluator_timeout_seconds": float(timeout_s),
                 },
-                lambda: evaluate_candidate(spec, cand_path, timeout_s=timeout_s),
+                evaluate_frozen_candidate,
                 clock=time.monotonic,
             )
             m = dict(evaluation_receipt["metrics"])

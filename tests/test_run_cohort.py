@@ -202,6 +202,8 @@ class CohortRunnerTests(unittest.TestCase):
             init.write_text("", encoding="utf-8")
         (home / "sle/config.py").write_text(
             "def load_llm_client(_path): return object()\n", encoding="utf-8")
+        (home / "sle/frontier.py").write_text(
+            "def frontier_binding(_spec): return {}\n", encoding="utf-8")
         (home / "sle/registry.py").write_text(
             "def find_task(_task, include_uncertified=False): return object()\n",
             encoding="utf-8",
