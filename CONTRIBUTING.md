@@ -97,7 +97,15 @@ science_metric: <name>               # 主指标的可读名称
 reference_baseline: <description>    # 初始程序做了什么
 reference_sota: <description>        # 已知最优结果及其出处
 citation: "Author, Journal, Year"    # 可引用的出处
+# 可选:持续前沿 task family
+task_family_id: Chemistry/OpenReactionNetwork
+wave_id: wave-1
 ```
+
+一旦设置 `task_family_id` 或 `wave_id`,就必须同时提供
+`frontier_eval/wave.yaml`。wave manifest 的语义哈希会进入 run manifest 和 task contract;
+同一 `wave_id` 改写语义、跳过 predecessor 或复用已变更的 cell 定义都会 fail closed。
+不要给普通单版本任务机械补这两个字段。
 
 ### `frontier_eval/entrypoint.txt`
 
@@ -140,6 +148,12 @@ normalized = (raw_mechanism - always_abstain) / (1.0 - always_abstain)
 `uncapped` 任务还须提供 `references/known_best.md`,记录当前已知最优值、来源与日期。
 **不要在 `uncapped` 任务里保留上限** —— 那会让"追平参考解"与"超越它"无法区分,
 而这正是本基准要测的那个区别。`tests/test_uncapped_scoring.py` 会检查。
+
+`uncapped` 与 `lifetime_frontier_credit` 不是同一个概念。前者是一个冻结 release 内的模型分数;
+后者是同一 task family 跨不可变 waves 的科学前沿账本。优化记录只累计超过 incumbent 与
+`minimum_delta` 的边际增益;发现记录只累计 trusted evaluator 产生的唯一 canonical claim。
+账本不能把候选提交次数、置信度、重复结构或新增容易 cell 当成进步。具体 manifest schema、
+链式账本和 threat model 见 [`docs/frontier_families.md`](docs/frontier_families.md)。
 
 ---
 
@@ -227,6 +241,7 @@ normalized = (raw_mechanism - always_abstain) / (1.0 - always_abstain)
       且**已列出候选会收到的所有输入键名**。
 - [ ] 无绝对路径、无 `.env`、无 API key、无 `__pycache__`、无大数据文件。
 - [ ] `metadata.yaml` 字段填全。
+- [ ] 若加入 frontier family:`wave.yaml` 通过语义校验,predecessor 链正确,cell ID/定义未被改写。
 - [ ] flagship(`uncapped`)任务:`references/known_best.md` 存在且值有出处。
 - [ ] `python scripts/audit_tasks.py` 无准入问题,不变量测试全部通过。
 - [ ] 在 `sle/conf/exam_taxonomy.yaml` 里占**恰好一格**(optimization analogue 或

@@ -123,6 +123,7 @@ if (root_path / "sle").is_dir():
         task_package_sha256,
     )
     from sle.config import load_llm_client
+    from sle.frontier import frontier_binding
     from sle.registry import find_task
 
     spec = find_task(task, include_uncertified=True)
@@ -132,8 +133,12 @@ if (root_path / "sle").is_dir():
         "task_package_sha256": task_package_sha256(spec),
         "runtime_source_sha256": runtime_source_sha256(),
     }
+    expected_bindings.update(frontier_binding(spec))
     if any(manifest.get(key) != value for key, value in expected_bindings.items()):
         raise SystemExit(1)
+    if (root_path / "sle/run_verification.py").is_file():
+        from sle.run_verification import verify_run
+        verify_run(Path(directory), expected_budget=int(budget))
 PY
 }
 

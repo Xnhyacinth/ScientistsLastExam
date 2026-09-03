@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Iterable, Optional
 
 from ..evaluate import INVALID_SCORE
+from ..frontier import frontier_binding
 from ..llm import LLMClient
 from ..spec import TaskSpec
 from ..protocol import (
@@ -87,6 +88,9 @@ def task_contract_sha256(spec: TaskSpec) -> str:
         spec.eval_dir / "constraints.txt",
         spec.eval_dir / "entrypoint.txt",
     ]
+    wave_manifest = spec.eval_dir / "wave.yaml"
+    if wave_manifest.is_file():
+        paths.append(wave_manifest)
     digest = hashlib.sha256()
     for path in paths:
         digest.update(str(path.relative_to(spec.task_dir)).encode("utf-8") + b"\0")
@@ -295,6 +299,12 @@ def ensure_run_manifest(
         "llm_condition": llm_condition_descriptor(llm),
         "upstream": upstream,
     }
+    frontier = frontier_binding(spec)
+    if frontier and algorithm != "greedy_rewrite":
+        raise ValueError(
+            "frontier-family tasks require greedy_rewrite evaluation receipts"
+        )
+    expected.update(frontier)
     if protocol is not None:
         expected["protocol"] = protocol
     path = Path(workdir) / "run_manifest.json"
