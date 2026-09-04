@@ -113,6 +113,8 @@ def _semantic_contract(
         "evidence_predicate_sha256",
         "evaluation_panel_path",
         "evaluation_panel_sha256",
+        "oracle_path",
+        "oracle_sha256",
     }
     if set(value) != expected:
         raise ValueError("cell semantic_contract fields differ from schema")
@@ -141,10 +143,17 @@ def _semantic_contract(
         "evaluation_panel_sha256": _hash(
             value.get("evaluation_panel_sha256"), "evaluation_panel_sha256"
         ),
+        "oracle_path": _identifier(value.get("oracle_path"), "oracle_path"),
+        "oracle_sha256": _hash(value.get("oracle_sha256"), "oracle_sha256"),
     }
     if contract_root is not None:
         root = contract_root.resolve()
-        for prefix in ("canonicalizer", "evidence_predicate", "evaluation_panel"):
+        for prefix in (
+            "canonicalizer",
+            "evidence_predicate",
+            "evaluation_panel",
+            "oracle",
+        ):
             relative = Path(normalized[prefix + "_path"])
             if relative.is_absolute() or ".." in relative.parts:
                 raise ValueError("semantic contract path must stay inside the task package")
