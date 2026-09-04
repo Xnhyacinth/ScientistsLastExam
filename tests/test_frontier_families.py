@@ -35,6 +35,8 @@ def _wave(
             "evidence_predicate_sha256": "5" * 64,
             "evaluation_panel_path": "frontier_eval/contracts/panel.json",
             "evaluation_panel_sha256": "6" * 64,
+            "oracle_path": "verification/evaluator.py",
+            "oracle_sha256": "7" * 64,
         }
         payload = json.dumps(
             values, sort_keys=True, separators=(",", ":"), allow_nan=False
@@ -121,10 +123,17 @@ class FrozenWaveTests(unittest.TestCase):
             "canonicalizer.py": b"canonicalizer-v1\n",
             "predicate.py": b"predicate-v1\n",
             "panel.json": b"{}\n",
+            "evaluator.py": b"oracle-v1\n",
         }
         hashes = {}
         for name, payload in artifacts.items():
-            (contract_dir / name).write_bytes(payload)
+            destination = (
+                root / "verification" / name
+                if name == "evaluator.py"
+                else contract_dir / name
+            )
+            destination.parent.mkdir(exist_ok=True)
+            destination.write_bytes(payload)
             hashes[name] = hashlib.sha256(payload).hexdigest()
         (eval_dir / "wave.yaml").write_text(
             f"""schema_version: 1
@@ -148,6 +157,8 @@ cells:
       evidence_predicate_sha256: "{hashes['predicate.py']}"
       evaluation_panel_path: frontier_eval/contracts/panel.json
       evaluation_panel_sha256: "{hashes['panel.json']}"
+      oracle_path: verification/evaluator.py
+      oracle_sha256: "{hashes['evaluator.py']}"
 """,
             encoding="utf-8",
         )
@@ -183,6 +194,15 @@ cells:
             spec = self._spec(Path(temporary))
             (spec.task_dir / "frontier_eval/contracts/panel.json").write_text(
                 '{"changed":true}\n', encoding="utf-8"
+            )
+            with self.assertRaisesRegex(ValueError, "artifact hash differs"):
+                load_frozen_wave(spec)
+
+    def test_semantic_contract_binds_full_evaluator_oracle(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            spec = self._spec(Path(temporary))
+            (spec.task_dir / "verification/evaluator.py").write_text(
+                "changed-oracle\n", encoding="utf-8"
             )
             with self.assertRaisesRegex(ValueError, "artifact hash differs"):
                 load_frozen_wave(spec)
