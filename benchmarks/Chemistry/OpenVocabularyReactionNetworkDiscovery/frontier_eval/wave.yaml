@@ -1,0 +1,20 @@
+schema_version: 1
+task_family_id: ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery
+wave_id: open-graph-edge-discovery-v1
+predecessor_wave_sha256: null
+cells:
+  - id: verified-open-vocabulary-reaction-edge
+    kind: discovery
+    definition_sha256: "9658e6d3506422076f68adea6e13e9670447772bb710e30e15c01f4f1921b278"
+    weight: 1
+    credit_per_claim: 0.05
+    novelty_namespace: sle/open-vocabulary-reaction-network/edge/v1
+    semantic_contract:
+      canonicalizer_id: open-vocabulary-reaction-canonicalizer-v1
+      canonicalizer_path: frontier_eval/contracts/reaction_canonicalizer_v1.py
+      canonicalizer_sha256: "fff3ef4d35d79245aa303b4fd5325ae7b1446a382b781e78f4af6a319e426e06"
+      evidence_predicate_id: exact-analytic-reaction-evidence-v1
+      evidence_predicate_path: frontier_eval/contracts/evidence_predicate_v1.py
+      evidence_predicate_sha256: "f9558494d00a66a38b56a2be7ab4d71bd255bf6974f44b069d2335abfe36422b"
+      evaluation_panel_path: frontier_eval/contracts/evaluation_panel_v1.json
+      evaluation_panel_sha256: "0586299df72ca02e7eeaa4ea4160ec44261e0d501fb460520e77732cea696496"

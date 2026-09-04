@@ -1,0 +1,64 @@
+schema_version: 2
+scientific_question: Can a continuous process-design policy improve a specific-modulus, transport-barrier and process-energy Pareto frontier through a frozen phase-field/coarsening and homogenization mechanism while remaining robust to sealed process and material shifts?
+artifact: A set of distinct manufacturable blend, anneal, cooling and draw schedules; no image, latent microstructure or finite candidate-row selection is accepted.
+oracle:
+  model: Deterministic one-dimensional spectral conserved phase-field growth with bounded saturation and coarsening, followed by a frozen Voigt--Reuss-style homogenization and reduced process-energy model.
+  feasibility: Four to twenty process schedules that remain unique after public manufacturing-resolution quantization, with finite values inside every public bound; images, extra fields, duplicates, malformed schedules and exceptions fail closed.
+  deterministic: true
+normalization:
+  baseline: Four shortest, hottest, fastest-cooled, undrawn schedules spread across the legal blend range.
+  reference: A fixed 20-schedule public-model space-filling witness containing the baseline plus sixteen more varied process schedules; it is not a global optimum.
+  score: Exact three-objective development hypervolume normalized above the baseline and left uncapped; shifted hypervolume, held-out transfer, feasibility and physical summary axes remain separate.
+citations:
+- id: doi:10.1146/annurev.matsci.32.112001.132041
+  title: Phase-field models for microstructure evolution
+- id: doi:10.1007/s40192-017-0098-9
+  title: Materials Knowledge Systems in Python - a Data Science Framework for Accelerated Development of Hierarchical Materials
+invariants:
+- the submitted artifact is a bounded composition and processing schedule, never a target image or predicted property
+- the deterministic oracle applies process to phase-field/coarsening state before homogenizing macroscopic properties
+- the phase-field and homogenization equations are explicitly frozen reduced models and do not support a real-material discovery claim
+- exact three-dimensional hypervolume assigns marginal credit to each newly non-dominated property-energy tradeoff and remains uncapped above the witness
+- the shipped weak process archive is feasible and normalized to exactly zero while a larger nested witness produces strict Pareto gain
+- three sealed shifts separately perturb phase kinetics, gradient and interface penalties, and constituent properties
+- held-out material worlds, shifted scores and per-instance rows do not enter the public development objective
+- lifetime-credit records require legal held-out artifacts and at least 50 percent normalized-score retention on development shifts, held-out worlds and held-out shifts
+- nonfinite, out-of-bounds, duplicate, image-like, malformed and exception-producing candidates score zero without escaping the evaluator
+known_shortcuts: The oracle is one-dimensional, uses a fixed 48-cell spectral reduced model, omits full nonlinear Cahn--Hilliard integration, mechanics, defects, degradation, scale-up and experimental noise, and employs a stylized Voigt--Reuss property closure. The public witness is only a small space-filling archive, so it certifies headroom and continuous scoring but neither global optimality nor model difficulty. New physical systems or fidelities require frozen new waves.
+review:
+  domain: pending_external_polymer_and_process_materials
+  evaluator_security: automated_determinism_process_schema_no_image_pareto_gain_sealed_shift_bad_candidate_and_baseline_normalization_tests
+provenance:
+  class: procedural
+  target_source: Repository-visible deterministic reduced process--structure--property generator with development, held-out and sealed shifted worlds.
+  task_contract_public_before_evaluation: true
+  fresh_confirmation_status: not_applicable_synthetic_oracle
+novelty_risk:
+  level: medium
+  rationale: Phase-field evolution, homogenization and multiobjective process design are established. The cell's joint artifact and frozen coefficients are benchmark-specific, but model difficulty and resistance to analytic shortcut policies remain unmeasured.
+lineage:
+  status: complete
+  builder_model_ids:
+  - openai:codex-gpt-5
+  builder_scaffolds:
+  - codex-cli
+  calibrator_model_ids: []
+  calibration_runs: []
+  calibration_evidence_status: missing
+  edits_triggered_by_model: No model calibration was run; only deterministic unit tests and baseline/intermediate/reference evaluator checks informed the candidate package.
+  shortcut_discoverer: builder_self_audit
+  frozen_before_eval: false
+  freeze_timestamp: null
+long_horizon:
+  status: not_tested
+  measurement_health_passed: false
+  material_headroom_after_2h: false
+  evidence: []
+construction_audit:
+  status: builder_audited_pending_external
+  author_domain: openai:codex-gpt-5
+  reviewer_domain: pending_external_polymer_and_process_materials
+  expert_hours: null
+  red_team_rounds: 1
+  oracle_disagreement_status: not_quantified
+  independent_recomputation_status: baseline, nested Pareto witness, exact deterministic replay, sealed shifts and malformed-candidate paths are runnable from the package
