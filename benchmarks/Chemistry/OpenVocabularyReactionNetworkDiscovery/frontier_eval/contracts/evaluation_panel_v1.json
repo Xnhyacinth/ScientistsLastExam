@@ -9,10 +9,11 @@
     "pair_strength": {"C-C": 72.0, "C-N": 66.0, "C-O": 78.0, "N-O": 58.0},
     "minimum_atoms": 2,
     "maximum_atoms": 6,
-    "elementary_edge_rule": "a directed unimolecular edge deletes one single heavy-atom bond and forms one different single heavy-atom bond while preserving a connected graph"
+    "elementary_edge_rule": "a directed unimolecular edge deletes one single heavy-atom bond and forms one different single heavy-atom bond while preserving a connected graph",
+    "ambiguous_mapping_resolution": "for a canonical graph pair with multiple element-preserving one-delete/one-add atom maps, the effective activation barrier is the minimum over all valid channels"
   },
   "resource_limits": {
-    "probe_calls_per_world": 80,
+    "probe_calls_per_world": 24,
     "maximum_claimed_species": 24,
     "maximum_claimed_reactions": 80,
     "activation_energy_minimum": 0.0,
@@ -46,6 +47,10 @@
     {"split": "heldout", "kind": "null", "favoured_pair": ["N", "O"], "barrier_offset": 0.0, "barrier_limit": 0.0, "seed_index": 4},
     {"split": "heldout", "kind": "model_inadequate", "favoured_pair": ["C", "C"], "barrier_offset": 0.0, "barrier_limit": 0.0, "seed_index": 8}
   ],
+  "reference_policy": {
+    "path": "verification/reference_reaction_network.py",
+    "sha256": "0393aa5e576e2f789d558d69d01bf9fe4e33e1b9becf122fdb73133249553176"
+  },
   "evidence": "an edge receives frontier credit only when it is in the seed-reachable oracle network and its activation energy exactly matches the deterministic oracle",
   "claim_boundary": "Credit is benchmark-local canonical edge credit, not evidence for a real chemical reaction. Difficulty and long-horizon discovery are uncalibrated."
 }

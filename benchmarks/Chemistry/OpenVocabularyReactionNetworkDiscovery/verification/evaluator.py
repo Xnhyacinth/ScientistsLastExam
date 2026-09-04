@@ -7,11 +7,13 @@ real reaction network or a quantum-chemistry replacement.
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import itertools
 import json
 import math
 from collections.abc import Mapping
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -62,12 +64,27 @@ def _load_contract(name, filename):
     return module
 
 
+def _load_reference(name):
+    frozen = _PANEL["reference_policy"]
+    path = TASK_DIR / frozen["path"]
+    if hashlib.sha256(path.read_bytes()).hexdigest() != frozen["sha256"]:
+        raise RuntimeError("independent reference policy hash differs")
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("unable to load independent reference policy")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 _CANONICALIZER = _load_contract(
     "open_vocabulary_reaction_canonicalizer", "reaction_canonicalizer_v1.py"
 )
 _EVIDENCE = _load_contract(
     "open_vocabulary_reaction_evidence", "evidence_predicate_v1.py"
 )
+_REFERENCE = _load_reference("open_vocabulary_reaction_reference")
+_reference_policy = _REFERENCE.discover_reaction_network
 
 
 def _numeric(value, name, low=None, high=None):
@@ -189,7 +206,7 @@ def _adjacency(key):
 
 
 def _bond_exchange(left_key, right_key):
-    """Find a one-delete/one-add atom map jointly across the two coloured graphs."""
+    """Find all one-delete/one-add channels across valid coloured-graph maps."""
     left_graph = _key_to_graph(left_key)
     right_graph = _key_to_graph(right_key)
     atoms = tuple(left_graph["atoms"])
@@ -197,7 +214,7 @@ def _bond_exchange(left_key, right_key):
     left_bonds = {tuple(bond[:2]) for bond in left_graph["bonds"]}
     right_bonds = {tuple(bond[:2]) for bond in right_graph["bonds"]}
     pairs = list(itertools.combinations(range(len(atoms)), 2))
-    candidates = []
+    candidates = set()
     for mapping in itertools.permutations(range(len(atoms))):
         if any(atoms[index] != right_atoms[mapping[index]] for index in range(len(atoms))):
             continue
@@ -208,13 +225,13 @@ def _bond_exchange(left_key, right_key):
         removed_pairs = left_bonds - aligned_right
         formed_pairs = aligned_right - left_bonds
         if len(removed_pairs) == 1 and len(formed_pairs) == 1:
-            removed = [pairs.index(next(iter(removed_pairs)))]
-            formed = [pairs.index(next(iter(formed_pairs)))]
-            candidates.append((removed, formed))
+            removed = pairs.index(next(iter(removed_pairs)))
+            formed = pairs.index(next(iter(formed_pairs)))
+            candidates.add((removed, formed))
     if not candidates:
         return False, [], []
-    removed, formed = min(candidates)
-    return True, removed, formed
+    ordered = sorted(candidates)
+    return True, [removed for removed, _formed in ordered], [formed for _removed, formed in ordered]
 
 
 def _pair_for_bit(index):
@@ -232,27 +249,30 @@ def _species_energy(key):
 
 
 def _activation_energy(left_key, right_key, spec):
-    allowed, removed, formed = _bond_exchange(left_key, right_key)
+    allowed, removed_channels, formed_channels = _bond_exchange(left_key, right_key)
     if not allowed:
         raise ValueError("proposal is not one elementary bond exchange")
-    broken_pair = _pair_for_bit(removed[0])
-    formed_pair = _pair_for_bit(formed[0])
     uphill = max(_species_energy(right_key) - _species_energy(left_key), 0.0)
-    selectivity = (
-        _ACTIVATION_MODEL["favoured_formed_offset"]
-        if formed_pair == spec["favoured_pair"]
-        else _ACTIVATION_MODEL["other_formed_offset"]
-    )
-    if broken_pair == spec["favoured_pair"]:
-        selectivity += _ACTIVATION_MODEL["favoured_broken_offset"]
-    return float(
-        _ACTIVATION_MODEL["intercept"]
-        + _ACTIVATION_MODEL["broken_bond_coefficient"] * PAIR_STRENGTH[broken_pair]
-        + _ACTIVATION_MODEL["formed_bond_coefficient"] * PAIR_STRENGTH[formed_pair]
-        + _ACTIVATION_MODEL["uphill_energy_coefficient"] * uphill
-        + selectivity
-        + spec["barrier_offset"]
-    )
+    barriers = []
+    for removed, formed in zip(removed_channels, formed_channels, strict=True):
+        broken_pair = _pair_for_bit(removed)
+        formed_pair = _pair_for_bit(formed)
+        selectivity = (
+            _ACTIVATION_MODEL["favoured_formed_offset"]
+            if formed_pair == spec["favoured_pair"]
+            else _ACTIVATION_MODEL["other_formed_offset"]
+        )
+        if broken_pair == spec["favoured_pair"]:
+            selectivity += _ACTIVATION_MODEL["favoured_broken_offset"]
+        barriers.append(
+            _ACTIVATION_MODEL["intercept"]
+            + _ACTIVATION_MODEL["broken_bond_coefficient"] * PAIR_STRENGTH[broken_pair]
+            + _ACTIVATION_MODEL["formed_bond_coefficient"] * PAIR_STRENGTH[formed_pair]
+            + _ACTIVATION_MODEL["uphill_energy_coefficient"] * uphill
+            + selectivity
+            + spec["barrier_offset"]
+        )
+    return float(min(barriers))
 
 
 def _truth(spec):
@@ -539,15 +559,38 @@ def _mean(records, field):
     return float(np.mean([float(row[field]) for row in records]))
 
 
-def _split_summary(records):
+@lru_cache(maxsize=1)
+def _reference_raw_scores():
+    anchors = {}
+    for split, specs in (
+        ("development", DEVELOPMENT_SPECS),
+        ("heldout", HELDOUT_SPECS),
+    ):
+        records = [
+            _evaluate_world(_reference_policy, spec, split, index)
+            for index, spec in enumerate(specs)
+        ]
+        if not all(row["valid"] for row in records):
+            raise RuntimeError(split + " independent reaction reference is invalid")
+        raw = _mean(records, "world_score")
+        abstention_floor = sum(row["kind"] != "supported" for row in records) / len(records)
+        if raw <= abstention_floor:
+            raise RuntimeError(split + " reaction reference has no discovery headroom")
+        anchors[split] = raw
+    return anchors
+
+
+def _split_summary(records, split):
     supported = [row for row in records if row["kind"] == "supported"]
     unsupported = [row for row in records if row["kind"] != "supported"]
     raw = _mean(records, "world_score")
     abstention_floor = len(unsupported) / len(records)
-    normalized = max((raw - abstention_floor) / (1.0 - abstention_floor), 0.0)
+    reference_raw = _reference_raw_scores()[split]
+    normalized = max((raw - abstention_floor) / (reference_raw - abstention_floor), 0.0)
     return {
         "normalized": float(normalized),
         "raw": raw,
+        "reference_raw": reference_raw,
         "mechanism_recovery": _mean(supported, "mechanism_recovery"),
         "false_discovery_rate": (
             sum(row["false_edge_count"] for row in records)
@@ -574,8 +617,8 @@ def evaluate(discover_reaction_network):
         records.append(_evaluate_world(discover_reaction_network, spec, split, index))
     development = [row for row in records if row["split"] == "development"]
     heldout = [row for row in records if row["split"] == "heldout"]
-    dev = _split_summary(development)
-    held = _split_summary(heldout)
+    dev = _split_summary(development, "development")
+    held = _split_summary(heldout, "heldout")
     development_valid = all(row["valid"] for row in development)
     result = {
         "combined_score": dev["normalized"] if development_valid else 0.0,
@@ -584,6 +627,7 @@ def evaluate(discover_reaction_network):
         "raw_score": dev["normalized"] if development_valid else 0.0,
         "development_mechanism_score": dev["normalized"],
         "development_raw_world_score": dev["raw"],
+        "development_reference_raw_world_score": dev["reference_raw"],
         "development_mechanism_recovery": dev["mechanism_recovery"],
         "development_false_discovery_rate": dev["false_discovery_rate"],
         "development_claimed_edge_count": dev["claimed_edge_count"],
@@ -594,6 +638,7 @@ def evaluate(discover_reaction_network):
         "development_confidence_calibration": dev["confidence_calibration"],
         "development_mean_probe_calls": dev["mean_probe_calls"],
         "heldout_mechanism_score": held["normalized"],
+        "heldout_reference_raw_world_score": held["reference_raw"],
         "heldout_mechanism_recovery": held["mechanism_recovery"],
         "heldout_false_discovery_rate": held["false_discovery_rate"],
         "heldout_claimed_edge_count": held["claimed_edge_count"],
@@ -612,37 +657,3 @@ def evaluate(discover_reaction_network):
     if not development_valid:
         result["error_message"] = "candidate invalid on one or more development worlds"
     return result
-
-
-def _reference_policy(problem, probe):
-    """Truth-blind exhaustive grammar witness using only charged probe responses."""
-    graphs = _enumerate_species_graphs(problem["atom_inventory"])
-    supported = {}
-    for left_key, right_key in itertools.permutations(graphs, 2):
-        allowed, _removed, _formed = _bond_exchange(left_key, right_key)
-        if not allowed:
-            continue
-        response = probe({"reactant": graphs[left_key], "product": graphs[right_key]})
-        if response["status"] == "model_inadequate":
-            return {"abstain": True, "confidence": 0.0}
-        if response["status"] == "supported":
-            supported[(left_key, right_key)] = float(response["activation_energy"])
-    if not supported:
-        return {"abstain": True, "confidence": 0.0}
-    species_keys = sorted({key for edge in supported for key in edge})
-    species = [graphs[key] for key in species_keys]
-    positions = {key: index for index, key in enumerate(species_keys)}
-    reactions = [
-        {
-            "reactant": positions[left],
-            "product": positions[right],
-            "activation_energy": barrier,
-        }
-        for (left, right), barrier in sorted(supported.items())
-    ]
-    return {
-        "species": species,
-        "reactions": reactions,
-        "abstain": False,
-        "confidence": 1.0,
-    }

@@ -7,14 +7,25 @@ previously unlisted molecular graphs and directed elementary-reaction edges, rec
 network and its activation energies, and decline when the public mechanism class has no supported
 edge or is inadequate?
 
-This is not `ReactionMechanismFitting` with a longer reaction list. There is no candidate species
-table and no candidate edge table. The submitted program must create the vertices and edges it
-wants to probe. The current cell uses a small graph grammar so that its oracle is exact and fast;
-future waves can enlarge the atom inventory and reaction grammar without changing the artifact.
-
 The oracle is a deterministic analytic graph-reaction benchmark. Its energies are not quantum
 chemistry, its atoms omit hydrogens and charge, and a high score is not evidence for a real
 reaction mechanism.
+
+## Relationship to neighbouring repository tasks
+
+- `ReactionMechanismFitting` fits parameters on a supplied reaction network; this task must create
+  species and edges with no candidate catalogue.
+- `CatalystDeactivationLab` identifies and mitigates time-dependent loss on a known catalytic
+  process; this task discovers a static graph network and includes explicit null/inadequate cases.
+- `MolecularLeadOptimization` optimizes molecular candidates against property objectives; this
+  task scores recovery and false discoveries of directed reaction edges.
+- `ForceFieldCalibration` estimates continuous interaction parameters from observations; this
+  task searches discrete graph topology and exact reduced barriers.
+- `DistillationColumnDesign` optimizes a known process flowsheet; it neither creates chemical
+  species nor discovers reaction connectivity.
+
+The current cell uses a small graph grammar so that its oracle is exact and fast. Later waves can
+enlarge the inventory and grammar, but this wave is not a relabelled instance of those neighbours.
 
 ## What to implement
 
@@ -58,7 +69,9 @@ Each species has exactly two fields:
 Atom indices are not chemical identities. The evaluator canonicalizes a coloured graph over all
 element-preserving atom permutations. Two isomorphic graphs are one species, and submitting both
 fails closed rather than earning duplicate credit. Directed edges are canonicalized by their
-canonical reactant and product graphs; duplicate edges also fail closed.
+canonical reactant and product graphs; duplicate edges also fail closed. When repeated elements
+admit several valid one-delete/one-add atom maps for the same canonical graph pair, the edge has
+the minimum activation barrier across those channels. The output does not select a hidden atom map.
 
 Every claimed reaction indexes two different submitted species. It must obey the public
 `elementary_edge_rule`: delete one single heavy-atom bond and form one different single bond while
@@ -88,7 +101,7 @@ invalidate that world. Repeating an edge costs another call.
 |---|---|
 | `atom_inventory` | conserved heavy-atom multiset; currently `C, C, N, O` |
 | `seed_species` | one valid starting graph, not a list of all possible species |
-| `probe_budget` | maximum charged calls, currently 80 |
+| `probe_budget` | maximum charged calls, currently 24 |
 | `max_claimed_species` | maximum number of submitted canonical species |
 | `max_claimed_reactions` | maximum number of submitted directed edges |
 | `allowed_bond_orders` | bond orders supported by this cell, currently `[1]` |
@@ -105,8 +118,23 @@ Supported worlds score a mechanism recovery value made from canonical reaction F
 F1 (20%), and activation-energy accuracy on correctly recovered edges (15%). Null and
 model-inadequate worlds score one only for refusal. The public `combined_score` averages those
 world outcomes and subtracts the credit earned by declining every world. Consequently an
-always-abstaining policy is valid and scores exactly `0.0`; an exhaustive charged-probe witness
-scores `1.0`.
+always-abstaining policy is valid and scores exactly `0.0`; the independent 24-query active-frontier
+witness defines `1.0`.
+
+The independent reference prioritizes unseen product graphs, then uses a fixed qualitative
+bond-strength rank as a low-barrier surrogate and public grammar branching as an information-gain
+tie-break. It depends only on the public problem, its explicit chemical prior, and at most 24
+charged probes. Its development raw score is the normalization anchor at `1.0`; an
+always-abstaining policy and the shipped confidently wrong legal edge both score `0.0`. The score
+is uncapped, so complete oracle recovery can exceed the budgeted reference rather than being hidden
+by clipping.
+
+The executable deterministic ladder is fixed wrong edge = blanket refusal = `0.0`, a 1024-ordering
+BFS sweep `0.9578902692868527`, budgeted reference `1.0`, and complete evaluator-only recovery
+`1.0421807272444035`. Removing novelty priority, the qualitative barrier surrogate, or public
+branching priority gives `0.9645472862744551`, `0.9257058383039174`, and
+`0.996111761955115`. These are algorithmic ablations inside a four-heavy-atom synthetic grammar;
+they do not certify chemical realism or long-horizon difficulty.
 
 The evaluator reports the four discovery axes separately:
 
@@ -132,6 +160,17 @@ score cannot erase false edges, blanket refusal, or failure to attempt discovery
   structure, kinetic validation, experimental products, uncertainty analysis and independent
   confirmation outside this benchmark.
 
+The references below motivate automated reaction-network exploration, graph transformations,
+barrier--reaction-energy relations and transition-state kinetics. The graph grammar, barrier
+formula and weights, world parameters, thresholds and probe budget are benchmark-chosen rather
+than literature-calibrated. Taking the minimum barrier over repeated-element mapping channels is a
+deterministic graph-pair convention; physical parallel-channel rate models would generally combine
+rates and degeneracies instead.
+
 References: Unsleber and Reiher, *J. Chem. Theory Comput.* (2022), SCINE Chemoton 2.0,
 DOI `10.1021/acs.jctc.2c00193`; Martínez-Núñez et al., *J. Comput. Chem.* (2021), AutoMeKin2021,
-DOI `10.1002/jcc.26734`.
+DOI `10.1002/jcc.26734`; Rosselló and Valiente, *Electronic Notes in Theoretical Computer Science*
+(2005), chemical graph transformation, DOI `10.1016/j.entcs.2004.12.033`; Evans and Polanyi,
+*Transactions of the Faraday Society* (1938), barrier--reaction-energy relation, DOI
+`10.1039/TF9383400011`; Eyring, *J. Chem. Phys.* (1935), transition-state kinetics, DOI
+`10.1063/1.1749604`.

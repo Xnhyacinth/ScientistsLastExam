@@ -8,14 +8,22 @@ barrier and process energy, while transferring across sealed material and proces
 
 The output is a process recipe, not a microstructure image. The evaluator evolves the recipe
 through a frozen reduced-order phase-field/coarsening model and then homogenizes its properties.
-That causal ordering distinguishes this task from phase-image generation and from
-`PhaseDiagramDiscovery`: the equilibrium phase set is not the unknown. It also differs from
-`AlloyHardnessOptimization`: the candidate creates continuous processing schedules rather than
-choosing rows from a finite literature table.
-
 This is a deterministic synthetic mechanism benchmark. The reduced quantities are not validated
 for any named commercial polymer or alloy. A high score is evidence only that a search policy
 improved this frozen process--structure--property oracle, not that it discovered a real material.
+
+## Relationship to neighbouring repository tasks
+
+- `PhaseDiagramDiscovery` discovers equilibrium phase topology; here the unknown is a
+  manufacturable processing archive and the order is process, microstructure, then property.
+- `AlloyHardnessOptimization` chooses alloy candidates from a finite evidence table; here all five
+  continuous process coordinates are constructed by the candidate.
+- `ElectrolyteConductivityDesign` optimizes formulation-level conductivity evidence; this task
+  jointly scores modulus, barrier transport and processing energy after simulated morphology.
+- `MolecularLeadOptimization` searches molecular structures; this task holds constituent identity
+  fixed and changes composition, thermal history, cooling and draw.
+- `DistillationColumnDesign` optimizes separation equipment; this task models material
+  microstructure formation and homogenized solid properties, not a process flowsheet.
 
 ## What to implement
 
@@ -65,6 +73,7 @@ Every key passed to `design_process_archive` is listed here:
 | `grid_cells` | spatial cells in the frozen one-dimensional reduced model |
 | `constituent_properties` | public nominal `reduced_modulus` and `reduced_permeability` pairs |
 | `critical_temperature_estimate` | public nominal spinodal threshold estimate |
+| `reference_search` | declared 1024-point Latin-hypercube construction, two 11-point-per-axis coordinate-exchange passes, low-fidelity proxy coefficients, objective normalization and 20-row archive size used by the reproducible reference policy |
 | `phase_field_model` | description of spectral conserved growth and coarsening closure |
 | `homogenization_model` | description of the frozen Voigt--Reuss property closure |
 | `objectives` | rows with objective `name` and optimization `sense` |
@@ -78,11 +87,20 @@ penalty and cooling-dependent coarsening suppress fine structure; bounded nonlin
 keeps the phase field physical and its mean composition is restored after clipping. The evaluator
 does not expose or score an image.
 
-The resulting local field enters a Voigt--Reuss interpolation. Crystallinity, interface density
-and draw orientation modify a reduced specific modulus and permeability-derived barrier index.
-Anneal time and temperature, drawing, and slow cooling contribute to reduced process energy. This
-is a frozen mechanistic surrogate with declared shortcuts, not a neural surrogate and not a
-first-principles prediction.
+The resulting local field enters a Voigt--Reuss interpolation. Crystallization is mobility-limited:
+`Xc = Xeq * (1 - exp(-k * t_eff * exp(-Ec / (T + T0))))`, with world mobility multiplying `k`.
+The frozen reduced constants `Ec=7` and `k=700` keep a low-temperature long anneal from standing
+in for a temperature-resolved kinetic search; cooling enters `Xeq` with coefficient `0.30`. Draw
+orientation applies an explicit `0.35` modulus gain and a competing `0.20` permeability penalty.
+Crystallinity, interface density and draw therefore modify a reduced specific modulus and
+permeability-derived barrier index. Anneal time and temperature, drawing, and slow cooling
+contribute to reduced process energy, whose `7.5` normalization covers the reachable bounded
+energy envelope. Every scored coefficient and every reference-search setting has one source in
+the machine-readable panel. The cited literature motivates only the phase-field, crystallization,
+homogenization, transport and process-energy modelling families; all reduced coefficients, their
+combination, the worlds and the search settings are benchmark-chosen rather than literature
+calibrated. This is a frozen mechanistic surrogate with declared shortcuts, not a neural surrogate
+and not a first-principles prediction.
 
 ## Pareto scoring and continuing improvement
 
@@ -95,8 +113,21 @@ Each feasible process becomes one point with three maximize-oriented coordinates
 The evaluator computes exact three-dimensional hypervolume relative to the zero corner. Additional
 non-dominated schedules can therefore add continuous marginal volume instead of only passing a
 threshold. `combined_score` is development hypervolume normalized so the shipped conservative
-four-process archive scores `0.0` and a 20-process public-model witness scores `1.0`. The score is
-uncapped: a better archive can exceed the witness.
+four-process archive scores `0.0` and the independent public-problem-only 20-process witness scores
+`1.0`. That witness performs greedy proxy-hypervolume selection over a declared deterministic
+1024-point Latin hypercube, followed by two deterministic 11-point-per-axis coordinate-exchange
+passes, using only the problem mapping. It neither imports nor queries the scored phase-field
+model. The score is uncapped: a better archive can exceed the witness.
+
+The executable deterministic ladder is baseline `0.0`; a 441-point blend--temperature shortcut
+`0.24854152762865947`; three 343-point coordinate-subspace shortcuts `0.6919779457497287`,
+`0.2987325943208072`, and `0.4519928224629508`; reference `1.0`; and an evaluator-aware
+coordinate-exchange red team `1.0050830170752605`. A public-only 2048-point pool with the same
+refinement scores `1.00037415439912`, showing that scalar pool-size inflation is on the reference
+platform rather than an easy improvement. Reference-archive ablations score
+`0.5240992860282923` without draw, `0.7647896745827635` at shortest time,
+`0.7708825121464876` at fastest cooling, and `0.6727115591109907` at one low temperature. These
+tests establish local separation and uncapped headroom, not model-level or long-horizon hardness.
 
 Reported separately are `development_hypervolume_score`,
 `development_shifted_hypervolume_score`, feasibility, raw hypervolume, mean specific modulus,
@@ -121,7 +152,13 @@ prevents a non-transferring archive from entering the cross-wave ledger.
 - Real material claims require calibrated constituent data, higher-dimensional morphology,
   processing constraints, experimental manufacture, microscopy and independent property tests.
 
-References: Chen, *Annual Review of Materials Research* (2002), phase-field models for
-microstructure evolution, DOI `10.1146/annurev.matsci.32.112001.132041`; Brough et al.,
-*Integrating Materials and Manufacturing Innovation* (2017), Materials Knowledge Systems in
-Python, DOI `10.1007/s40192-017-0098-9`.
+References: Cahn and Hilliard, *J. Chem. Phys.* (1958), conserved free-energy evolution, DOI
+`10.1063/1.1744102`; Avrami, *J. Chem. Phys.* (1939), transformation kinetics, DOI
+`10.1063/1.1750380`; Chen, *Annual Review of Materials Research* (2002), phase-field models, DOI
+`10.1146/annurev.matsci.32.112001.132041`; Hill, *Proc. Phys. Soc. A* (1952), Voigt--Reuss
+averaging, DOI `10.1088/0370-1298/65/5/307`; Nielsen, *J. Macromol. Sci. A* (1967), composite
+permeability, DOI `10.1080/10601326708053745`; Ng et al., *Polymer* (2000), draw-dependent
+polymer properties, DOI `10.1016/S0032-3861(99)00760-0`; Gutowski et al., *Environmental Science
+& Technology* (2009), manufacturing energy, DOI `10.1021/es8016655`; Brough et al., *Integrating
+Materials and Manufacturing Innovation* (2017), materials knowledge systems, DOI
+`10.1007/s40192-017-0089-0`.

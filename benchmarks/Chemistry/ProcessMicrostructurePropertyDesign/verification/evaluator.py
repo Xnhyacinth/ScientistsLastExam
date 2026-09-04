@@ -8,6 +8,7 @@ this frozen synthetic cell; they are not evidence of a real material discovery.
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import math
@@ -42,7 +43,7 @@ HYPERVOLUME_REFERENCE_POINT = tuple(
 OBJECTIVE_NORMALIZATION = _PANEL["objective_normalization"]
 MODEL_PARAMETERS = _PANEL["model_parameters"]
 BASELINE_POLICY = _PANEL["baseline_policy"]
-REFERENCE_POLICY = _PANEL["reference_policy"]
+REFERENCE_SEARCH = _PANEL["reference_search"]
 FRONTIER_PROMOTION = _PANEL["frontier_promotion"]
 WORLDS = tuple(dict(world) for world in _PANEL["worlds"])
 SHIFT_SPECS = tuple(dict(shift) for shift in _PANEL["shift_specs"])
@@ -57,12 +58,27 @@ def _load_contract(name, filename):
     return module
 
 
+def _load_reference(name):
+    frozen = _PANEL["reference_policy"]
+    path = TASK_DIR / frozen["path"]
+    if hashlib.sha256(path.read_bytes()).hexdigest() != frozen["sha256"]:
+        raise RuntimeError("independent reference policy hash differs")
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("unable to load independent reference policy")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 _CANONICALIZER = _load_contract(
     "process_microstructure_canonicalizer", "process_canonicalizer_v1.py"
 )
 _EVIDENCE = _load_contract(
     "process_microstructure_evidence", "evidence_predicate_v1.py"
 )
+_REFERENCE = _load_reference("process_microstructure_reference")
+_reference_policy = _REFERENCE.design_process_archive
 
 
 DEVELOPMENT_WORLDS = tuple(world for world in WORLDS if world["split"] == "development")
@@ -70,6 +86,10 @@ HELDOUT_WORLDS = tuple(world for world in WORLDS if world["split"] == "heldout")
 
 
 def _problem(world):
+    proxy_parameters = {
+        name: MODEL_PARAMETERS["properties"][name]
+        for name in REFERENCE_SEARCH["proxy_parameter_names"]
+    }
     return {
         "process_fields": list(PROCESS_FIELDS),
         "bounds": {key: list(value) for key, value in BOUNDS.items()},
@@ -81,6 +101,38 @@ def _problem(world):
             "reduced_permeability": [world["permeability_a"], world["permeability_b"]],
         },
         "critical_temperature_estimate": world["critical_temperature"],
+        "reference_search": {
+            "pool_size": REFERENCE_SEARCH["pool_size"],
+            "archive_size": REFERENCE_SEARCH["archive_size"],
+            "coordinate_refinement_passes": REFERENCE_SEARCH[
+                "coordinate_refinement_passes"
+            ],
+            "coordinate_refinement_points_per_axis": REFERENCE_SEARCH[
+                "coordinate_refinement_points_per_axis"
+            ],
+            "latin_hypercube_multipliers": list(
+                REFERENCE_SEARCH["latin_hypercube_multipliers"]
+            ),
+            "latin_hypercube_offsets": list(
+                REFERENCE_SEARCH["latin_hypercube_offsets"]
+            ),
+            "proxy_parameters": proxy_parameters,
+            "objective_normalization": {
+                "specific_modulus": dict(
+                    OBJECTIVE_NORMALIZATION["specific_modulus"]
+                ),
+                "barrier_index": dict(
+                    OBJECTIVE_NORMALIZATION["barrier_index"]
+                ),
+                "process_energy_maximum": OBJECTIVE_NORMALIZATION[
+                    "process_energy"
+                ]["maximum"],
+                "clip": {
+                    "minimum": OBJECTIVE_NORMALIZATION["objective_clip"][0],
+                    "maximum": OBJECTIVE_NORMALIZATION["objective_clip"][1],
+                },
+            },
+        },
         "phase_field_model": (
             "frozen one-dimensional linearized conserved phase-field growth with bounded "
             "nonlinear saturation and a coarsening closure"
@@ -162,29 +214,6 @@ def _weak_archive(problem):
     ]
 
 
-def _reference_policy(problem):
-    """Public-model design witness; it contains the weak archive and 16 added schedules."""
-    bounds = problem["bounds"]
-    low, high = bounds["blend_fraction_b"]
-    rows = _weak_archive(problem)
-    fractions = REFERENCE_POLICY["blend_unit_fractions"]
-    temperatures = REFERENCE_POLICY["anneal_temperatures"]
-    times = REFERENCE_POLICY["anneal_times"]
-    cooling = REFERENCE_POLICY["cooling_rates"]
-    draws = REFERENCE_POLICY["draw_ratios"]
-    for fraction_index, temperature_index, time_index, cooling_index, draw_index in (
-        REFERENCE_POLICY["schedule_indices"]
-    ):
-        rows.append({
-            "blend_fraction_b": low + fractions[fraction_index] * (high - low),
-            "anneal_temperature": temperatures[temperature_index],
-            "anneal_time": times[time_index],
-            "cooling_rate": cooling[cooling_index],
-            "draw_ratio": draws[draw_index],
-        })
-    return {"processes": rows}
-
-
 def _phase_field(world, process):
     """Stable spectral reduced-order phase field with an exactly conserved mean."""
     parameters = MODEL_PARAMETERS["phase_field"]
@@ -246,15 +275,32 @@ def _properties(world, process):
     contrast = float(np.std(field))
     interface = float(np.mean(np.abs(np.roll(field, -1) - field)))
     temperature = process["anneal_temperature"]
-    crystallinity = 1.0 / (
+    equilibrium_crystallinity = 1.0 / (
         1.0 + math.exp(
-            parameters["crystallinity_temperature_coefficient"]
-            * (temperature - parameters["crystallinity_temperature_reference"])
-            - parameters["crystallinity_time_coefficient"]
-            * math.log1p(process["anneal_time"])
-            + parameters["crystallinity_cooling_coefficient"]
+            parameters["crystallinity_equilibrium_temperature_coefficient"]
+            * (
+                temperature
+                - parameters["crystallinity_equilibrium_temperature_reference"]
+            )
+            + parameters["crystallinity_equilibrium_cooling_coefficient"]
             * process["cooling_rate"]
         )
+    )
+    effective_time = (
+        process["anneal_time"]
+        + parameters["crystallization_effective_time_cooling_coefficient"]
+        / process["cooling_rate"]
+    )
+    crystallization_rate = (
+        parameters["crystallization_rate_constant"]
+        * world["mobility_scale"]
+        * math.exp(
+            -parameters["crystallization_activation_energy"]
+            / (temperature + parameters["crystallization_temperature_offset"])
+        )
+    )
+    crystallinity = equilibrium_crystallinity * (
+        1.0 - math.exp(-crystallization_rate * effective_time)
     )
     draw_low, draw_high = BOUNDS["draw_ratio"]
     orientation = (process["draw_ratio"] - draw_low) / (draw_high - draw_low)
@@ -274,6 +320,7 @@ def _properties(world, process):
         parameters["crystallinity_base"]
         + parameters["crystallinity_gain"] * crystallinity
     )
+    modulus *= 1.0 + parameters["draw_modulus_gain"] * orientation
     modulus *= max(
         parameters["minimum_interface_factor"],
         parameters["interface_factor_base"]
@@ -296,6 +343,9 @@ def _properties(world, process):
          + parameters["permeability_orientation_weight"] * orientation) * parallel
         + (parameters["permeability_series_base"]
            - parameters["permeability_orientation_weight"] * orientation) * series
+    )
+    effective_permeability *= (
+        1.0 + parameters["draw_permeability_penalty"] * orientation
     )
     tortuosity = (
         parameters["tortuosity_base"]
@@ -339,6 +389,7 @@ def _properties(world, process):
         "specific_modulus": specific_modulus,
         "barrier_index": barrier_index,
         "process_energy": energy,
+        "crystallinity": crystallinity,
         "phase_contrast": contrast,
         "interface_density": interface,
         "objectives": objectives,

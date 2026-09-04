@@ -22,7 +22,7 @@
   "objective_normalization": {
     "specific_modulus": {"offset": 1.2, "scale": 4.4},
     "barrier_index": {"offset": 0.70, "scale": 5.5},
-    "process_energy": {"maximum": 12.0},
+    "process_energy": {"maximum": 7.5},
     "objective_clip": [0.0, 1.0],
     "score_floor": 0.0,
     "anchor_headroom_tolerance": 1e-8
@@ -44,15 +44,19 @@
       "mean_restore_iterations": 4
     },
     "properties": {
-      "crystallinity_temperature_coefficient": 5.0,
-      "crystallinity_temperature_reference": 0.70,
-      "crystallinity_time_coefficient": 0.55,
-      "crystallinity_cooling_coefficient": 0.10,
+      "crystallinity_equilibrium_temperature_coefficient": 5.0,
+      "crystallinity_equilibrium_temperature_reference": 0.70,
+      "crystallinity_equilibrium_cooling_coefficient": 0.30,
+      "crystallization_rate_constant": 700.0,
+      "crystallization_activation_energy": 7.0,
+      "crystallization_temperature_offset": 0.22,
+      "crystallization_effective_time_cooling_coefficient": 0.65,
       "modulus_voigt_base": 0.45,
       "modulus_orientation_weight": 0.40,
       "modulus_reuss_base": 0.55,
       "crystallinity_base": 0.80,
       "crystallinity_gain": 0.28,
+      "draw_modulus_gain": 0.35,
       "minimum_interface_factor": 0.60,
       "interface_factor_base": 1.0,
       "density_base": 1.0,
@@ -60,6 +64,7 @@
       "permeability_parallel_base": 0.25,
       "permeability_orientation_weight": 0.55,
       "permeability_series_base": 0.75,
+      "draw_permeability_penalty": 0.20,
       "tortuosity_base": 1.0,
       "tortuosity_contrast_coefficient": 2.2,
       "tortuosity_interface_coefficient": 3.0,
@@ -81,16 +86,41 @@
     "draw_ratio_bound": "lower"
   },
   "reference_policy": {
-    "blend_unit_fractions": [0.0, 0.25, 0.50, 0.75, 1.0],
-    "anneal_temperatures": [0.50, 0.58, 0.68, 0.80],
-    "anneal_times": [3.0, 6.0, 9.0, 12.0],
-    "cooling_rates": [0.30, 0.65, 1.20, 2.40],
-    "draw_ratios": [1.35, 2.10, 2.85, 3.70],
-    "schedule_indices": [
-      [0, 0, 0, 0, 0], [2, 1, 3, 0, 1], [4, 2, 2, 1, 2], [1, 3, 1, 1, 3],
-      [3, 0, 0, 2, 1], [0, 1, 3, 2, 2], [2, 2, 2, 3, 3], [4, 3, 1, 3, 0],
-      [1, 0, 0, 0, 2], [3, 1, 3, 0, 3], [0, 2, 2, 1, 0], [2, 3, 1, 1, 1],
-      [4, 0, 0, 2, 3], [1, 1, 3, 2, 0], [3, 2, 2, 3, 1], [0, 3, 1, 3, 2]
+    "path": "verification/reference_process_archive.py",
+    "sha256": "f8e07afefb67fa1b81baaef3dee76ab76ac777bff9fdb5e3f1e9a0ae77c2ec83"
+  },
+  "reference_search": {
+    "pool_size": 1024,
+    "archive_size": 20,
+    "coordinate_refinement_passes": 2,
+    "coordinate_refinement_points_per_axis": 11,
+    "latin_hypercube_multipliers": [1, 73, 127, 181, 239],
+    "latin_hypercube_offsets": [0, 19, 43, 71, 101],
+    "proxy_parameter_names": [
+      "crystallinity_equilibrium_temperature_coefficient",
+      "crystallinity_equilibrium_temperature_reference",
+      "crystallinity_equilibrium_cooling_coefficient",
+      "crystallization_rate_constant",
+      "crystallization_activation_energy",
+      "crystallization_temperature_offset",
+      "modulus_voigt_base",
+      "modulus_orientation_weight",
+      "modulus_reuss_base",
+      "crystallinity_base",
+      "crystallinity_gain",
+      "draw_modulus_gain",
+      "density_base",
+      "density_blend_coefficient",
+      "permeability_parallel_base",
+      "permeability_orientation_weight",
+      "permeability_series_base",
+      "draw_permeability_penalty",
+      "energy_time_base",
+      "energy_temperature_coefficient",
+      "energy_temperature_reference",
+      "energy_draw_coefficient",
+      "energy_draw_exponent",
+      "energy_cooling_coefficient"
     ]
   },
   "frontier_promotion": {
