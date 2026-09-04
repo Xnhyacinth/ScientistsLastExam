@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -47,6 +48,21 @@ class RationalDiophantineTupleTests(unittest.TestCase):
         self.assertEqual(size, 6)
         self.assertEqual(metrics["reference_size"], 6)
         self.assertEqual(metrics["combined_score"], 1.0)
+
+    def test_evaluator_uses_the_hash_bound_panel_as_its_source_of_limits_and_anchors(self):
+        evaluator = _load("verification/evaluator.py", "rational_tuple_panel")
+        panel = json.loads(
+            (TASK_DIR / "frontier_eval/contracts/evaluation_panel_v1.json").read_text(
+                encoding="utf-8"
+            )
+        )
+
+        self.assertEqual(
+            evaluator.MAX_ENTRIES,
+            panel["resource_limits"]["maximum_submitted_entries"],
+        )
+        self.assertEqual(evaluator._reference_witness(), panel["reference_witness"])
+        self.assertEqual(evaluator._baseline_size(), len(panel["baseline_witness"]))
 
     def test_equivalent_fraction_spellings_do_not_pad_cardinality(self):
         evaluator = _load("verification/evaluator.py", "rational_tuple_dedup")

@@ -7,18 +7,32 @@ floating-point approximation enters the feasibility decision.
 from __future__ import annotations
 
 import importlib.util
+import json
 from collections.abc import Mapping
 from fractions import Fraction
 from math import isqrt
 from pathlib import Path
 
 
-MAX_ENTRIES = 64
-MAX_INTEGER_DIGITS = 1000
-MAX_TOTAL_DIGITS = 16_000
-_MAX_INTEGER_BITS = 3322
 TASK_DIR = Path(__file__).resolve().parent.parent
 CONTRACT_DIR = TASK_DIR / "frontier_eval" / "contracts"
+
+
+def _load_panel():
+    panel = json.loads(
+        (CONTRACT_DIR / "evaluation_panel_v1.json").read_text(encoding="utf-8")
+    )
+    if panel.get("schema_version") != 1:
+        raise RuntimeError("invalid frozen evaluation panel")
+    return panel
+
+
+_PANEL = _load_panel()
+_LIMITS = _PANEL["resource_limits"]
+MAX_ENTRIES = int(_LIMITS["maximum_submitted_entries"])
+MAX_INTEGER_DIGITS = int(_LIMITS["maximum_decimal_digits_per_integer"])
+MAX_TOTAL_DIGITS = int(_LIMITS["maximum_total_integer_digits"])
+_MAX_INTEGER_BITS = 3322
 
 
 def _load_contract(name, filename):
@@ -118,10 +132,7 @@ def verify_tuple(raw) -> tuple[bool, int, str]:
 
 def _reference_witness():
     """A published rational sextuple, retained so the score anchor is executable."""
-    return [
-        [11, 192], [35, 192], [155, 27], [512, 27],
-        [1235, 48], [180873, 16],
-    ]
+    return [list(pair) for pair in _PANEL["reference_witness"]]
 
 
 def _reference_size() -> int:
@@ -132,7 +143,10 @@ def _reference_size() -> int:
 
 
 def _baseline_size() -> int:
-    return len({Fraction(1), Fraction(3), Fraction(8), Fraction(120)})
+    valid, size, reason = verify_tuple(_PANEL["baseline_witness"])
+    if not valid:
+        raise RuntimeError("bundled baseline witness failed verification: %s" % reason)
+    return size
 
 
 def _normalized(value: float, baseline: float, sota: float) -> float:

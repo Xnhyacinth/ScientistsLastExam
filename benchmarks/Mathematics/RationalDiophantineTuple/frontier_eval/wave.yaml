@@ -18,4 +18,4 @@ cells:
       evidence_predicate_path: frontier_eval/contracts/evidence_predicate_v1.py
       evidence_predicate_sha256: "812e90a51a85b3f605afc05204c290a8723d32b4a08592ecb7cd0ae53cf78e9c"
       evaluation_panel_path: frontier_eval/contracts/evaluation_panel_v1.json
-      evaluation_panel_sha256: "de9bd604182368961de58d35d394e1695035b0ce1f2903b318fb348ada205e5c"
+      evaluation_panel_sha256: "12dda3edf0c248842cad919d0c504bfe0980c3cb2a4bdb1c655ad6043a491851"

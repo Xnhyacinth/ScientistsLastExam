@@ -634,3 +634,53 @@ tasks:
       - doi:10.1103/PhysRevLett.93.165501
       - doi:10.1016/0375-9601(74)90847-0
       - doi:10.1063/1.1723844
+
+  ScientificComputing/AdaptiveConservativePDEMethod:
+    status: candidate
+    reason: >-
+      deterministic seven-world one-dimensional scalar conservation-law method-design prototype
+      with exact discrete flux-balance accounting, smooth/shock/stability/work axes, an executable
+      weak baseline and reference, held-out reporting, CandidateProxy isolation and a hash-bound
+      immutable frontier wave; a hand-designed legal method reaches 1.197 above the reference, so
+      score headroom exists, but hard/T2 remains uncalibrated pending paired HY3 runs, independent
+      numerical-PDE review, convergence and entropy analysis, broader equations and application
+      validation
+    citation_ids:
+      - doi:10.1016/0021-9991(79)90145-1
+      - doi:10.1016/0021-9991(88)90177-5
+  Mathematics/RationalDiophantineTuple:
+    status: candidate
+    reason: >-
+      exact Fraction and integer-square verifier with canonical rational de-duplication, explicit
+      output budgets, an executable published sextuple reference and an uncapped immutable frontier
+      wave; matching size six is public-answer reconstruction and no septuple is currently known,
+      so the task is a high-risk open-problem candidate rather than evidence of guaranteed
+      long-horizon headroom or arbitrarily increasing scores, pending independent number-theory
+      review and paired HY3 calibration
+    citation_ids:
+      - arxiv:math/9902081
+      - arxiv:1507.00569
+      - url:https://epoch.ai/frontiermath/open-problems/diophantine-septuple
+  ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery:
+    status: candidate
+    reason: >-
+      deterministic open-vocabulary analytic reaction-network prototype with seed-reachable
+      species expansion, atom-map-invariant elementary edge checks, charged probes, candidate
+      session reset, separate recovery/FDR/refusal/attempt axes and canonical discovery records;
+      its small public graph grammar is exhaustible and synthetic, so it is not yet hard, scalable
+      or real-chemistry discovery evidence pending paired HY3 calibration, server-held chemistry,
+      higher-fidelity confirmation and independent kinetics review
+    citation_ids:
+      - doi:10.1021/acs.jctc.2c00193
+  MaterialsScience/ProcessMicrostructurePropertyDesign:
+    status: candidate
+    reason: >-
+      deterministic reduced-order process-to-microstructure-to-property Pareto-design prototype
+      with quantized manufacturing identity, public-model and sealed-shift reporting, an immutable
+      optimization wave, a held-out/shifted frontier-promotion gate and executable anchors; the first draft admitted a dominating corner
+      policy and was reworked to create genuine constituent trade-offs, but hard/T2 and scientific
+      materiality remain unverified pending paired HY3 calibration, independent Pareto
+      recomputation, higher-fidelity phase-field/homogenization replication and external materials
+      and process review
+    citation_ids:
+      - doi:10.1146/annurev.matsci.32.112001.132041
