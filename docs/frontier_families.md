@@ -48,12 +48,16 @@ cells:
       evidence_predicate_sha256: <sha256-of-versioned-verification-artifact>
       evaluation_panel_path: frontier_eval/contracts/pde_panel_v1.json
       evaluation_panel_sha256: <sha256-of-frozen-cell-panel>
+      oracle_path: verification/evaluator.py
+      oracle_sha256: <sha256-of-complete-evaluator-oracle>
 ```
 
 For a discovery cell use `kind: discovery`, replace the objective fields with a positive
 `credit_per_claim`, and add a stable `novelty_namespace`. The semantic contract binds the
-versioned canonicalizer, confirmation predicate, and frozen evaluation panel; paths must stay in
-the task package and their bytes must match the declared hashes. The loader derives
+versioned canonicalizer, confirmation predicate, frozen evaluation panel, and complete evaluator
+oracle; paths must stay in the task package and their bytes must match the declared hashes. The
+oracle binding prevents scoring, feasibility, and numerical semantics outside the smaller contract
+artifacts from changing silently. The loader derives
 `definition_sha256` from the
 normalized cell semantics.
 Authors may include that hash explicitly; a mismatch is rejected. A cell ID cannot later be
