@@ -2,9 +2,9 @@
 
 ## Scientific question
 
-Can one deterministic finite-volume method balance accuracy, nonlinear stability, exact discrete
-conservation and cell-stage cost across a frozen panel of smooth and discontinuous scalar
-conservation laws?
+Can one deterministic finite-volume method improve cell-average accuracy across a frozen panel of
+smooth and discontinuous scalar conservation laws while balancing nonlinear stability and work
+under a hard work budget and the shared discrete-conservation integrity gate?
 
 This task asks for a numerical method, not the solution of one supplied PDE instance. The same
 method is replayed on seven repository-visible worlds spanning positive and negative linear
@@ -91,7 +91,8 @@ chosen Rusanov or exact scalar Godunov flux is integrated by Euler, SSPRK2 or SS
 
 Periodic cases measure mass drift. Fixed-boundary Burgers cases integrate the numerical boundary
 flux with the same Runge--Kutta weights and measure the complete discrete balance residual. Smooth
-and discontinuous exact solutions are cell-averaged with a frozen deterministic quadrature.
+and discontinuous exact solutions are cell-averaged by frozen closed-form antiderivatives, including
+periodic wrap and moving shock or rarefaction intersections with each cell.
 
 Before simulation, a conservative stage-count bound rejects configurations above the public
 `max_work_units_per_case`; realized work is checked again. Thus extremely small CFL factors at a
@@ -106,8 +107,12 @@ Each world reports four separate axes:
 3. maximum-principle overshoot and total-variation growth;
 4. realized cell-stage work.
 
-A frozen utility weights accuracy, stability, conservation and work by 0.72, 0.14, 0.10 and 0.04.
-Development utility then weights smooth and shock regime means by 0.8 and 0.2. `combined_score`
+A frozen utility reports terms weighted by 0.72, 0.14, 0.10 and 0.04 for accuracy, stability,
+conservation and work. Conservation is also a hard evidence gate and is nearly invariant for every
+accepted shared-face flux-difference method; it is an integrity diagnostic, not a separately learned
+capability. The primary estimand is therefore the accuracy--stability--work tradeoff under a hard
+work budget.
+Development utility weights smooth and shock regime means by 0.8 and 0.2. `combined_score`
 affinely normalizes that utility so the shipped first-order 32-cell Rusanov/Euler method is exactly
 `0.0`, while an independently executable adaptive high-order witness is exactly `1.0`. Its exact
 configuration is evaluator-only rather than a candidate template. The reference is not asserted
@@ -115,12 +120,12 @@ to be optimal and the nonnegative fixed-wave score is
 uncapped at its reference: a legal method can exceed 1. Three held-out worlds repeat all four axes
 but never enter `combined_score`.
 
-The reference development utility is `0.9705735256` and its held-out utility is `0.9720333072`.
-Removing its sensor blend scores `0.978254`; delaying the sensor scores `0.994227`; replacing
-the high-order reconstruction by MUSCL scores `0.973685`; using a coarser grid scores `0.990461`;
-lower-order time integration scores `0.985253`; and a more dissipative flux scores `0.996003`. A
-432-method nonadaptive grid probe reached at
-most `0.988554`, below the reference. These figures show that every named reference capability
+The reference development utility is `0.9705475629` and its held-out utility is `0.9720236480`.
+Removing its sensor blend scores `0.978250`; delaying the sensor scores `0.994197`; replacing
+the high-order reconstruction by MUSCL scores `0.973684`; using a coarser grid scores `0.990420`;
+lower-order time integration scores `0.985257`; and jointly replacing the solver by Rusanov and
+setting its dissipation multiplier to 1.5 scores `0.996005`. A 432-method nonadaptive grid probe
+reached at most `0.988555`, below the reference. These figures show that every named reference capability
 affects this panel; they do not establish global optimality or model difficulty.
 
 The evaluator also emits one canonical optimization record tied to the frozen method

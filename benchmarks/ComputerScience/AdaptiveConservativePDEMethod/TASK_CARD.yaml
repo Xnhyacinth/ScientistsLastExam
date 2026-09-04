@@ -1,14 +1,14 @@
 schema_version: 2
-scientific_question: Can one deterministic adaptive finite-volume method improve accuracy, nonlinear stability, discrete conservation and cell-stage efficiency across a frozen smooth-and-shock scalar conservation-law panel?
+scientific_question: Can one deterministic adaptive finite-volume method improve cell-average accuracy across a frozen smooth-and-shock scalar conservation-law panel while balancing nonlinear stability and work under a hard work budget and satisfying the shared discrete-conservation gate?
 artifact: One exact-field numerical-method design containing a reconstruction, limiter, Riemann solver, time integrator, grid resolution, CFL factor, curvature-sensor threshold, shock blend and flux-dissipation coordinate.
 oracle:
-  model: Deterministic one-dimensional finite-volume replay of constant-coefficient advection and inviscid Burgers equations using frozen analytic cell-average targets.
+  model: Deterministic one-dimensional finite-volume replay of constant-coefficient advection and inviscid Burgers equations using closed-form cell-average targets for smooth, wrapped and Riemann profiles.
   feasibility: One invariant exact-field method, finite public-bounded continuous coordinates, documented discrete choices, and no world exceeding 120000 cell-stage work units; malformed, inconsistent, nonfinite, exception-producing and overbudget methods fail closed.
   deterministic: true
 normalization:
   baseline: Legal 32-cell piecewise-constant Rusanov/Euler method with CFL 0.45 and dissipation multiplier 1.15.
   reference: Executable 192-cell adaptive WENO3/Superbee/Godunov/SSPRK3 witness with curvature-triggered fallback; it is not a global optimum.
-  score: Smooth/shock-stratified four-world development utility over accuracy, stability, conservation and work, affinely normalized above the baseline and uncapped at the reference; all held-out axes remain separate.
+  score: Smooth/shock-stratified four-world utility whose primary estimand is an accuracy--stability--work tradeoff under a hard work budget; the conservation term audits the shared conservative update and the evidence predicate gates balance failure. It is affinely normalized above the baseline and uncapped at the reference; all held-out axes remain separate.
 citations:
 - id: doi:10.1016/0021-9991(79)90145-1
   title: Towards the ultimate conservative difference scheme. V. A second-order sequel to Godunov's method
@@ -21,16 +21,16 @@ invariants:
 - the same public problem mapping is presented independently at all seven scientific world boundaries and one canonical method is required
 - candidate process, module, imported-module and private temporary-filesystem state is reset between panel worlds
 - every update is a conservative numerical flux difference and fixed-boundary balance uses the matching Runge--Kutta flux quadrature
-- smooth and shock accuracy, stability, conservation and cell-stage work remain separately reported
+- accuracy, stability, discrete balance and cell-stage work remain separately reported; conservation is a shared conservative-update integrity gate rather than a separately learned capability
 - the four development worlds alone determine combined_score; three held-out worlds do not affect selection
 - the legal weak baseline scores exactly zero, the executable witness scores exactly one, and better utilities can exceed one
 - inactive DSL coordinates are canonicalized away before artifact identity is assigned
 - evaluator-produced frontier_records bind the canonical method to the frozen evidence predicate and evaluation panel
 - later task-family expansion requires a new immutable wave rather than mutation of this panel
-known_shortcuts: A first 216-point audit of the original MUSCL task found that removing the sensor improved the score to 1.104486, so that oracle was rejected before freeze. After adding WENO3 with sensor-triggered fallback, a 432-method nonadaptive grid over reconstruction, limiter, flux, integrator, grid and CFL reached 0.988554, below the reference. A 48-point local CFL/sensor search around the formerly exposed reference found score 1.002078 and raw utility 0.971695106; the exact reference was removed from agent-visible text and the found point is now the wave ledger incumbent, so its reconstruction earns no lifetime credit. The visible seven-world one-dimensional uniform-grid panel remains susceptible to direct deterministic search and omits convergence proofs, systems, multidimensional meshes, stiffness, general positivity, parallel cost and application validation. T2 and hard remain candidate labels pending external numerical-PDE review and HY3 calibration.
+known_shortcuts: A first 216-point audit of the original MUSCL task found that removing the sensor improved the score to 1.104486, so that oracle was rejected before freeze. After adding WENO3 with sensor-triggered fallback, a 432-method nonadaptive grid over reconstruction, limiter, flux, integrator, grid and CFL reached 0.988555, below the reference. A 48-point local CFL/sensor search around the formerly exposed reference found score 1.002071 and raw utility 0.9716657335; the exact reference was removed from agent-visible text and the found point is now the wave ledger incumbent, so its reconstruction earns no lifetime credit. The visible seven-world one-dimensional uniform-grid panel remains susceptible to direct deterministic search and omits convergence proofs, systems, multidimensional meshes, stiffness, general positivity, parallel cost and application validation. T2 and hard remain candidate labels pending external numerical-PDE review and HY3 calibration.
 review:
   domain: pending_external_numerical_pde_and_finite_volume_review
-  evaluator_security: automated_baseline_reference_headroom_conservation_schema_budget_determinism_session_reset_wave_hash_and_frontier_record_tests
+  evaluator_security: analytic-cell-average and independent adaptive-quadrature regressions, independent second finite-volume replay, ninety-point DSL-grid one-step balance checks over sixty-six canonical methods, and automated baseline/reference/headroom/schema/budget/determinism/session-reset/wave-hash/frontier-record tests
 provenance:
   class: procedural
   target_source: Repository-visible deterministic analytic scalar-law generator with four development and three held-out worlds.
@@ -53,7 +53,7 @@ lineage:
   calibrator_model_ids: []
   calibration_runs: []
   calibration_evidence_status: missing
-  edits_triggered_by_model: No model calibration was run. Independent code review exposed a harmful slope-suppression sensor, a 216-point nonadaptive shortcut, an exact-reference prompt leak, a 48-point local search gain and inactive-coordinate identity aliases; the task was rebuilt around WENO3 with sensor-triggered fallback, the known local gain became the ledger incumbent, and the final package was checked with a reproducible 432-method shortcut sweep and six ablations.
+  edits_triggered_by_model: No model calibration was run. Independent code review exposed a harmful slope-suppression sensor, a 216-point nonadaptive shortcut, an exact-reference prompt leak, a 48-point local search gain, signed-zero and inactive-coordinate identity aliases, and quadrature-defined target averages; the task was rebuilt around WENO3 with sensor-triggered fallback, analytic targets and an independent second replay, the known local gain became the ledger incumbent, and the final package was checked with reproducible 48/432-point sweeps and six ablations.
   shortcut_discoverer: builder_self_audit
   frozen_before_eval: false
   freeze_timestamp: null
@@ -68,5 +68,5 @@ construction_audit:
   reviewer_domain: pending_external_numerical_pde_and_finite_volume_review
   expert_hours: null
   red_team_rounds: 2
-  oracle_disagreement_status: not_quantified
-  independent_recomputation_status: baseline, independent executable witness, above-reference method, 432-method nonadaptive probe, six ablations, deterministic replay, exact discrete flux balance, overbudget and fourteen malformed paths are runnable from the package
+  oracle_disagreement_status: independent replay agrees on seven-world L1 within 2e-9, work exactly, each balance below 1e-12, and raw utility within 2e-6 for baseline, reference, incumbent and all six ablations
+  independent_recomputation_status: baseline, independent executable witness, analytic targets cross-checked by adaptive quadrature, 48-point incumbent, 432-method nonadaptive probe, six ablations, ninety DSL-grid one-step conservation points representing sixty-six canonical methods, deterministic replay, overbudget and malformed paths are runnable from the package

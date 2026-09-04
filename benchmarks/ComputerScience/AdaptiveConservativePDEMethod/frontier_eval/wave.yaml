@@ -7,17 +7,17 @@ cells:
     kind: optimization
     weight: 1
     objective: maximize
-    reference_value: 0.9716951059836174
-    credit_scale: 0.5397892728423808
+    reference_value: 0.9716657334958534
+    credit_scale: 0.5398700566758635
     minimum_delta: 0.001
     semantic_contract:
       canonicalizer_id: adaptive-conservative-pde-method-v1
       canonicalizer_path: frontier_eval/contracts/method_canonicalizer_v1.py
-      canonicalizer_sha256: "337d4efd871a61986551c749933f899e172c1e3da8ec2423056b2540061143bc"
+      canonicalizer_sha256: "62904e1f9c6d301792608cfbd2e62f35e84d54efb57bc05ec9bd217a6610f56c"
       evidence_predicate_id: adaptive-conservative-pde-evidence-v1
       evidence_predicate_path: frontier_eval/contracts/evidence_predicate_v1.py
-      evidence_predicate_sha256: "ed0bd0dfa13af3ac1f4ba957cda36d8c611b6e3e1502f37ad46ec615ebfecac2"
+      evidence_predicate_sha256: "d25abdf9576fb938036678320faf137a1037f70da6c911eb67a484d018166efc"
       evaluation_panel_path: frontier_eval/contracts/evaluation_panel_v1.json
-      evaluation_panel_sha256: "046b369743efff597a6e0eb2db9ca1c2d580e0cade2a0b88667e163749aa752b"
+      evaluation_panel_sha256: "dd9e9563ed513d7ce42131b7b95f49e8b15ac702a25bd661b4493d686269fa21"
       oracle_path: verification/evaluator.py
-      oracle_sha256: "82e09bf83e54d5ee0b53a60606c6fcd06f9d01e935ee971d59a907140250b206"
+      oracle_sha256: "4e94ebb21e88115426f2e868a8b0ad004ef9072d7844878492a1701758bbaa43"

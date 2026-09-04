@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import math
 
-
 CELL_ID = "conservative-scalar-law-method"
 CONSERVATION_TOLERANCE = 1.0e-10
 

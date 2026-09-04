@@ -39,7 +39,7 @@ def _finite_number(value, field):
     low, high = BOUNDS[field]
     if not low <= value <= high:
         raise ValueError(field + " is outside its public bound")
-    return value
+    return 0.0 if value == 0.0 else value
 
 
 def normalize_method(value):

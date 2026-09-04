@@ -150,10 +150,112 @@ def _exact_value(x, world, time):
 
 
 def _cell_averages(world, cells, time):
-    quadrature_points = int(_load_panel()["oracle"]["quadrature_points"])
-    offsets = (np.arange(quadrature_points, dtype=float) + 0.5) / quadrature_points
-    points = (np.arange(cells, dtype=float)[:, None] + offsets[None, :]) / cells
-    return np.mean(_exact_value(points, world, time), axis=1)
+    edges = np.arange(cells + 1, dtype=float) / cells
+    lower_edges = edges[:-1]
+    upper_edges = edges[1:]
+    dx = 1.0 / cells
+    initial = world["initial"]
+    kind = initial["kind"]
+
+    if world["equation"] == "advection":
+        shift = float(world["speed"]) * time
+        if kind in {"sine", "multisine"}:
+            phase = float(initial["phase"]) + shift
+
+            def mean_sine(harmonic):
+                frequency = float(harmonic)
+                omega = 2.0 * math.pi * frequency
+                return (
+                    np.cos(omega * (lower_edges - phase))
+                    - np.cos(omega * (upper_edges - phase))
+                ) / (omega * dx)
+
+            if kind == "sine":
+                return float(initial["offset"]) + float(initial["amplitude"]) * mean_sine(
+                    int(initial["frequency"])
+                )
+            omega = 10.0 * math.pi
+            mean_cosine_five = (
+                np.sin(omega * (upper_edges - phase))
+                - np.sin(omega * (lower_edges - phase))
+            ) / (omega * dx)
+            shape = 0.65 * mean_sine(1) + 0.25 * mean_sine(3)
+            shape += 0.10 * mean_cosine_five
+            return float(initial["offset"]) + float(initial["amplitude"]) * shape
+
+        if kind == "top_hat":
+            start = (float(initial["left"]) + shift) % 1.0
+            width = float(initial["right"] - initial["left"])
+            covered = np.zeros(cells, dtype=float)
+            for image in (-1.0, 0.0, 1.0):
+                image_left = start + image
+                image_right = image_left + width
+                covered += np.maximum(
+                    np.minimum(upper_edges, image_right)
+                    - np.maximum(lower_edges, image_left),
+                    0.0,
+                )
+            low = float(initial["low"])
+            return low + (float(initial["high"]) - low) * covered / dx
+
+        if kind == "gaussian":
+            center = (float(initial["center"]) + shift) % 1.0
+            width = float(initial["width"])
+            factor = width * math.sqrt(math.pi / 2.0)
+            denominator = math.sqrt(2.0) * width
+            pulse_integral = np.zeros(cells, dtype=float)
+            for image in (-1.0, 0.0, 1.0):
+                image_center = center + image
+                segment_left = np.maximum(lower_edges, image_center - 0.5)
+                segment_right = np.minimum(upper_edges, image_center + 0.5)
+                active = segment_right > segment_left
+                if not np.any(active):
+                    continue
+                left_values = segment_left[active]
+                right_values = segment_right[active]
+                primitives = np.fromiter(
+                    (
+                        factor
+                        * (
+                            math.erf((right - image_center) / denominator)
+                            - math.erf((left - image_center) / denominator)
+                        )
+                        for left, right in zip(left_values, right_values)
+                    ),
+                    dtype=float,
+                    count=int(np.count_nonzero(active)),
+                )
+                pulse_integral[active] += primitives
+            low = float(initial["low"])
+            return low + (float(initial["high"]) - low) * pulse_integral / dx
+
+        raise RuntimeError("unknown frozen periodic initial condition")
+
+    left_state = float(initial["left"])
+    right_state = float(initial["right"])
+    location = float(initial["location"])
+    if time == 0.0 or left_state > right_state:
+        front = location
+        if time != 0.0:
+            front += 0.5 * (left_state + right_state) * time
+        left_length = np.clip(front - lower_edges, 0.0, dx)
+        return (left_state * left_length + right_state * (dx - left_length)) / dx
+
+    fan_left = location + left_state * time
+    fan_right = location + right_state * time
+    left_length = np.clip(fan_left - lower_edges, 0.0, dx)
+    right_length = np.clip(upper_edges - fan_right, 0.0, dx)
+    middle_left = np.maximum(lower_edges, fan_left)
+    middle_right = np.minimum(upper_edges, fan_right)
+    active = middle_right > middle_left
+    fan_integral = np.zeros(cells, dtype=float)
+    fan_integral[active] = (
+        0.5 * (middle_right[active] ** 2 - middle_left[active] ** 2)
+        - location * (middle_right[active] - middle_left[active])
+    ) / time
+    return (
+        left_state * left_length + fan_integral + right_state * right_length
+    ) / dx
 
 
 def _boundary_values(world):

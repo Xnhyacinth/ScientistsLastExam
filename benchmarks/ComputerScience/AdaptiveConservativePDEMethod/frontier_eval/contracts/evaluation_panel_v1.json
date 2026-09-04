@@ -23,7 +23,7 @@
     "flux_dissipation": 1.0
   },
   "oracle": {
-    "quadrature_points": 96,
+    "target_cell_averages": "closed-form antiderivatives with periodic wrap and exact shock or rarefaction cell intersections",
     "physical_bound_points": 16384,
     "time_tolerance": 1e-15,
     "division_epsilon": 1e-15,

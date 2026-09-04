@@ -1,8 +1,8 @@
 domain: Mathematics
 task: RationalDiophantineTuple
 scientific_role: optimization
-difficulty: flagship
-tier: T3
+difficulty: uncalibrated_candidate
+tier: candidate
 oracle_type: analytical
 score_mode: uncapped
 gpu_required: false
