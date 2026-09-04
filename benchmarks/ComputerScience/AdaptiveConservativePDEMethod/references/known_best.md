@@ -1,16 +1,77 @@
 # Reference method and evidence boundary
 
-`verification/reference_method.py` returns the executable witness used as the exact score-one
-anchor: 96 cells, MUSCL reconstruction, MC limiting, the scalar Godunov flux, SSPRK2 time
-integration, CFL 0.72, sensor threshold 0.28 and shock blend 0.82.
+## 1. Reference method and complete configuration
 
-This witness is intentionally not called a best-known numerical method. A legal 192-cell
-MUSCL/van-Leer/Godunov/SSPRK3 configuration already exceeds it inside the frozen work envelope.
-That replay proves local scoring headroom only. It is not HY3 difficulty evidence, a convergence
-study, or an external numerical-analysis review.
+`verification/reference_method.py` is an independently executable, public-problem-only witness.
+It returns one adaptive finite-volume method and does not import the evaluator or read the frozen
+panel. The witness is a score-one normalization anchor, not a globally optimal numerical method.
+It uses 192 cells, WENO3 face reconstruction, Superbee fallback, the exact scalar
+Godunov flux, SSPRK3, CFL 0.70, sensor threshold 0.15, full shock blending, and the canonically
+inactive Godunov dissipation value 1.0.
 
-The cell follows the conservative finite-volume and piecewise-linear reconstruction lineage of
-van Leer, *Journal of Computational Physics* 32, 101--136 (1979), DOI
-`10.1016/0021-9991(79)90145-1`, and the strong-stability-preserving Runge--Kutta construction of
-Shu and Osher, *Journal of Computational Physics* 77, 439--471 (1988), DOI
-`10.1016/0021-9991(88)90177-5`.
+## 2. Baseline and development score
+
+The baseline is the legal 32-cell piecewise-constant Rusanov/Euler method with CFL 0.45 and
+dissipation multiplier 1.15. Its development raw utility is `0.4307842528` and normalizes to
+`0.0`; the reference raw utility is `0.9705735256` and normalizes to `1.0`. A 48-point local
+CFL/sensor grid found raw utility `0.9716951060` at CFL 0.85 and sensor threshold 0.10. This known
+point is the wave ledger incumbent, so reconstructing it earns no lifetime credit. None of these
+values is a convergence theorem or a published state of the art.
+
+## 3. Held-out score
+
+Held-out worlds do not enter `combined_score`. Their raw utilities are `0.4476947297` for the
+baseline and `0.9720333072` for the reference. They cover a Gaussian advection pulse, a narrower
+top-hat under negative advection speed, and a Burgers rarefaction, but remain repository-visible
+synthetic checks rather than fresh external confirmation.
+
+## 4. Ablation ladder
+
+Six one-coordinate ablations all reduce development utility relative to the reference:
+
+| ablation | normalized score |
+|---|---:|
+| no sensor blend | 0.978254 |
+| sensor threshold 0.95 | 0.994227 |
+| MUSCL instead of WENO3 | 0.973685 |
+| 128 instead of 192 cells | 0.990461 |
+| SSPRK2 instead of SSPRK3 | 0.985253 |
+| Rusanov flux with dissipation 1.5 | 0.996003 |
+
+## 5. Shortcut probes
+
+An earlier 216-point audit invalidated the original construction: a method with no sensor blend
+scored `1.104486`, showing that its advertised adaptivity was harmful. That version was not frozen.
+After rebuilding the oracle around WENO3 with sensor-triggered fallback, a 432-method nonadaptive
+grid over reconstruction, limiter, flux, integrator, resolution and CFL reached at most
+`0.988554`. Its best point was 192-cell MUSCL/MC/Godunov/SSPRK3 at CFL 0.85. This grid is a
+documented shortcut probe, not proof that no stronger low-dimensional shortcut exists.
+
+## 6. Construction history and frontier draw
+
+The first construction used only MUSCL/TVD choices and multiplied every slope by a curvature
+suppression factor. Builder review found that removing this advertised adaptive mechanism improved
+the score, so that construction was rejected before freeze. The replacement adds WENO3 face
+states with sensor-triggered fallback and binds every scoring constant plus the complete evaluator
+oracle. A later review found that the agent-visible example leaked the exact score-one method and
+that inactive fallback coordinates produced distinct canonical IDs; both were repaired before any
+model draw. HY3 normal versus selection-blind calibration remains deliberately pending until the
+committed task/runtime hashes are frozen.
+
+## 7. Robustness, cost, limitations and provenance
+
+The reference uses a mean of 46,656 cell-stage updates on development worlds and 45,120 on held-out
+worlds; the baseline means are 688 and 661.33. Every update remains a conservative flux difference,
+and the reference's maximum balance error stays below `1e-10`. Tests replay periodic and open
+boundaries, fourteen malformed shapes, nonfinite values, inconsistent calls, exceptions, session
+isolation, deterministic repeatability, black-box reference execution, canonical inactive-coordinate
+collapse, the complete 432-method probe and work-budget rejection. The cell follows van Leer's
+conservative reconstruction (DOI
+`10.1016/0021-9991(79)90145-1`), Shu and Osher's SSP integration (DOI
+`10.1016/0021-9991(88)90177-5`), and Jiang and Shu's WENO construction (DOI
+`10.1006/jcph.1996.0130`). It tests only seven visible one-dimensional scalar-law worlds on uniform
+grids. It omits multidimensional meshes, systems, stiffness, entropy proofs, general positivity,
+parallel cost and application validation. The fixed wave has a finite method space and a score
+uncapped at the reference; only verified future immutable waves can extend lifetime family credit.
+External numerical-PDE review and HY3 calibration are still missing, so this package remains a
+candidate.

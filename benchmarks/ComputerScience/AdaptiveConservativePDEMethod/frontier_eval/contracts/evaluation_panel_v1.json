@@ -1,5 +1,50 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "baseline_method": {
+    "reconstruction": "constant",
+    "limiter": "minmod",
+    "riemann_solver": "rusanov",
+    "time_integrator": "euler",
+    "cells": 32,
+    "cfl": 0.45,
+    "sensor_threshold": 0.5,
+    "shock_blend": 1.0,
+    "flux_dissipation": 1.15
+  },
+  "reference_method": {
+    "reconstruction": "weno3",
+    "limiter": "superbee",
+    "riemann_solver": "godunov",
+    "time_integrator": "ssprk3",
+    "cells": 192,
+    "cfl": 0.7,
+    "sensor_threshold": 0.15,
+    "shock_blend": 1.0,
+    "flux_dissipation": 1.0
+  },
+  "oracle": {
+    "quadrature_points": 96,
+    "physical_bound_points": 16384,
+    "time_tolerance": 1e-15,
+    "division_epsilon": 1e-15,
+    "sensor_epsilon": 1e-14,
+    "weno_epsilon": 0.01,
+    "speed_floor": 1e-12,
+    "work_padding_steps": 2,
+    "stability_overshoot_scale": 18.0,
+    "stability_tv_scale": 4.0,
+    "conservation_scale": 1e-11,
+    "utility_weights": {
+      "accuracy": 0.72,
+      "stability": 0.14,
+      "conservation": 0.1,
+      "cost": 0.04
+    },
+    "development_regime_weights": {
+      "smooth": 0.8,
+      "shock": 0.2
+    }
+  },
   "worlds": [
     {
       "id": "dev-advection-sine",

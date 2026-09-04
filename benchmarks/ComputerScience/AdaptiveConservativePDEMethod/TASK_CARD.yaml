@@ -7,13 +7,15 @@ oracle:
   deterministic: true
 normalization:
   baseline: Legal 32-cell piecewise-constant Rusanov/Euler method with CFL 0.45 and dissipation multiplier 1.15.
-  reference: Executable 96-cell MUSCL/MC/Godunov/SSPRK2 witness with a curvature-triggered slope blend; it is not a global optimum.
-  score: Four-world development utility over accuracy, stability, conservation and work, affinely normalized above the baseline and left uncapped; all held-out axes remain separate.
+  reference: Executable 192-cell adaptive WENO3/Superbee/Godunov/SSPRK3 witness with curvature-triggered fallback; it is not a global optimum.
+  score: Smooth/shock-stratified four-world development utility over accuracy, stability, conservation and work, affinely normalized above the baseline and uncapped at the reference; all held-out axes remain separate.
 citations:
 - id: doi:10.1016/0021-9991(79)90145-1
   title: Towards the ultimate conservative difference scheme. V. A second-order sequel to Godunov's method
 - id: doi:10.1016/0021-9991(88)90177-5
   title: Efficient implementation of essentially non-oscillatory shock-capturing schemes
+- id: doi:10.1006/jcph.1996.0130
+  title: Efficient Implementation of Weighted ENO Schemes
 invariants:
 - the artifact is one numerical discretization policy, not a PDE parameter fit, state estimate or physical design
 - the same public problem mapping is presented independently at all seven scientific world boundaries and one canonical method is required
@@ -25,7 +27,7 @@ invariants:
 - inactive DSL coordinates are canonicalized away before artifact identity is assigned
 - evaluator-produced frontier_records bind the canonical method to the frozen evidence predicate and evaluation panel
 - later task-family expansion requires a new immutable wave rather than mutation of this panel
-known_shortcuts: The panel is repository visible and contains only seven one-dimensional scalar-law worlds on uniform grids. The evaluator owns a finite menu of standard scheme components, uses deterministic quadrature, omits measured wall time and memory traffic, and does not test formal convergence order, multidimensional geometry, systems of conservation laws, stiffness, positivity for general states, entropy inequalities beyond the chosen scalar fluxes, parallel scalability or application validation. A hand-designed standard method already exceeds the reference, proving score headroom but not model difficulty. T2 and hard are candidate labels pending external numerical-PDE review and HY3 calibration.
+known_shortcuts: A first 216-point audit of the original MUSCL task found that removing the sensor improved the score to 1.104486, so that oracle was rejected before freeze. After adding WENO3 with sensor-triggered fallback, a 432-method nonadaptive grid over reconstruction, limiter, flux, integrator, grid and CFL reached 0.988554, below the reference. A 48-point local CFL/sensor search around the formerly exposed reference found score 1.002078 and raw utility 0.971695106; the exact reference was removed from agent-visible text and the found point is now the wave ledger incumbent, so its reconstruction earns no lifetime credit. The visible seven-world one-dimensional uniform-grid panel remains susceptible to direct deterministic search and omits convergence proofs, systems, multidimensional meshes, stiffness, general positivity, parallel cost and application validation. T2 and hard remain candidate labels pending external numerical-PDE review and HY3 calibration.
 review:
   domain: pending_external_numerical_pde_and_finite_volume_review
   evaluator_security: automated_baseline_reference_headroom_conservation_schema_budget_determinism_session_reset_wave_hash_and_frontier_record_tests
@@ -36,7 +38,12 @@ provenance:
   fresh_confirmation_status: not_applicable_synthetic_oracle
 novelty_risk:
   level: high
-  rationale: MUSCL, TVD limiters, Godunov and SSP Runge--Kutta methods are established. The benchmark contribution is the frozen adaptive method-design search cell and evidence contract, not a claim of a new numerical scheme.
+  rationale: MUSCL, WENO, TVD limiters, Godunov and SSP Runge--Kutta methods are established. The benchmark contribution is the frozen adaptive method-design search cell and evidence contract, not a claim of a new numerical scheme. A repository-side comparison found no matching task class in either Frontier-Eng's 47-paper-problem appendix or its 95-entry TASK_DETAILS catalogue; this is still not an external novelty certification.
+license_and_contamination:
+  task_text: Repository-authored benchmark text; no source problem statement is copied verbatim.
+  upstream_methods: Method names and equations are attributed to their DOI sources; no external code or dataset is redistributed.
+  repository_release: The repository has no top-level license file; public redistribution terms must be resolved by maintainers before release.
+  contamination: The named schemes and their standard parameter heuristics may occur in model training data; the exact frozen panel and score-one witness were repository-constructed and must be treated as potentially visible after publication.
 lineage:
   status: complete
   builder_model_ids:
@@ -46,7 +53,7 @@ lineage:
   calibrator_model_ids: []
   calibration_runs: []
   calibration_evidence_status: missing
-  edits_triggered_by_model: No model calibration was run; deterministic unit tests and explicit baseline, reference and stronger-method replay informed the candidate package.
+  edits_triggered_by_model: No model calibration was run. Independent code review exposed a harmful slope-suppression sensor, a 216-point nonadaptive shortcut, an exact-reference prompt leak, a 48-point local search gain and inactive-coordinate identity aliases; the task was rebuilt around WENO3 with sensor-triggered fallback, the known local gain became the ledger incumbent, and the final package was checked with a reproducible 432-method shortcut sweep and six ablations.
   shortcut_discoverer: builder_self_audit
   frozen_before_eval: false
   freeze_timestamp: null
@@ -60,6 +67,6 @@ construction_audit:
   author_domain: openai:codex-gpt-5
   reviewer_domain: pending_external_numerical_pde_and_finite_volume_review
   expert_hours: null
-  red_team_rounds: 1
+  red_team_rounds: 2
   oracle_disagreement_status: not_quantified
-  independent_recomputation_status: baseline, executable witness, above-reference method, deterministic replay, exact discrete flux balance, overbudget and malformed paths are runnable from the package
+  independent_recomputation_status: baseline, independent executable witness, above-reference method, 432-method nonadaptive probe, six ablations, deterministic replay, exact discrete flux balance, overbudget and fourteen malformed paths are runnable from the package

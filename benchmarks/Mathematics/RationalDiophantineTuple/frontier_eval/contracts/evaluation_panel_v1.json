@@ -3,7 +3,12 @@
   "artifact": "finite set of distinct nonzero reduced rational numbers",
   "feasibility": "for every unordered pair a*b+1 is an exact rational square",
   "objective": "maximize exactly verified set cardinality",
+  "scoring": {
+    "normalization": "affine cardinality progress from baseline witness to reference witness",
+    "lower_bound": 0.0
+  },
   "resource_limits": {
+    "minimum_distinct_entries": 2,
     "maximum_submitted_entries": 64,
     "maximum_decimal_digits_per_integer": 1000,
     "maximum_total_integer_digits": 16000

@@ -6,7 +6,6 @@ import json
 import math
 from collections.abc import Mapping
 
-
 METHOD_FIELDS = (
     "reconstruction",
     "limiter",
@@ -18,8 +17,8 @@ METHOD_FIELDS = (
     "shock_blend",
     "flux_dissipation",
 )
-RECONSTRUCTIONS = ("constant", "muscl")
-LIMITERS = ("minmod", "mc", "van_leer", "superbee")
+RECONSTRUCTIONS = ("constant", "muscl", "weno3")
+LIMITERS = ("minmod", "mc", "van_leer", "superbee", "central")
 RIEMANN_SOLVERS = ("rusanov", "godunov")
 TIME_INTEGRATORS = ("euler", "ssprk2", "ssprk3")
 CELL_COUNTS = (32, 48, 64, 96, 128, 192)
@@ -82,6 +81,13 @@ def normalize_method(value):
         method["limiter"] = "minmod"
         method["sensor_threshold"] = 0.5
         method["shock_blend"] = 1.0
+    elif reconstruction == "muscl" and limiter == "minmod":
+        method["sensor_threshold"] = 0.5
+        method["shock_blend"] = 1.0
+    elif method["shock_blend"] == 0.0:
+        method["sensor_threshold"] = 0.5
+        if reconstruction == "weno3":
+            method["limiter"] = "minmod"
     if riemann_solver == "godunov":
         method["flux_dissipation"] = 1.0
     return method

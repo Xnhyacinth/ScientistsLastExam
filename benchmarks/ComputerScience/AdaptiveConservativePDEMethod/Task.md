@@ -22,15 +22,15 @@ fitness for a real simulation code.
 def design_finite_volume_method(problem):
     ...
     return {
-        "reconstruction": "muscl",
-        "limiter": "mc",
-        "riemann_solver": "godunov",
-        "time_integrator": "ssprk2",
-        "cells": 96,
-        "cfl": 0.72,
-        "sensor_threshold": 0.28,
-        "shock_blend": 0.82,
-        "flux_dissipation": 1.0,
+        "reconstruction": "constant",
+        "limiter": "minmod",
+        "riemann_solver": "rusanov",
+        "time_integrator": "euler",
+        "cells": 32,
+        "cfl": 0.45,
+        "sensor_threshold": 0.5,
+        "shock_blend": 1.0,
+        "flux_dissipation": 1.15,
     }
 ```
 
@@ -38,8 +38,8 @@ Return a mapping with exactly these nine fields. The five discrete choices are:
 
 | field | choices |
 |---|---|
-| `reconstruction` | `constant`, `muscl` |
-| `limiter` | `minmod`, `mc`, `van_leer`, `superbee` |
+| `reconstruction` | `constant`, `muscl`, `weno3` |
+| `limiter` | `minmod`, `mc`, `van_leer`, `superbee`, `central` |
 | `riemann_solver` | `rusanov`, `godunov` |
 | `time_integrator` | `euler`, `ssprk2`, `ssprk3` |
 | `cells` | `32`, `48`, `64`, `96`, `128`, `192` |
@@ -50,13 +50,14 @@ The four continuous coordinates have public closed bounds:
 |---|---:|---|
 | `cfl` | `[0.08, 0.95]` | requested Courant factor |
 | `sensor_threshold` | `[0.02, 0.95]` | curvature-sensor onset |
-| `shock_blend` | `[0.0, 1.0]` | fraction of slope suppressed at a detected shock |
+| `shock_blend` | `[0.0, 1.0]` | fraction blended toward the selected safe slope at a detected shock |
 | `flux_dissipation` | `[1.0, 1.5]` | Rusanov wave-speed multiplier |
 
-For a constant reconstruction the limiter and sensor coordinates are canonically inactive. For a
-Godunov flux, `flux_dissipation` is canonically inactive. The evaluator collapses these inactive
-coordinates before assigning an artifact identity, so changing unused values cannot create a new
-method.
+For a constant reconstruction the limiter and sensor coordinates are canonically inactive. A
+zero shock blend makes the sensor threshold inactive and, for WENO3, also makes its fallback
+limiter inactive. MUSCL/minmod has no distinct fallback, so both sensor coordinates are inactive.
+For a Godunov flux, `flux_dissipation` is inactive. The evaluator collapses these coordinates
+before assigning an artifact identity, so changing unused values cannot create a new method.
 
 ## Public problem mapping
 
@@ -82,10 +83,11 @@ initial condition, final time or result is passed to the method designer.
 ## Frozen numerical oracle
 
 Cell averages are evolved by a flux-difference finite-volume update. `constant` selects a
-piecewise-constant reconstruction; `muscl` selects a limited piecewise-linear reconstruction.
-The normalized curvature sensor continuously reduces a MUSCL slope above
-`sensor_threshold`, controlled by `shock_blend`. The chosen Rusanov or exact scalar Godunov flux
-is integrated by Euler, SSPRK2 or SSPRK3 stages.
+piecewise-constant reconstruction, `muscl` selects a piecewise-linear reconstruction, and
+`weno3` selects third-order nonlinear face reconstruction. Above `sensor_threshold`, the
+normalized curvature sensor blends the proposed face states toward the selected MUSCL fallback
+by `shock_blend`. Thus the sensor is a stability mechanism, not a decorative coordinate. The
+chosen Rusanov or exact scalar Godunov flux is integrated by Euler, SSPRK2 or SSPRK3 stages.
 
 Periodic cases measure mass drift. Fixed-boundary Burgers cases integrate the numerical boundary
 flux with the same Runge--Kutta weights and measure the complete discrete balance residual. Smooth
@@ -104,15 +106,37 @@ Each world reports four separate axes:
 3. maximum-principle overshoot and total-variation growth;
 4. realized cell-stage work.
 
-A frozen weighted utility combines those axes on four development worlds. `combined_score`
+A frozen utility weights accuracy, stability, conservation and work by 0.72, 0.14, 0.10 and 0.04.
+Development utility then weights smooth and shock regime means by 0.8 and 0.2. `combined_score`
 affinely normalizes that utility so the shipped first-order 32-cell Rusanov/Euler method is exactly
-`0.0`, while the executable 96-cell MUSCL/MC/Godunov/SSPRK2 witness is exactly `1.0`. The reference
-is not asserted to be optimal and the nonnegative score has no upper cap. Three held-out worlds
-repeat all four axes but never enter `combined_score`.
+`0.0`, while an independently executable adaptive high-order witness is exactly `1.0`. Its exact
+configuration is evaluator-only rather than a candidate template. The reference is not asserted
+to be optimal and the nonnegative fixed-wave score is
+uncapped at its reference: a legal method can exceed 1. Three held-out worlds repeat all four axes
+but never enter `combined_score`.
+
+The reference development utility is `0.9705735256` and its held-out utility is `0.9720333072`.
+Removing its sensor blend scores `0.978254`; delaying the sensor scores `0.994227`; replacing
+the high-order reconstruction by MUSCL scores `0.973685`; using a coarser grid scores `0.990461`;
+lower-order time integration scores `0.985253`; and a more dissipative flux scores `0.996003`. A
+432-method nonadaptive grid probe reached at
+most `0.988554`, below the reference. These figures show that every named reference capability
+affects this panel; they do not establish global optimality or model difficulty.
 
 The evaluator also emits one canonical optimization record tied to the frozen method
 canonicalizer, evidence predicate and seven-world panel. Later immutable waves can add equation
 classes, meshes or fidelity without rewriting credit earned under this wave.
+
+## 关系与区别
+
+- `Engineering/ConvectionDiffusionOpt` identifies transport and designs heaters; this task emits a
+  reusable discretization and never fits physical coefficients or a control layout.
+- `Engineering/RANSCalibration` calibrates parameters of a fixed turbulence closure against data;
+  here reconstruction, flux, time integration and adaptive switching define the algorithm.
+- `Engineering/NeutronDiffusionCriticality` optimizes reactor enrichment while its eigensolver is
+  fixed; here solver design is the artifact and no physical design variable is optimized.
+- `ComputerScience/MatrixMultiplicationRank` also asks for an algorithm, but verifies an exact
+  algebraic identity rather than PDE accuracy, stability, conservation and work across worlds.
 
 ## Rules
 
@@ -126,4 +150,5 @@ classes, meshes or fidelity without rewriting credit earned under this wave.
 
 References: van Leer, *Journal of Computational Physics* 32, 101--136 (1979), DOI
 `10.1016/0021-9991(79)90145-1`; Shu and Osher, *Journal of Computational Physics* 77, 439--471
-(1988), DOI `10.1016/0021-9991(88)90177-5`.
+(1988), DOI `10.1016/0021-9991(88)90177-5`; Jiang and Shu, *Journal of Computational Physics*
+126, 202--228 (1996), DOI `10.1006/jcph.1996.0130`.

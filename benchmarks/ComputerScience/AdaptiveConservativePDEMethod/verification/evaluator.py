@@ -9,7 +9,6 @@ from pathlib import Path
 
 import numpy as np
 
-
 TASK_DIR = Path(__file__).resolve().parent.parent
 CONTRACT_DIR = TASK_DIR / "frontier_eval" / "contracts"
 
@@ -37,10 +36,17 @@ class WorkBudgetExceeded(ValueError):
     pass
 
 
+@lru_cache(maxsize=1)
 def _load_panel():
     path = CONTRACT_DIR / "evaluation_panel_v1.json"
     panel = json.loads(path.read_text(encoding="utf-8"))
-    if panel.get("schema_version") != 1 or not isinstance(panel.get("worlds"), list):
+    if (
+        panel.get("schema_version") != 2
+        or not isinstance(panel.get("worlds"), list)
+        or not isinstance(panel.get("oracle"), dict)
+        or not isinstance(panel.get("baseline_method"), dict)
+        or not isinstance(panel.get("reference_method"), dict)
+    ):
         raise RuntimeError("invalid frozen evaluation panel")
     return panel
 
@@ -61,8 +67,9 @@ def _public_problem():
         "equations": ["constant-coefficient advection", "inviscid Burgers"],
         "boundary_conditions": ["periodic", "fixed far-field states"],
         "adaptivity": (
-            "MUSCL slopes are locally reduced when a normalized curvature sensor exceeds "
-            "sensor_threshold; shock_blend controls the reduction strength"
+            "face states are locally blended toward the selected MUSCL fallback when a "
+            "normalized curvature sensor exceeds sensor_threshold; shock_blend controls "
+            "the fallback strength"
         ),
         "objectives": [
             "cell-average L1 accuracy",
@@ -71,7 +78,9 @@ def _public_problem():
             "cell-stage work",
         ],
         "work_unit_definition": "one finite-volume cell update in one Runge--Kutta stage",
-        "max_work_units_per_case": 120000,
+        "max_work_units_per_case": max(
+            int(world["max_work_units"]) for world in _load_panel()["worlds"]
+        ),
         "scope_warning": (
             "repository-visible frozen scalar-law benchmark; not evidence that a method "
             "generalizes to multidimensional or real application PDEs"
@@ -92,31 +101,11 @@ def _canonical_payload(method):
 
 
 def _weak_method():
-    return {
-        "reconstruction": "constant",
-        "limiter": "minmod",
-        "riemann_solver": "rusanov",
-        "time_integrator": "euler",
-        "cells": 32,
-        "cfl": 0.45,
-        "sensor_threshold": 0.5,
-        "shock_blend": 1.0,
-        "flux_dissipation": 1.15,
-    }
+    return dict(_load_panel()["baseline_method"])
 
 
 def _reference_method():
-    return {
-        "reconstruction": "muscl",
-        "limiter": "mc",
-        "riemann_solver": "godunov",
-        "time_integrator": "ssprk2",
-        "cells": 96,
-        "cfl": 0.72,
-        "sensor_threshold": 0.28,
-        "shock_blend": 0.82,
-        "flux_dissipation": 1.0,
-    }
+    return dict(_load_panel()["reference_method"])
 
 
 def _initial_value(x, initial):
@@ -161,7 +150,7 @@ def _exact_value(x, world, time):
 
 
 def _cell_averages(world, cells, time):
-    quadrature_points = 96
+    quadrature_points = int(_load_panel()["oracle"]["quadrature_points"])
     offsets = (np.arange(quadrature_points, dtype=float) + 0.5) / quadrature_points
     points = (np.arange(cells, dtype=float)[:, None] + offsets[None, :]) / cells
     return np.mean(_exact_value(points, world, time), axis=1)
@@ -200,23 +189,110 @@ def _limited_slope(state, method, world):
     elif limiter == "van_leer":
         denominator = backward + forward
         same_sign = backward * forward > 0.0
+        epsilon = float(_load_panel()["oracle"]["division_epsilon"])
         slope = np.where(
             same_sign,
-            2.0 * backward * forward / np.where(np.abs(denominator) > 1.0e-15, denominator, 1.0),
+            2.0 * backward * forward / np.where(np.abs(denominator) > epsilon, denominator, 1.0),
             0.0,
         )
-    else:
+    elif limiter == "superbee":
         first = _minmod(2.0 * backward, forward)
         second = _minmod(backward, 2.0 * forward)
         slope = np.where(np.abs(first) >= np.abs(second), first, second)
+    elif limiter == "central":
+        slope = 0.5 * (backward + forward)
+    else:  # pragma: no cover - canonicalization rejects unknown limiters
+        raise RuntimeError("unknown limiter")
 
+    sensor_epsilon = float(_load_panel()["oracle"]["sensor_epsilon"])
     sensor = np.abs(forward - backward) / (
-        np.abs(forward) + np.abs(backward) + 1.0e-14
+        np.abs(forward) + np.abs(backward) + sensor_epsilon
     )
     threshold = method["sensor_threshold"]
     activation = np.maximum(sensor - threshold, 0.0) / (1.0 - threshold)
     activation = np.minimum(activation, 1.0)
-    return slope * (1.0 - method["shock_blend"] * activation)
+    safe_slope = _minmod(backward, forward)
+    blend = method["shock_blend"] * activation
+    return (1.0 - blend) * slope + blend * safe_slope
+
+
+def _weno3_pair(u_minus, u_left, u_right, u_plus):
+    epsilon = float(_load_panel()["oracle"]["weno_epsilon"])
+    left_zero = 0.5 * (-u_minus + 3.0 * u_left)
+    left_one = 0.5 * (u_left + u_right)
+    alpha_zero = (1.0 / 3.0) / (epsilon + (u_left - u_minus) ** 2) ** 2
+    alpha_one = (2.0 / 3.0) / (epsilon + (u_right - u_left) ** 2) ** 2
+    left = (alpha_zero * left_zero + alpha_one * left_one) / (
+        alpha_zero + alpha_one
+    )
+
+    right_zero = 0.5 * (-u_plus + 3.0 * u_right)
+    right_one = 0.5 * (u_right + u_left)
+    alpha_zero = (1.0 / 3.0) / (epsilon + (u_right - u_plus) ** 2) ** 2
+    alpha_one = (2.0 / 3.0) / (epsilon + (u_left - u_right) ** 2) ** 2
+    right = (alpha_zero * right_zero + alpha_one * right_one) / (
+        alpha_zero + alpha_one
+    )
+    return left, right
+
+
+def _sensor_activation(state, method, world):
+    if world["boundary"] == "periodic":
+        backward = state - np.roll(state, 1)
+        forward = np.roll(state, -1) - state
+    else:
+        left, right = _boundary_values(world)
+        extended = np.concatenate(([left], state, [right]))
+        backward = state - extended[:-2]
+        forward = extended[2:] - state
+    epsilon = float(_load_panel()["oracle"]["sensor_epsilon"])
+    sensor = np.abs(forward - backward) / (
+        np.abs(forward) + np.abs(backward) + epsilon
+    )
+    threshold = method["sensor_threshold"]
+    return np.minimum(
+        np.maximum(sensor - threshold, 0.0) / (1.0 - threshold),
+        1.0,
+    )
+
+
+def _weno3_faces(state, method, world):
+    fallback_method = {**method, "reconstruction": "muscl", "shock_blend": 0.0}
+    fallback_slope = _limited_slope(state, fallback_method, world)
+    activation = _sensor_activation(state, method, world)
+    if world["boundary"] == "periodic":
+        left, right = _weno3_pair(
+            np.roll(state, 1), state, np.roll(state, -1), np.roll(state, -2)
+        )
+        safe_left = state + 0.5 * fallback_slope
+        safe_right = np.roll(state, -1) - 0.5 * np.roll(fallback_slope, -1)
+        blend = method["shock_blend"] * np.maximum(
+            activation, np.roll(activation, -1)
+        )
+        return (
+            (1.0 - blend) * left + blend * safe_left,
+            (1.0 - blend) * right + blend * safe_right,
+        )
+
+    boundary_left, boundary_right = _boundary_values(world)
+    left = np.empty(len(state) + 1, dtype=float)
+    right = np.empty(len(state) + 1, dtype=float)
+    left[0] = boundary_left
+    right[0] = state[0] - 0.5 * fallback_slope[0]
+    left[-1] = state[-1] + 0.5 * fallback_slope[-1]
+    right[-1] = boundary_right
+    high_left, high_right = _weno3_pair(
+        np.concatenate(([boundary_left], state[:-2])),
+        state[:-1],
+        state[1:],
+        np.concatenate((state[2:], [boundary_right])),
+    )
+    safe_left = state[:-1] + 0.5 * fallback_slope[:-1]
+    safe_right = state[1:] - 0.5 * fallback_slope[1:]
+    blend = method["shock_blend"] * np.maximum(activation[:-1], activation[1:])
+    left[1:-1] = (1.0 - blend) * high_left + blend * safe_left
+    right[1:-1] = (1.0 - blend) * high_right + blend * safe_right
+    return left, right
 
 
 def _physical_flux(value, world):
@@ -252,6 +328,15 @@ def _numerical_flux(left, right, method, world):
 def _residual(state, method, world):
     cells = len(state)
     dx = 1.0 / cells
+    if method["reconstruction"] == "weno3":
+        left, right = _weno3_faces(state, method, world)
+        face_flux = _numerical_flux(left, right, method, world)
+        if world["boundary"] == "periodic":
+            return -(face_flux - np.roll(face_flux, 1)) / dx, 0.0
+        return -(face_flux[1:] - face_flux[:-1]) / dx, float(
+            face_flux[-1] - face_flux[0]
+        )
+
     slope = _limited_slope(state, method, world)
     if world["boundary"] == "periodic":
         left = state + 0.5 * slope
@@ -282,13 +367,15 @@ def _speed_bound(world):
     if world["equation"] == "advection":
         return abs(float(world["speed"]))
     initial = world["initial"]
-    return max(abs(float(initial["left"])), abs(float(initial["right"])), 1.0e-12)
+    speed_floor = float(_load_panel()["oracle"]["speed_floor"])
+    return max(abs(float(initial["left"])), abs(float(initial["right"])), speed_floor)
 
 
 def _estimated_work(method, world):
+    padding = int(_load_panel()["oracle"]["work_padding_steps"])
     steps = math.ceil(
         world["final_time"] * _speed_bound(world) * method["cells"] / method["cfl"]
-    ) + 2
+    ) + padding
     return steps * method["cells"] * _stage_count(method)
 
 
@@ -324,7 +411,8 @@ def _physical_bounds(world):
         return float(initial["low"]), float(initial["high"])
     if initial["kind"] == "riemann":
         return min(initial["left"], initial["right"]), max(initial["left"], initial["right"])
-    dense = np.arange(16384, dtype=float) / 16384.0
+    points = int(_load_panel()["oracle"]["physical_bound_points"])
+    dense = np.arange(points, dtype=float) / points
     values = _initial_value(dense, initial)
     return float(np.min(values)), float(np.max(values))
 
@@ -335,17 +423,19 @@ def _run_world(method, world):
         raise WorkBudgetExceeded("declared method exceeds the frozen per-case work budget")
     cells = method["cells"]
     state = _cell_averages(world, cells, 0.0)
-    initial_state = state.copy()
     mass_initial = float(np.mean(state))
     initial_tv = _total_variation(state, world)
     elapsed = 0.0
     boundary_flux_integral = 0.0
     work_units = 0
-    while elapsed < world["final_time"] - 1.0e-15:
+    oracle = _load_panel()["oracle"]
+    time_tolerance = float(oracle["time_tolerance"])
+    speed_floor = float(oracle["speed_floor"])
+    while elapsed < world["final_time"] - time_tolerance:
         max_speed = _speed_bound(world)
         if world["equation"] == "burgers":
             max_speed = max(max_speed, float(np.max(np.abs(state))))
-        dt = method["cfl"] / (cells * max(max_speed, 1.0e-12))
+        dt = method["cfl"] / (cells * max(max_speed, speed_floor))
         dt = min(dt, world["final_time"] - elapsed)
         state, flux_integral, stages = _advance(state, dt, method, world)
         if not np.all(np.isfinite(state)):
@@ -359,10 +449,10 @@ def _run_world(method, world):
     exact = _cell_averages(world, cells, world["final_time"])
     l1_error = float(np.mean(np.abs(state - exact)))
     lower, upper = _physical_bounds(world)
-    scale = max(upper - lower, 1.0e-12)
+    scale = max(upper - lower, speed_floor)
     overshoot = max(float(np.max(state)) - upper, lower - float(np.min(state)), 0.0)
     final_tv = _total_variation(state, world)
-    tv_growth = max(final_tv - initial_tv, 0.0) / max(initial_tv, 1.0e-12)
+    tv_growth = max(final_tv - initial_tv, 0.0) / max(initial_tv, speed_floor)
     if world["boundary"] == "periodic":
         conservation_error = abs(float(np.mean(state)) - mass_initial)
     else:
@@ -370,10 +460,19 @@ def _run_world(method, world):
             float(np.mean(state)) - mass_initial + boundary_flux_integral
         )
     accuracy = math.exp(-l1_error / float(world["accuracy_scale"]))
-    stability = math.exp(-18.0 * overshoot / scale - 4.0 * tv_growth)
-    conservation = math.exp(-conservation_error / 1.0e-11)
+    stability = math.exp(
+        -float(oracle["stability_overshoot_scale"]) * overshoot / scale
+        - float(oracle["stability_tv_scale"]) * tv_growth
+    )
+    conservation = math.exp(-conservation_error / float(oracle["conservation_scale"]))
     cost = 1.0 / (1.0 + work_units / float(world["max_work_units"]))
-    utility = 0.72 * accuracy + 0.14 * stability + 0.10 * conservation + 0.04 * cost
+    weights = oracle["utility_weights"]
+    utility = (
+        float(weights["accuracy"]) * accuracy
+        + float(weights["stability"]) * stability
+        + float(weights["conservation"]) * conservation
+        + float(weights["cost"]) * cost
+    )
     initial_kind = world["initial"]["kind"]
     regime = "smooth" if initial_kind in {"sine", "multisine", "gaussian"} else "shock"
     return {
@@ -402,8 +501,13 @@ def _mean(rows, key):
 def _aggregate(rows):
     smooth = [row for row in rows if row["regime"] == "smooth"]
     shock = [row for row in rows if row["regime"] == "shock"]
+    regime_weights = _load_panel()["oracle"]["development_regime_weights"]
+    raw_utility = (
+        float(regime_weights["smooth"]) * _mean(smooth, "raw_utility")
+        + float(regime_weights["shock"]) * _mean(shock, "raw_utility")
+    )
     return {
-        "raw_utility": _mean(rows, "raw_utility"),
+        "raw_utility": raw_utility,
         "accuracy_score": _mean(rows, "accuracy_score"),
         "smooth_accuracy_score": _mean(smooth, "accuracy_score"),
         "shock_accuracy_score": _mean(shock, "accuracy_score"),

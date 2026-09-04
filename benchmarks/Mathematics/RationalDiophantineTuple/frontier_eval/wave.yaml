@@ -18,4 +18,6 @@ cells:
       evidence_predicate_path: frontier_eval/contracts/evidence_predicate_v1.py
       evidence_predicate_sha256: "812e90a51a85b3f605afc05204c290a8723d32b4a08592ecb7cd0ae53cf78e9c"
       evaluation_panel_path: frontier_eval/contracts/evaluation_panel_v1.json
-      evaluation_panel_sha256: "12dda3edf0c248842cad919d0c504bfe0980c3cb2a4bdb1c655ad6043a491851"
+      evaluation_panel_sha256: "33803ad0a1cc68c89d13431fa114c3dde9325b3f2270a085fec9c4de6f1bb175"
+      oracle_path: verification/evaluator.py
+      oracle_sha256: "1c3bbc1f251b746267275c007dc6ac43d456261d184106e6b0c3f1f49879ca7c"

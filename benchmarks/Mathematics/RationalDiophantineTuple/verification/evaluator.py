@@ -10,9 +10,8 @@ import importlib.util
 import json
 from collections.abc import Mapping
 from fractions import Fraction
-from math import isqrt
+from math import ceil, isqrt, log2
 from pathlib import Path
-
 
 TASK_DIR = Path(__file__).resolve().parent.parent
 CONTRACT_DIR = TASK_DIR / "frontier_eval" / "contracts"
@@ -29,10 +28,12 @@ def _load_panel():
 
 _PANEL = _load_panel()
 _LIMITS = _PANEL["resource_limits"]
+SCORE_LOWER_BOUND = float(_PANEL["scoring"]["lower_bound"])
+MIN_DISTINCT_ENTRIES = int(_LIMITS["minimum_distinct_entries"])
 MAX_ENTRIES = int(_LIMITS["maximum_submitted_entries"])
 MAX_INTEGER_DIGITS = int(_LIMITS["maximum_decimal_digits_per_integer"])
 MAX_TOTAL_DIGITS = int(_LIMITS["maximum_total_integer_digits"])
-_MAX_INTEGER_BITS = 3322
+_MAX_INTEGER_BITS = ceil(MAX_INTEGER_DIGITS * log2(10))
 
 
 def _load_contract(name, filename):
@@ -67,7 +68,7 @@ def _canonical_tuple(raw) -> tuple[tuple[Fraction, ...] | None, str]:
     try:
         iterator = iter(raw)
     except Exception as exc:  # noqa: BLE001 - untrusted candidate boundary
-        return None, "not an iterable: %s" % exc
+        return None, f"not an iterable: {exc}"
 
     values: set[Fraction] = set()
     total_digits = 0
@@ -78,7 +79,7 @@ def _canonical_tuple(raw) -> tuple[tuple[Fraction, ...] | None, str]:
             except StopIteration:
                 break
             if index == MAX_ENTRIES:
-                return None, "more than %d entries" % MAX_ENTRIES
+                return None, f"more than {MAX_ENTRIES} entries"
             if not isinstance(item, (list, tuple)) or len(item) != 2:
                 return None, "each rational must be [numerator, denominator]"
             numerator, denominator = item
@@ -87,13 +88,13 @@ def _canonical_tuple(raw) -> tuple[tuple[Fraction, ...] | None, str]:
             numerator_digits = _digit_count(numerator)
             denominator_digits = _digit_count(denominator)
             if numerator_digits is None or denominator_digits is None:
-                return None, "integer exceeds %d decimal digits" % MAX_INTEGER_DIGITS
+                return None, f"integer exceeds {MAX_INTEGER_DIGITS} decimal digits"
             if (numerator_digits > MAX_INTEGER_DIGITS
                     or denominator_digits > MAX_INTEGER_DIGITS):
-                return None, "integer exceeds %d decimal digits" % MAX_INTEGER_DIGITS
+                return None, f"integer exceeds {MAX_INTEGER_DIGITS} decimal digits"
             total_digits += numerator_digits + denominator_digits
             if total_digits > MAX_TOTAL_DIGITS:
-                return None, "output exceeds %d total integer digits" % MAX_TOTAL_DIGITS
+                return None, f"output exceeds {MAX_TOTAL_DIGITS} total integer digits"
             if denominator == 0:
                 return None, "zero denominator"
             value = Fraction(numerator, denominator)
@@ -103,10 +104,10 @@ def _canonical_tuple(raw) -> tuple[tuple[Fraction, ...] | None, str]:
         else:  # pragma: no cover - the explicit index check returns first
             return None, "too many entries"
     except Exception as exc:  # noqa: BLE001 - untrusted candidate boundary
-        return None, "malformed output: %s" % exc
+        return None, f"malformed output: {exc}"
 
-    if len(values) < 2:
-        return None, "need at least two distinct rationals"
+    if len(values) < MIN_DISTINCT_ENTRIES:
+        return None, f"need at least {MIN_DISTINCT_ENTRIES} distinct rationals"
     return tuple(sorted(values)), "ok"
 
 
@@ -138,14 +139,14 @@ def _reference_witness():
 def _reference_size() -> int:
     valid, size, reason = verify_tuple(_reference_witness())
     if not valid:
-        raise RuntimeError("bundled reference witness failed verification: %s" % reason)
+        raise RuntimeError(f"bundled reference witness failed verification: {reason}")
     return size
 
 
 def _baseline_size() -> int:
     valid, size, reason = verify_tuple(_PANEL["baseline_witness"])
     if not valid:
-        raise RuntimeError("bundled baseline witness failed verification: %s" % reason)
+        raise RuntimeError(f"bundled baseline witness failed verification: {reason}")
     return size
 
 
@@ -154,7 +155,7 @@ def _normalized(value: float, baseline: float, sota: float) -> float:
     denominator = sota - baseline
     if denominator <= 0:
         return 0.0
-    return float(max(0.0, (value - baseline) / denominator))
+    return float(max(SCORE_LOWER_BOUND, (value - baseline) / denominator))
 
 
 def evaluate(construct_tuple) -> dict:
@@ -165,7 +166,7 @@ def evaluate(construct_tuple) -> dict:
             "combined_score": 0.0,
             "valid": 0.0,
             "tuple_size": 0,
-            "reason": "candidate raised: %s" % exc,
+            "reason": f"candidate raised: {exc}",
             "beat_sota": False,
             "frontier_records": [],
         }
