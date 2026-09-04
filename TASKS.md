@@ -65,7 +65,7 @@
 
 | 任务 | 学科 | 领域 | 打分 | oracle | 认证 | 说明 | 中文题意 | 中文评估方法 |
 |---|---|---|---|---|---|---|---|---|
-| [`AdaptiveConservativePDEMethod`](benchmarks/ComputerScience/AdaptiveConservativePDEMethod/)<br>自适应守恒 PDE 方法设计 | ComputerScience | ScientificComputing | uncapped | analytical_numerical_pde | candidate | Can one deterministic finite-volume method balance accuracy, nonlinear stability, exact discrete | 为多种光滑、激波与稳定性工况设计自适应守恒通量和时间推进方法 | 误差、守恒、激波、稳定性与计算量综合分;公开参考为 1,更强合法方法可继续超过 |
+| [`AdaptiveConservativePDEMethod`](benchmarks/ComputerScience/AdaptiveConservativePDEMethod/)<br>自适应守恒 PDE 方法设计 | ComputerScience | ScientificComputing | uncapped | analytical_numerical_pde | candidate | Can one deterministic finite-volume method improve cell-average accuracy across a frozen panel of | 为多种光滑、激波与稳定性工况设计自适应守恒通量和时间推进方法 | 误差、守恒、激波、稳定性与计算量综合分;公开参考为 1,更强合法方法可继续超过 |
 
 ## Discovery(34)
 
@@ -84,7 +84,7 @@
 | 任务 | 学科 | 领域 | 打分 | oracle | 认证 | 说明 | 中文题意 | 中文评估方法 |
 |---|---|---|---|---|---|---|---|---|
 | [`GeneNetworkIntervention`](benchmarks/Biology/GeneNetworkIntervention/)<br>基因网络干预设计 | Biology | SystemsBiology | clipped | physical_sim | candidate | discover a dynamic regulatory network and design a phenotype intervention | 用扰动实验恢复带符号的动态调控网络,并设计达成表型的干预 | 网络恢复 + 预测 + 表型干预迁移 + 拒答 |
-| [`OpenVocabularyReactionNetworkDiscovery`](benchmarks/Chemistry/OpenVocabularyReactionNetworkDiscovery/)<br>开放词汇反应网络发现 | Chemistry | ChemicalKinetics | clipped | analytical | candidate | Starting from a small heavy-atom inventory and one seed molecule, can an active policy construct | 从一个种子分子主动构造并探测未列出的分子图和基元反应边,同时识别空网络与模型不足 | 规范物种/反应恢复、总假发现率、校准拒答与尝试覆盖率分列;当前有限解析语法可穷举 |
+| [`OpenVocabularyReactionNetworkDiscovery`](benchmarks/Chemistry/OpenVocabularyReactionNetworkDiscovery/)<br>开放词汇反应网络发现 | Chemistry | ChemicalKinetics | uncapped | analytical | candidate | Starting from a small heavy-atom inventory and one seed molecule, can an active policy construct | 从一个种子分子主动构造并探测未列出的分子图和基元反应边,同时识别空网络与模型不足 | 规范物种/反应恢复、总假发现率、校准拒答与尝试覆盖率分列;当前有限解析语法可穷举 |
 | [`GraphFromDistances`](benchmarks/ComputerScience/GraphFromDistances/)<br>距离查询重建图 | ComputerScience | Algorithm | clipped | community_graph_algorithms_networkx | candidate | A weighted network exists but you cannot see it. | 在有限次距离查询下重建加权网络的边:短距离不等于相邻,可能是两条短边的两跳路径 | 边恢复 F1;误发现率与不可辨识拒答分开报告 |
 | [`InterventionalSCM`](benchmarks/ComputerScience/InterventionalSCM/)<br>干预式结构因果模型 | ComputerScience | CausalDiscovery | clipped | physical_sim | candidate | recover hidden causal mechanisms by experimentation | 用干预实验打破马尔可夫等价,恢复隐藏线性无环结构因果模型的有向图与系数 | 有向图与结构系数恢复;观测关联不足以定向 |
 | [`SurvivorshipConfoundedDesign`](benchmarks/ComputerScience/SurvivorshipConfoundedDesign/)<br>幸存者偏差下的效应估计 | ComputerScience | CausalDiscovery | clipped | physical_sim | candidate | association among survivors is not a treatment effect | 每一行数据都已被结果相关的筛选选中,在幸存者表里估计真实处理效应 | 处理效应恢复;混杂开启的伪关联须识别,无 T→Y 边时不得宣称效应 |
