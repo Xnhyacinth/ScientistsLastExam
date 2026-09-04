@@ -252,9 +252,11 @@ def _activation_energy(left_key, right_key, spec):
     allowed, removed_channels, formed_channels = _bond_exchange(left_key, right_key)
     if not allowed:
         raise ValueError("proposal is not one elementary bond exchange")
+    if len(removed_channels) != len(formed_channels):
+        raise RuntimeError("bond-exchange channel counts differ")
     uphill = max(_species_energy(right_key) - _species_energy(left_key), 0.0)
     barriers = []
-    for removed, formed in zip(removed_channels, formed_channels, strict=True):
+    for removed, formed in zip(removed_channels, formed_channels):
         broken_pair = _pair_for_bit(removed)
         formed_pair = _pair_for_bit(formed)
         selectivity = (

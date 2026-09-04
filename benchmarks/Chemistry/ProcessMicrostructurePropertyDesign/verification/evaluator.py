@@ -14,7 +14,6 @@ import json
 import math
 from collections.abc import Mapping
 from functools import lru_cache
-from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
@@ -399,7 +398,7 @@ def _properties(world, process):
 def _hypervolume_2d(points, reference):
     xs = sorted({reference[0], *(point[0] for point in points)})
     area = 0.0
-    for left, right in pairwise(xs):
+    for left, right in zip(xs, xs[1:]):
         active = [point[1] for point in points if point[0] >= right]
         if active:
             area += (right - left) * max(max(active) - reference[1], 0.0)
@@ -409,7 +408,7 @@ def _hypervolume_2d(points, reference):
 def _hypervolume_3d(points, reference=HYPERVOLUME_REFERENCE_POINT):
     xs = sorted({reference[0], *(point[0] for point in points)})
     volume = 0.0
-    for left, right in pairwise(xs):
+    for left, right in zip(xs, xs[1:]):
         active = [(point[1], point[2]) for point in points if point[0] >= right]
         if active:
             volume += (right - left) * _hypervolume_2d(active, reference[1:])
@@ -433,10 +432,10 @@ def _shifted_worlds(world):
         shifted = dict(world)
         for operation, value in specification.items():
             if operation.endswith("_factor"):
-                field = operation.removesuffix("_factor")
+                field = operation[:-len("_factor")]
                 shifted[field] *= value
             elif operation.endswith("_delta"):
-                field = operation.removesuffix("_delta")
+                field = operation[:-len("_delta")]
                 shifted[field] += value
             else:
                 raise RuntimeError("unsupported frozen shift operation: " + operation)

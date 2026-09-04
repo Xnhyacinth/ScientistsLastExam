@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import math
 from heapq import heappop, heappush
-from itertools import pairwise
 
 
 def _quantize(problem, process):
@@ -153,7 +152,7 @@ def _proxy_objectives(problem, process):
 def _hypervolume_2d(points):
     xs = sorted({0.0, *(point[0] for point in points)})
     area = 0.0
-    for left, right in pairwise(xs):
+    for left, right in zip(xs, xs[1:]):
         active = [point[1] for point in points if point[0] >= right]
         if active:
             area += (right - left) * max(active)
@@ -163,7 +162,7 @@ def _hypervolume_2d(points):
 def _hypervolume_3d(points):
     xs = sorted({0.0, *(point[0] for point in points)})
     volume = 0.0
-    for left, right in pairwise(xs):
+    for left, right in zip(xs, xs[1:]):
         active = [(point[1], point[2]) for point in points if point[0] >= right]
         if active:
             volume += (right - left) * _hypervolume_2d(active)

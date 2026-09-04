@@ -5,7 +5,7 @@ predecessor_wave_sha256: null
 cells:
   - id: verified-open-vocabulary-reaction-edge
     kind: discovery
-    definition_sha256: "cb79707de234a744ca73c9230b15817c7e1fadc04b933ecf1742c1a98dd00d36"
+    definition_sha256: "812425929f011faef117b9a81789da5400ab767c5af1e2781907b7455b60d495"
     weight: 1
     credit_per_claim: 0.05
     novelty_namespace: sle/open-vocabulary-reaction-network/edge/v1
@@ -19,4 +19,4 @@ cells:
       evaluation_panel_path: frontier_eval/contracts/evaluation_panel_v1.json
       evaluation_panel_sha256: "0a13707ecf148fe14f4066c92bec261aef854a0a4281065f3772036d61fa2349"
       oracle_path: verification/evaluator.py
-      oracle_sha256: "694be9df4703ad22e4e1f967b0775db40103863c560e296ce717aa3a5d3a51f7"
+      oracle_sha256: "0e334592bd1cfd5202cf6933dba82d0a70dbbbedb767276b0719cc9c0f6c5cd2"

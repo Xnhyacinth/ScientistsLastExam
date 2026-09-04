@@ -87,7 +87,7 @@
   },
   "reference_policy": {
     "path": "verification/reference_process_archive.py",
-    "sha256": "f8e07afefb67fa1b81baaef3dee76ab76ac777bff9fdb5e3f1e9a0ae77c2ec83"
+    "sha256": "42059da547c4b9178e60d6e63c1437f926cbc4ee75d8baf530c59c301514d808"
   },
   "reference_search": {
     "pool_size": 1024,
