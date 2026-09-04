@@ -49,7 +49,7 @@ def _trusted_python() -> str:
     """Keep trusted evaluation independent from optional framework environments."""
     configured = os.environ.get("FRONTIER_SCIENCE_TRUSTED_PYTHON")
     if configured:
-        return str(Path(configured).expanduser().resolve())
+        return str(Path(configured).expanduser().absolute())
     system_python = Path("/usr/bin/python3")
     return str(system_python if system_python.is_file() else Path(sys.executable).resolve())
 

@@ -4,6 +4,7 @@ import dataclasses
 import json
 import hashlib
 import math
+import os
 import tempfile
 import textwrap
 import unittest
@@ -13,7 +14,7 @@ from unittest.mock import patch
 import numpy as np
 
 from sle.evaluate import (
-    INVALID_SCORE, canonical_trusted_context, evaluate_candidate,
+    INVALID_SCORE, _trusted_python, canonical_trusted_context, evaluate_candidate,
 )
 from sle.rpc_codec import CodecError, decode, encode
 from sle.secure_eval import (
@@ -62,6 +63,22 @@ def _fixture_task(root: Path) -> Path:
 
 
 from _sandbox_tools import skip_unless_sandbox  # noqa: E402
+
+
+class TrustedPythonSelectionTests(unittest.TestCase):
+    def test_configured_virtualenv_entrypoint_is_not_resolved(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            interpreter = root / "base-python"
+            interpreter.touch()
+            configured = root / "venv" / "bin" / "python"
+            configured.parent.mkdir(parents=True)
+            configured.symlink_to(interpreter)
+            with patch.dict(
+                os.environ,
+                {"FRONTIER_SCIENCE_TRUSTED_PYTHON": str(configured)},
+            ):
+                self.assertEqual(_trusted_python(), str(configured))
 
 
 # Skipped only where the platform cannot have bwrap (macOS). Linux without it still fails: that
