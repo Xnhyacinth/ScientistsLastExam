@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "artifact": "finite set of distinct nonzero reduced rational numbers",
+  "feasibility": "for every unordered pair a*b+1 is an exact rational square",
+  "objective": "maximize exactly verified set cardinality",
+  "reference_cardinality": 6,
+  "resource_limits": {
+    "maximum_submitted_entries": 64,
+    "maximum_decimal_digits_per_integer": 1000,
+    "maximum_total_integer_digits": 16000
+  },
+  "claim_boundary": "Credit is benchmark-frontier credit. A tuple above six requires independent mathematical and provenance review before any research-discovery claim."
+}

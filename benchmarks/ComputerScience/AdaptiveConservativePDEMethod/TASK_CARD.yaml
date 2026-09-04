@@ -1,0 +1,65 @@
+schema_version: 2
+scientific_question: Can one deterministic adaptive finite-volume method improve accuracy, nonlinear stability, discrete conservation and cell-stage efficiency across a frozen smooth-and-shock scalar conservation-law panel?
+artifact: One exact-field numerical-method design containing a reconstruction, limiter, Riemann solver, time integrator, grid resolution, CFL factor, curvature-sensor threshold, shock blend and flux-dissipation coordinate.
+oracle:
+  model: Deterministic one-dimensional finite-volume replay of constant-coefficient advection and inviscid Burgers equations using frozen analytic cell-average targets.
+  feasibility: One invariant exact-field method, finite public-bounded continuous coordinates, documented discrete choices, and no world exceeding 120000 cell-stage work units; malformed, inconsistent, nonfinite, exception-producing and overbudget methods fail closed.
+  deterministic: true
+normalization:
+  baseline: Legal 32-cell piecewise-constant Rusanov/Euler method with CFL 0.45 and dissipation multiplier 1.15.
+  reference: Executable 96-cell MUSCL/MC/Godunov/SSPRK2 witness with a curvature-triggered slope blend; it is not a global optimum.
+  score: Four-world development utility over accuracy, stability, conservation and work, affinely normalized above the baseline and left uncapped; all held-out axes remain separate.
+citations:
+- id: doi:10.1016/0021-9991(79)90145-1
+  title: Towards the ultimate conservative difference scheme. V. A second-order sequel to Godunov's method
+- id: doi:10.1016/0021-9991(88)90177-5
+  title: Efficient implementation of essentially non-oscillatory shock-capturing schemes
+invariants:
+- the artifact is one numerical discretization policy, not a PDE parameter fit, state estimate or physical design
+- the same public problem mapping is presented independently at all seven scientific world boundaries and one canonical method is required
+- candidate process, module, imported-module and private temporary-filesystem state is reset between panel worlds
+- every update is a conservative numerical flux difference and fixed-boundary balance uses the matching Runge--Kutta flux quadrature
+- smooth and shock accuracy, stability, conservation and cell-stage work remain separately reported
+- the four development worlds alone determine combined_score; three held-out worlds do not affect selection
+- the legal weak baseline scores exactly zero, the executable witness scores exactly one, and better utilities can exceed one
+- inactive DSL coordinates are canonicalized away before artifact identity is assigned
+- evaluator-produced frontier_records bind the canonical method to the frozen evidence predicate and evaluation panel
+- later task-family expansion requires a new immutable wave rather than mutation of this panel
+known_shortcuts: The panel is repository visible and contains only seven one-dimensional scalar-law worlds on uniform grids. The evaluator owns a finite menu of standard scheme components, uses deterministic quadrature, omits measured wall time and memory traffic, and does not test formal convergence order, multidimensional geometry, systems of conservation laws, stiffness, positivity for general states, entropy inequalities beyond the chosen scalar fluxes, parallel scalability or application validation. A hand-designed standard method already exceeds the reference, proving score headroom but not model difficulty. T2 and hard are candidate labels pending external numerical-PDE review and HY3 calibration.
+review:
+  domain: pending_external_numerical_pde_and_finite_volume_review
+  evaluator_security: automated_baseline_reference_headroom_conservation_schema_budget_determinism_session_reset_wave_hash_and_frontier_record_tests
+provenance:
+  class: procedural
+  target_source: Repository-visible deterministic analytic scalar-law generator with four development and three held-out worlds.
+  task_contract_public_before_evaluation: true
+  fresh_confirmation_status: not_applicable_synthetic_oracle
+novelty_risk:
+  level: high
+  rationale: MUSCL, TVD limiters, Godunov and SSP Runge--Kutta methods are established. The benchmark contribution is the frozen adaptive method-design search cell and evidence contract, not a claim of a new numerical scheme.
+lineage:
+  status: complete
+  builder_model_ids:
+  - openai:codex-gpt-5
+  builder_scaffolds:
+  - codex-cli
+  calibrator_model_ids: []
+  calibration_runs: []
+  calibration_evidence_status: missing
+  edits_triggered_by_model: No model calibration was run; deterministic unit tests and explicit baseline, reference and stronger-method replay informed the candidate package.
+  shortcut_discoverer: builder_self_audit
+  frozen_before_eval: false
+  freeze_timestamp: null
+long_horizon:
+  status: not_tested
+  measurement_health_passed: false
+  material_headroom_after_2h: false
+  evidence: []
+construction_audit:
+  status: builder_audited_pending_external
+  author_domain: openai:codex-gpt-5
+  reviewer_domain: pending_external_numerical_pde_and_finite_volume_review
+  expert_hours: null
+  red_team_rounds: 1
+  oracle_disagreement_status: not_quantified
+  independent_recomputation_status: baseline, executable witness, above-reference method, deterministic replay, exact discrete flux balance, overbudget and malformed paths are runnable from the package

@@ -1,0 +1,15 @@
+domain: Mathematics
+task: RationalDiophantineTuple
+scientific_role: optimization
+difficulty: flagship
+tier: T3
+oracle_type: analytical
+score_mode: uncapped
+gpu_required: false
+eval_time_seconds: 10
+science_metric: maximum_cardinality_of_exact_rational_diophantine_tuple
+reference_baseline: classical_integer_quadruple_1_3_8_120
+reference_sota: published_positive_rational_sextuple_recomputed_by_oracle
+citation: "Gibbs arXiv:math/9902081; Dujella et al. arXiv:1507.00569; Epoch AI 2026 rational Diophantine septuple open problem"
+task_family_id: Mathematics/RationalDiophantineTuple
+wave_id: exact-rational-cardinality-v1
