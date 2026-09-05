@@ -44,6 +44,9 @@ RECORDED_LINEAGE = {
     "MaterialsScience/QuinaryConvexHull",
     "Mathematics/NarrowAdmissibleTuple",
     "Superconductivity/SuperconductorTcRecord",
+    "ScientificComputing/AdaptiveConservativePDEMethod",
+    "ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery",
+    "MaterialsScience/ProcessMicrostructurePropertyDesign",
 }
 
 

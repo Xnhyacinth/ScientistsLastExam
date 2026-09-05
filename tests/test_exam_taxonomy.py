@@ -43,6 +43,10 @@ class ExamTaxonomyTests(unittest.TestCase):
     def test_on_ramps_are_named_rather_than_paired(self):
         tax = load_taxonomy()
         self.assertEqual(
+            tax["tasks"]["ScientificComputing/AdaptiveConservativePDEMethod"].get("note"),
+            "on_ramp_do_not_pair",
+        )
+        self.assertEqual(
             tax["tasks"]["SystemsBiology/EnzymeKineticsLaw"].get("note"),
             "on_ramp_do_not_pair",
         )

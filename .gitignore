@@ -30,6 +30,7 @@ docs/
 docs/*
 !docs/edgebench_science_experiment_addendum.md
 !docs/frontier_families.md
+!docs/frontier_task_designs.md
 .venv-sle/
 
 # per-run locks held by scripts/run_cohort.sh

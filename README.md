@@ -40,15 +40,16 @@ Scientists' Last Exam
 
 ## 两类任务
 
-当前 61 个任务包,横跨 7 个学科,5 个 certified、56 个 candidate。
+当前 65 个任务包,横跨 7 个物理目录学科和更多逻辑 domain,5 个 certified、60 个 candidate。
 
-optimization(29 个):在受约束的设计空间里把目标做得更好。分三类:
-工程设计(换热器、桁架、薄膜、解码器等 15 题)、开放组合纪录(圆堆积、cap set、Ramsey、kissing、
-张量秩、超排列等 9 题,无上限)、分子与大分子设计(5 题)。
+optimization(31 个):在受约束的设计空间里把目标做得更好。分四类:
+工程设计 16 题、科学方法设计 1 题、开放组合纪录 9 题、分子与大分子设计 5 题。
+守恒 PDE 方法经单 seed HY3 协议冒烟测试后仅保留为不参与困难配对的 on-ramp；
+过程-微结构-性质设计仍是未校准候选。
 分数由做出来的东西有多好决定;公开纪录是 score = 1 的见证,不是封顶。
 
-discovery(32 个):从受预算约束的观测里恢复一个机制,或判断根本没有机制可恢复。
-分五类:公式 5、结构 6、证据 5、物质 3、参数反演 13。每题包含三种世界:
+discovery(34 个):从受预算约束的观测里恢复一个机制,或判断根本没有机制可恢复。
+分五类:公式 5、结构 7、证据 6、物质 3、参数反演 13。每题包含三种世界:
 机制在候选可表达的模型族内(该找出来)、机制在族外、根本没有机制(后两种该拒答)。
 候选看不到自己面对的是哪一类。
 
@@ -133,6 +134,13 @@ python scripts/report_admission_criterion.py --runs runs/<name> --output /tmp/ad
 无法绑定到产出它的运行时的证据会被拒绝,而不是被悄悄复用。
 
 详细的测量结果、判决与开放项见 [`.research/`](.research/)。
+
+本轮另加入三个同样保持 `candidate` 的原型:`AdaptiveConservativePDEMethod`、
+`OpenVocabularyReactionNetworkDiscovery` 和 `ProcessMicrostructurePropertyDesign`。三题均已接入 immutable wave、hash-bound semantic
+contract 与 canonical discovery/optimization record，但仍只处于可运行的候选阶段。
+固定 wave 有限且未做 HY3 标定,所以这里的 uncapped score 只表示不会隐藏超过 reference 的结果,
+不等于已经证明任务可无限提高或足够困难。两个更长期旗舰与额外学科候选的实现门禁见
+[`docs/frontier_task_designs.md`](docs/frontier_task_designs.md)。
 
 ## 如何贡献
 
