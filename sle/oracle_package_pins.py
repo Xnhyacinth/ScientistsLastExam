@@ -32,7 +32,37 @@ BASE_CANDIDATE_PINS = {
 # These distributions carry Astropy's numerical and serialization behavior into Radial. They are
 # mounted under their import-directory aliases, so validating only `astropy` is not sufficient.
 TOOLKIT_DEPENDENCY_PINS = {
-    "astropy": {"pyerfa": "2.0.0.3", "PyYAML": "6.0.2"},
+    "rdkit": {"Pillow": "10.4.0"},
+    "sympy": {"mpmath": "1.3.0"},
+    "nmrsim": {
+        "sparse": "0.15.5",
+        "numba": "0.58.1",
+        "llvmlite": "0.41.1",
+        "numpy-groupies": "0.9.22",
+        "importlib-metadata": "8.5.0",
+        "typing-extensions": "4.12.2",
+        "zipp": "3.20.2",
+    },
+    "qutip": {"packaging": "26.2"},
+    "astropy": {
+        "pyerfa": "2.0.0.3",
+        "PyYAML": "6.0.2",
+        "packaging": "26.2",
+    },
+}
+
+# Trusted-only dependencies are not mounted into the candidate, but setup must still lock the
+# full resolver closure so reinstalling one oracle toolkit cannot drift another task's runtime.
+ORACLE_DEPENDENCY_PINS = {
+    "matplotlib": "3.7.5",
+    "contourpy": "1.1.1",
+    "cycler": "0.12.1",
+    "fonttools": "4.57.0",
+    "importlib-resources": "6.4.5",
+    "kiwisolver": "1.4.7",
+    "pyparsing": "3.1.4",
+    "python-dateutil": "2.9.0.post0",
+    "six": "1.17.0",
 }
 
 
@@ -54,6 +84,14 @@ def candidate_distribution_pins(
 
 def setup_requirements(python_version: tuple[int, int]) -> tuple[str, ...]:
     """Return one fully pinned transaction for scripts/setup_oracle_env.sh."""
+    if tuple(python_version) != (3, 8):
+        raise RuntimeError(
+            "full oracle setup supports only certified Python 3.8; got Python %d.%d"
+            % tuple(python_version)
+        )
     pins = dict(ORACLE_PACKAGE_PINS)
-    pins.update(candidate_distribution_pins(python_version, ORACLE_PACKAGE_PINS))
+    pins.update(candidate_distribution_pins(python_version))
+    for dependencies in TOOLKIT_DEPENDENCY_PINS.values():
+        pins.update(dependencies)
+    pins.update(ORACLE_DEPENDENCY_PINS)
     return tuple("%s==%s" % item for item in pins.items())
