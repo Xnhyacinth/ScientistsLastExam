@@ -78,7 +78,8 @@ conservative reconstruction (DOI
 `10.1016/0021-9991(88)90177-5`), and Jiang and Shu's WENO construction (DOI
 `10.1006/jcph.1996.0130`). It tests only seven visible one-dimensional scalar-law worlds on uniform
 grids. It omits multidimensional meshes, systems, stiffness, entropy proofs, general positivity,
-parallel cost and application validation. The fixed wave has a finite method space and a score
-uncapped at the reference; only verified future immutable waves can extend lifetime family credit.
+parallel cost and application validation. The fixed wave has bounded coordinates and resource
+envelopes, while its score is not clipped at the reference; only verified future immutable waves
+can extend lifetime family credit.
 External numerical-PDE review and HY3 calibration are still missing, so this package remains a
 candidate.

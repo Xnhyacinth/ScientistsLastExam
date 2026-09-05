@@ -79,7 +79,8 @@ discovery(34 个):从受预算约束的观测里恢复一个机制,或判断根�
     └── known_best.md             # 锚点的来源与重推导,无上限任务必需
 ```
 
-分数经过归一化:0 是出厂基线,1 是参考见证解,uncapped 任务不设上限。
+分数经过归一化:0 是出厂基线,1 是参考见证解。`uncapped` 仅表示分数不在 1 截断；
+固定 wave 的任务空间与效用仍可能有有限上界，不能据此宣称数学上无上限。
 发现类的归一化让全面弃权恰好得零。evaluator 至少返回有限数值的 `combined_score` 与 `valid`。
 
 需要跨版本持续优化或发现的任务可选择加入 **frontier family**。同一
@@ -138,7 +139,7 @@ python scripts/report_admission_criterion.py --runs runs/<name> --output /tmp/ad
 本轮另加入三个同样保持 `candidate` 的原型:`AdaptiveConservativePDEMethod`、
 `OpenVocabularyReactionNetworkDiscovery` 和 `ProcessMicrostructurePropertyDesign`。三题均已接入 immutable wave、hash-bound semantic
 contract 与 canonical discovery/optimization record，但仍只处于可运行的候选阶段。
-固定 wave 有限且未做 HY3 标定,所以这里的 uncapped score 只表示不会隐藏超过 reference 的结果,
+固定 wave 有界且未做 HY3 标定,所以这里的 uncapped score 只表示不会隐藏超过 reference 的结果,
 不等于已经证明任务可无限提高或足够困难。两个更长期旗舰与额外学科候选的实现门禁见
 [`docs/frontier_task_designs.md`](docs/frontier_task_designs.md)。
 

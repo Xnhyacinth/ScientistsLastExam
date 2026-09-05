@@ -463,7 +463,7 @@ def _metrics(spec, species, reactions, confidence, abstain):
             "correct_refusal": False,
             "calibrated_refusal_score": 0.0,
             "attempted_discovery": False,
-            "confidence_calibration_score": 1.0 - confidence ** 2,
+            "confidence_calibration_score": 1.0 - (confidence - 1.0) ** 2,
             "frontier_records": [],
         }
     truth_species = {key for edge in truth for key in edge}

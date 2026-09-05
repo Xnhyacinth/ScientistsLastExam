@@ -75,6 +75,12 @@ class OpenVocabularyReactionNetworkDiscoveryTests(unittest.TestCase):
         self.assertEqual(result["development_correct_refusal_rate"], 1.0)
         self.assertEqual(result["development_calibrated_refusal_score"], 1.0)
         self.assertEqual(result["development_attempted_discovery_rate"], 0.0)
+        self.assertAlmostEqual(
+            result["development_confidence_calibration"], 2.0 / 6.0, places=12
+        )
+        self.assertAlmostEqual(
+            result["heldout_confidence_calibration"], 2.0 / 5.0, places=12
+        )
 
     def test_active_frontier_reference_is_one_without_false_edges(self):
         first = self.evaluator.evaluate(self.evaluator._reference_policy)

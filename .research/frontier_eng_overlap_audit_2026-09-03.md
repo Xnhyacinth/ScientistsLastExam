@@ -49,6 +49,7 @@
 
 | 本仓库 | Frontier-Eng 同题? | 同类问题? | 说明 |
 |---|---|---|---|
+| AdaptiveConservativePDEMethod | 无 | 同域不同题:论文附录的 DG Navier--Stokes、DiffSim thermal control；仓库任务以连续或离散工程变量优化物理对象 | **重合风险:低。** 本文任务优化可复用的一维守恒律有限体积离散策略，联合选择 reconstruction、limiter、Riemann solver、SSP time integrator 与局部 shock fallback，并审计精度、稳定性、守恒和 work；它不优化某个固定 PDE 的边界条件、几何或控制量。 |
 | OpenVocabularyReactionNetworkDiscovery | 无 | 同域不同题:论文附录的 ReactionOptimisation/snar_multiobjective、mit_case1_mixed、reizman_suzuki_pareto；仓库另有 MolecularMechanics 三题 | **重合风险:低。** Frontier-Eng 的反应题在固定已知反应上优化连续工艺参数或催化剂，以产率、废物或催化周转为目标；MolecularMechanics 做参数覆盖、构象组合或扭转能拟合。本文任务从一个种子和重原子清单开放构造规范物种图及有向基元反应边，主动探测并恢复活化能，同时单列假发现、空网络和模型不足拒答；不暴露候选物种或反应目录。 |
 | ProcessMicrostructurePropertyDesign | 无 | 同形式不同问题:仓库新增 AdditiveManufacturing/DiffSimThermalControl；论文附录 47 题无过程-微结构-性质协同设计 | **重合风险:中。** Frontier-Eng 近邻只在固定增材制造 toolpath 上优化激光功率 knots，以热轨迹、固/液相温区、平滑度和能耗组成损失；本文任务提交 4--20 个共混、退火、冷却和拉伸工艺配方，经冻结相场/粗化再均匀化为比模量、阻隔与过程能耗三目标 Pareto 档案，并检查密封材料和过程偏移。二者同为制造过程仿真优化，但物理系统、决策变量、产物和评分对象均不同。 |
 

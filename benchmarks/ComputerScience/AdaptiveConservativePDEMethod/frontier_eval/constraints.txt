@@ -4,4 +4,4 @@
 4) Use method_fields, discrete_choices, continuous_bounds, equations, boundary_conditions, adaptivity, objectives, work_unit_definition, max_work_units_per_case and scope_warning as documented public context; no world ID, split or trajectory feedback is supplied.
 5) Return the same deterministic method at every independent scientific world boundary; do not infer call order or rely on module, imported-module or temporary-filesystem state.
 6) The oracle is a frozen one-dimensional scalar conservation-law benchmark, not evidence of multidimensional, system-PDE or real-application validity.
-7) Deterministic CPU and standard library only; no network/process creation. Do not read verification/ or frontier_eval/.
+7) Deterministic CPU using the standard library, NumPy or SciPy only; no network/process creation. Do not read verification/ or frontier_eval/.
