@@ -30,10 +30,11 @@ REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 # One canonical map now drives both this install transaction and secure_eval's runtime checks.
 # Installing every pin in one resolver transaction prevents a later toolkit's dependency upgrade
 # from silently changing NumPy, SciPy or Astropy's numerical dependencies.
-mapfile -t PACKAGES < <(
+PACKAGE_OUTPUT="$(
   PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" "$ORACLE_PYTHON" -c \
     "from sle.oracle_package_pins import setup_requirements; import sys; print(*setup_requirements(sys.version_info[:2]), sep='\\n')"
-)
+)"
+mapfile -t PACKAGES <<< "$PACKAGE_OUTPUT"
 
 # import name -> pip name, since several differ
 declare -A IMPORT_NAME=(
@@ -50,6 +51,25 @@ declare -A IMPORT_NAME=(
   ["scipy"]="scipy"
   ["pyerfa"]="erfa"
   ["PyYAML"]="yaml"
+  ["Pillow"]="PIL"
+  ["mpmath"]="mpmath"
+  ["sparse"]="sparse"
+  ["numba"]="numba"
+  ["llvmlite"]="llvmlite"
+  ["numpy-groupies"]="numpy_groupies"
+  ["importlib-metadata"]="importlib_metadata"
+  ["typing-extensions"]="typing_extensions"
+  ["zipp"]="zipp"
+  ["packaging"]="packaging"
+  ["matplotlib"]="matplotlib"
+  ["contourpy"]="contourpy"
+  ["cycler"]="cycler"
+  ["fonttools"]="fontTools"
+  ["importlib-resources"]="importlib_resources"
+  ["kiwisolver"]="kiwisolver"
+  ["pyparsing"]="pyparsing"
+  ["python-dateutil"]="dateutil"
+  ["six"]="six"
 )
 
 site_dir() {
@@ -107,7 +127,9 @@ if [[ "${1:-}" == "--check" ]]; then
   exit $?
 fi
 
-if ! "$BOOTSTRAP_VENV/bin/python" -m pip --version >/dev/null 2>&1; then
+if ! "$BOOTSTRAP_VENV/bin/python" -c \
+    'import sys; raise SystemExit(sys.version_info[:2] != (3, 8))' >/dev/null 2>&1 \
+    || ! "$BOOTSTRAP_VENV/bin/python" -m pip --version >/dev/null 2>&1; then
   echo "creating bootstrap venv at $BOOTSTRAP_VENV"
   # No --system-site-packages: inheriting them is what pulls in the broken OpenSSL bindings.
   rm -rf "$BOOTSTRAP_VENV"

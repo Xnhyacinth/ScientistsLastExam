@@ -32,8 +32,8 @@ BASE_CANDIDATE_PACKAGES = ("numpy", "numpy.libs", "scipy", "scipy.libs")
 
 # Domain toolkits a task may additionally expose to its candidate by listing them in
 # ``frontier_eval/candidate_packages.txt``. The allowlist is fixed in trusted code so a task
-# package can never name an arbitrary host directory; each entry must also be a pure directory
-# name, and the value is only ever read from the task's own (agent-readonly) eval directory.
+# package can never name an arbitrary host entry; each entry must also be a bare package path,
+# and the value is only ever read from the task's own (agent-readonly) eval directory.
 #
 # Deliberately absent: verification-side anchors such as ``pymatching``. A task whose reference
 # decoder is the scoring anchor must not be able to hand that anchor to the candidate.
@@ -51,7 +51,7 @@ ALLOWED_CANDIDATE_PACKAGES = {
     # Listing only the obvious ones produced a bare blocked_or_missing_import with no hint of
     # which module was missing, so the full chain is enumerated here.
     "nmrsim": ("nmrsim", "sparse", "numba", "llvmlite", "numpy_groupies",
-               "importlib_metadata", "typing_extensions"),
+               "importlib_metadata", "typing_extensions.py", "zipp"),
     "networkx": ("networkx",),
     "qutip": ("qutip", "packaging"),
     "astropy": (
@@ -117,12 +117,125 @@ def _hidden_package_mount_args(source: Path, destination: str) -> tuple[str, ...
     args: list[str] = []
     for current, directories, _files in os.walk(str(root), followlinks=False):
         for name in tuple(directories):
-            if name not in {"site-packages", "dist-packages"}:
+            is_package_store = name in {"site-packages", "dist-packages"}
+            is_bundled_installer = name == "_bundled" and Path(current).name == "ensurepip"
+            if not (is_package_store or is_bundled_installer):
                 continue
             package_root = Path(current) / name
             relative = package_root.relative_to(root)
             args += ["--tmpfs", str(Path(destination) / relative)]
             directories.remove(name)
+    return tuple(args)
+
+
+def _is_below(path: Path, roots: tuple[Path, ...]) -> bool:
+    resolved = path.resolve()
+    for root in roots:
+        try:
+            resolved.relative_to(root)
+            return True
+        except ValueError:
+            pass
+    return False
+
+
+def _is_system_library_destination(path: Path) -> bool:
+    multiarch = str(sysconfig.get_config_var("MULTIARCH") or "")
+    library_directories = {
+        Path("/lib64"), Path("/usr/lib64"), Path("/usr/local/lib")
+    }
+    if multiarch:
+        library_directories.update({Path("/lib") / multiarch, Path("/usr/lib") / multiarch})
+    if path.parent in library_directories:
+        return True
+    return path.parent in {Path("/lib"), Path("/usr/lib")} and path.name.startswith("ld-")
+
+
+@functools.lru_cache(maxsize=16)
+def _elf_dependency_mount_args(sources: tuple[Path, ...]) -> tuple[str, ...]:
+    """Mount only shared libraries required by trusted runtime and package ELF objects."""
+    exposed_roots = tuple(path.resolve() for path in sources if path.is_dir())
+    exposed_files = {path.resolve() for path in sources if path.is_file()}
+    elf_files: list[Path] = []
+    for source in sources:
+        candidates: list[Path] = []
+        if source.is_dir():
+            if source.name.endswith(".libs"):
+                continue
+            for current, directories, files in os.walk(str(source), followlinks=False):
+                directories[:] = [
+                    name for name in directories
+                    if name not in {"site-packages", "dist-packages"}
+                    and not name.endswith(".libs")
+                    and not (name == "_bundled" and Path(current).name == "ensurepip")
+                ]
+                candidates.extend(
+                    Path(current) / name for name in files if ".so" in name
+                )
+        else:
+            candidates.append(source)
+        for candidate in candidates:
+            try:
+                with candidate.open("rb") as stream:
+                    is_elf = stream.read(4) == b"\x7fELF"
+                if candidate.is_file() and is_elf:
+                    resolved = candidate.resolve()
+                    if resolved not in elf_files:
+                        elf_files.append(resolved)
+            except OSError:
+                continue
+    if not elf_files:
+        raise RuntimeError("candidate runtime has no ELF executable")
+    ldd = shutil.which("ldd")
+    if not ldd:
+        raise RuntimeError("candidate runtime requires ldd to resolve shared libraries")
+    completed = subprocess.run(
+        [ldd, *(str(path) for path in elf_files)],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env={"LC_ALL": "C", "PATH": "/usr/bin:/bin"},
+    )
+    output = completed.stdout + "\n" + completed.stderr
+    if completed.returncode != 0 or "=> not found" in output:
+        raise RuntimeError("candidate runtime shared-library resolution failed")
+    libraries: list[tuple[Path, Path]] = []
+    for raw in output.splitlines():
+        fields = raw.strip().split()
+        if not fields:
+            continue
+        value = fields[fields.index("=>") + 1] if "=>" in fields else fields[0]
+        if not value.startswith("/"):
+            continue
+        destination = Path(value)
+        source = destination.resolve()
+        if (
+            not source.is_file()
+            or source in exposed_files
+            or _is_below(source, exposed_roots)
+        ):
+            continue
+        if not _is_system_library_destination(destination):
+            raise RuntimeError(
+                "candidate runtime dependency is outside trusted library directories"
+            )
+        pair = (source, destination)
+        for mounted_source, mounted_destination in libraries:
+            if mounted_destination == destination and mounted_source != source:
+                raise RuntimeError("candidate runtime dependency resolves inconsistently")
+        if pair not in libraries:
+            libraries.append(pair)
+    directories: set[Path] = set()
+    for _source, destination in libraries:
+        parent = destination.parent
+        while parent != Path("/"):
+            directories.add(parent)
+            parent = parent.parent
+    args: list[str] = []
+    for directory in sorted(directories, key=lambda path: (len(path.parts), str(path))):
+        args += ["--dir", str(directory)]
+    for source, destination in libraries:
+        args += ["--ro-bind", str(source), str(destination)]
     return tuple(args)
 
 
@@ -272,12 +385,10 @@ def _proc_mount_args() -> tuple[str, ...]:
         return ("--proc", "/proc")
     probe = [
         bwrap, "--unshare-all", "--die-with-parent",
+        *_elf_dependency_mount_args((Path("/usr/bin/true"),)),
         "--dir", "/runtime", "--dir", "/runtime/bin",
         "--ro-bind", "/usr/bin/true", "/runtime/bin/true",
-        "--ro-bind", "/lib", "/lib",
     ]
-    if Path("/lib64").exists():
-        probe += ["--ro-bind", "/lib64", "/lib64"]
     probe += ["--proc", "/proc", "--dev", "/dev", "--", "/runtime/bin/true"]
     try:
         result = subprocess.run(probe, capture_output=True, timeout=5)
@@ -295,17 +406,32 @@ def _sandbox_command(candidate: Path, entrypoint: str, seccomp_fd: int,
         raise RuntimeError("secure evaluation requires bubblewrap (bwrap)")
     runtime_python, runtime_stdlib, runtime_libpython = _candidate_runtime()
     runtime_version = "%d.%d" % sys.version_info[:2]
+    package_mounts: list[tuple[Path, str]] = []
+    mounted: set[str] = set()
+    requested = BASE_CANDIDATE_PACKAGES + tuple(packages)
+    for root in _site_package_roots():
+        for package in requested:
+            if "/" in package or package in (".", ".."):
+                raise RuntimeError("candidate package name must be a bare path")
+            src = root / package
+            if src.exists() and package not in mounted:
+                resolved = src.resolve()
+                try:
+                    resolved.relative_to(root)
+                except ValueError as exc:
+                    raise RuntimeError("candidate package directory escapes its site root") from exc
+                package_mounts.append((resolved, "/packages/" + package))
+                mounted.add(package)
+    dependency_sources = [runtime_python, runtime_stdlib]
+    if runtime_libpython is not None:
+        dependency_sources.append(runtime_libpython)
+    dependency_sources.extend(source for source, _destination in package_mounts)
     cmd = [
         bwrap, "--unshare-all", "--die-with-parent", "--new-session", "--seccomp", str(seccomp_fd),
         "--uid", "65534", "--gid", "65534", "--hostname", "frontier-candidate", "--as-pid-1",
-    ]
-    for library_root in (Path("/lib"), Path("/lib64")):
-        if library_root.exists():
-            cmd += ["--ro-bind", str(library_root), str(library_root)]
-            cmd += _hidden_package_mount_args(library_root, str(library_root))
-    cmd += [
+        *_elf_dependency_mount_args(tuple(dependency_sources)),
         *_proc_mount_args(), "--dev", "/dev", "--tmpfs", "/tmp",
-        "--dir", "/runner", "--dir", "/runner/sle", "--dir", "/work",
+        "--dir", "/runner", "--dir", "/runner/sle", "--dir", "/work", "--dir", "/packages",
         "--dir", "/runtime", "--dir", "/runtime/bin", "--dir", "/runtime/lib",
         "--ro-bind", str(runtime_python), "/runtime/bin/python",
         "--ro-bind", str(runtime_stdlib), "/runtime/lib/python" + runtime_version,
@@ -325,24 +451,10 @@ def _sandbox_command(candidate: Path, entrypoint: str, seccomp_fd: int,
             "--ro-bind", str(runtime_libpython),
             "/runtime/lib/" + runtime_libpython.name,
         ]
-    mounted: set[str] = set()
-    requested = BASE_CANDIDATE_PACKAGES + tuple(packages)
-    for root in _site_package_roots():
-        for package in requested:
-            if "/" in package or package in (".", ".."):
-                raise RuntimeError("candidate package name must be a bare directory")
-            src = root / package
-            if src.exists() and package not in mounted:
-                resolved = src.resolve()
-                try:
-                    resolved.relative_to(root)
-                except ValueError as exc:
-                    raise RuntimeError("candidate package directory escapes its site root") from exc
-                cmd += [
-                    "--dir", "/packages/" + package,
-                    "--ro-bind", str(resolved), "/packages/" + package,
-                ]
-                mounted.add(package)
+    for source, destination in package_mounts:
+        if source.is_dir():
+            cmd += ["--dir", destination]
+        cmd += ["--ro-bind", str(source), destination]
     cmd += [
         "--chdir", "/work", "--setenv", "HOME", "/tmp", "--setenv", "TMPDIR", "/tmp",
         "--setenv", "PYTHONPATH", "/runner:/packages", "--setenv", "PYTHONDONTWRITEBYTECODE", "1",

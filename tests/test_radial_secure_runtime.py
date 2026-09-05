@@ -14,6 +14,7 @@ from unittest.mock import patch
 from _sandbox_tools import skip_unless_sandbox
 
 from sle.evaluate import INVALID_SCORE, evaluate_candidate
+from sle.oracle_package_pins import candidate_distribution_pins, setup_requirements
 from sle.secure_eval import read_candidate_packages
 from sle.spec import load_task_spec
 
@@ -35,7 +36,54 @@ class RadialVelocityPackageContractTests(unittest.TestCase):
             "astropy": "5.2.2",
             "pyerfa": "2.0.0.3",
             "PyYAML": "6.0.2",
+            "packaging": "26.2",
         }
+
+    def test_candidate_toolkit_dependency_pins_are_complete(self):
+        expected = {
+            "rdkit": {"Pillow": "10.4.0"},
+            "sympy": {"mpmath": "1.3.0"},
+            "nmrsim": {
+                "sparse": "0.15.5",
+                "numba": "0.58.1",
+                "llvmlite": "0.41.1",
+                "numpy-groupies": "0.9.22",
+                "importlib-metadata": "8.5.0",
+                "typing-extensions": "4.12.2",
+                "zipp": "3.20.2",
+            },
+            "qutip": {"packaging": "26.2"},
+            "astropy": {
+                "pyerfa": "2.0.0.3",
+                "PyYAML": "6.0.2",
+                "packaging": "26.2",
+            },
+        }
+        base = set(candidate_distribution_pins(sys.version_info[:2]))
+        for toolkit, dependencies in expected.items():
+            with self.subTest(toolkit=toolkit):
+                pins = candidate_distribution_pins(sys.version_info[:2], (toolkit,))
+                self.assertEqual(
+                    {name: version for name, version in pins.items() if name not in base | {toolkit}},
+                    dependencies,
+                )
+
+    def test_full_oracle_setup_rejects_uncertified_python_before_resolution(self):
+        with self.assertRaisesRegex(
+            RuntimeError, "full oracle setup supports only certified Python 3.8"
+        ):
+            setup_requirements((3, 12))
+
+        completed = subprocess.run(
+            ["bash", "scripts/setup_oracle_env.sh", "--check"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True,
+            env={**os.environ, "ORACLE_PYTHON": "/usr/bin/python3.12"},
+        )
+        self.assertNotEqual(completed.returncode, 0, completed.stdout)
+        self.assertIn("full oracle setup supports only certified Python 3.8", completed.stderr)
+        self.assertNotIn("oracle interpreter:", completed.stdout)
 
     def test_candidate_package_version_mismatch_fails_closed(self):
         versions = self.pinned_versions()
