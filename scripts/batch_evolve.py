@@ -16,6 +16,7 @@ import json
 import multiprocessing
 import platform
 import random
+import stat
 import subprocess
 import sys
 import time
@@ -541,6 +542,78 @@ def _execution_blocks(
     return blocks
 
 
+def _safe_batch_cell_paths(
+    work_root: Any,
+    task_id: str,
+    algorithm: str,
+    feedback_modes: list[str],
+    seed: int,
+) -> list[Path]:
+    """Resolve worker cell paths without following aliases outside its root."""
+
+    root = Path(work_root)
+    try:
+        root_stat = root.lstat()
+        resolved_root = root.resolve(strict=True)
+    except OSError as exc:
+        raise RuntimeError("unsafe batch cell path: work root is unavailable") from exc
+    if (
+        not root.is_absolute()
+        or root != resolved_root
+        or stat.S_ISLNK(root_stat.st_mode)
+        or not stat.S_ISDIR(root_stat.st_mode)
+    ):
+        raise RuntimeError("unsafe batch cell path: work root is not canonical")
+
+    def component(value: str, role: str) -> str:
+        allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
+        if (
+            not value or len(value) > 64 or value in {".", ".."}
+            or any(character not in allowed for character in value)
+        ):
+            raise RuntimeError(
+                "unsafe batch cell path: invalid %s component" % role
+            )
+        return value
+
+    task_component = component(task_id.replace("/", "__"), "task")
+    algorithm_component = component(algorithm, "algorithm")
+    seed_component = component("seed_%d" % seed, "seed")
+    paths = []
+    for feedback_mode in feedback_modes:
+        parts = (
+            task_component,
+            algorithm_component,
+            component(str(feedback_mode), "feedback mode"),
+            seed_component,
+        )
+        candidate = root
+        for part in parts:
+            candidate = candidate / part
+            try:
+                candidate_stat = candidate.lstat()
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                raise RuntimeError("unsafe batch cell path: cannot inspect path") from exc
+            if (
+                stat.S_ISLNK(candidate_stat.st_mode)
+                or not stat.S_ISDIR(candidate_stat.st_mode)
+            ):
+                raise RuntimeError(
+                    "unsafe batch cell path: existing component is not a directory"
+                )
+        try:
+            resolved = candidate.resolve(strict=False)
+            resolved.relative_to(root)
+        except (OSError, ValueError) as exc:
+            raise RuntimeError("unsafe batch cell path: path escapes work root") from exc
+        if resolved != candidate:
+            raise RuntimeError("unsafe batch cell path: path is aliased")
+        paths.append(candidate)
+    return paths
+
+
 def _execute_block(payload: dict[str, Any]) -> dict[str, Any]:
     """Execute one task/algorithm/replicate block in an isolated process.
 
@@ -554,6 +627,13 @@ def _execute_block(payload: dict[str, Any]) -> dict[str, Any]:
     spec = find_task(task_id, include_uncertified=True)
     frozen_binding = payload["frozen_task_binding"]
     _assert_task_binding(spec, frozen_binding)
+    if task_id != spec.task_id:
+        raise RuntimeError("unsafe batch cell path: task identifier is not canonical")
+    work_root = Path(payload["work_root"])
+    feedback_modes = [str(value) for value in payload["feedback_modes"]]
+    run_dirs = _safe_batch_cell_paths(
+        work_root, task_id, algorithm_name, feedback_modes, seed
+    )
     algorithm = get_algorithm(algorithm_name)
     # The parent hashes this exact config object before dispatch.  Do not
     # re-read a mutable git-ignored YAML file inside the worker.
@@ -561,19 +641,23 @@ def _execute_block(payload: dict[str, Any]) -> dict[str, Any]:
         LLMClient(payload["llm_config"]), spec, frozen_binding
     )
     _assert_task_binding(spec, frozen_binding)
-    work_root = Path(payload["work_root"])
     skip_keys = set(payload.get("skip_keys") or [])
     entries = []
     logs = []
-    for position, feedback_mode in enumerate(payload["feedback_modes"], 1):
+    for position, (feedback_mode, run_dir) in enumerate(
+        zip(feedback_modes, run_dirs), 1
+    ):
         key = _run_key(task_id, algorithm_name, feedback_mode, seed)
         if key in skip_keys:
             logs.append("skip completed %s" % key)
             continue
-        run_dir = (
-            work_root / task_id.replace("/", "__") / algorithm_name
-            / feedback_mode / ("seed_%d" % seed)
-        )
+        # Recheck immediately before inspecting or executing the cell so an
+        # alias introduced after worker preflight cannot be used by a backend.
+        current_run_dir = _safe_batch_cell_paths(
+            work_root, task_id, algorithm_name, [feedback_mode], seed
+        )[0]
+        if current_run_dir != run_dir:
+            raise RuntimeError("unsafe batch cell path: path changed after preflight")
         checkpoint = run_dir / "checkpoint.json"
         trajectory = run_dir / "trajectory.jsonl"
         manifest = run_dir / "run_manifest.json"
@@ -614,6 +698,12 @@ def _execute_block(payload: dict[str, Any]) -> dict[str, Any]:
                         "signed_decision_policy", "record_only"
                     ),
                 })
+            if _safe_batch_cell_paths(
+                work_root, task_id, algorithm_name, [feedback_mode], seed
+            )[0] != run_dir:
+                raise RuntimeError(
+                    "unsafe batch cell path: path changed before execution"
+                )
             result = algorithm(**algorithm_kwargs)
             entry = {
                 "task": spec.task_id,

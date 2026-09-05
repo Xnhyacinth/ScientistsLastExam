@@ -234,7 +234,160 @@ class BatchAggregationTests(unittest.TestCase):
                 MODULE._execute_block(payload)
         llm_client.assert_not_called()
 
+    def test_worker_rejects_symlinked_cell_before_client_or_backend(self):
+        spec = MODULE.find_task(
+            "Chemistry/LennardJonesCluster", include_uncertified=True
+        )
+        frozen = MODULE._frozen_task_bindings([spec])[spec.task_id]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            work_root = root / "runs"
+            outside = root / "outside"
+            cell = (
+                work_root / "Chemistry__LennardJonesCluster"
+                / "greedy_rewrite" / "normal" / "seed_0"
+            )
+            cell.parent.mkdir(parents=True)
+            outside.mkdir()
+            cell.symlink_to(outside, target_is_directory=True)
+            payload = {
+                "block_index": 1,
+                "task": spec.task_id,
+                "algorithm": "greedy_rewrite",
+                "seed": 0,
+                "feedback_modes": ["normal"],
+                "llm_config": self.Config(),
+                "work_root": str(work_root.resolve()),
+                "budget": 1,
+                "timeout_s": 1.0,
+                "resume": False,
+                "skip_keys": [],
+                "frozen_task_binding": frozen,
+            }
+            escaped_write = outside / "backend-wrote-here"
+
+            def algorithm(**kwargs):
+                (kwargs["workdir"] / escaped_write.name).write_text(
+                    "escaped", encoding="utf-8"
+                )
+                raise RuntimeError("stop after escaped write")
+
+            client = Mock()
+            backend = Mock(return_value=algorithm)
+            rejected = None
+            with patch.object(
+                MODULE, "_assert_task_binding", return_value=None,
+            ), patch.object(
+                MODULE, "LLMClient", client,
+            ), patch.object(
+                MODULE, "get_algorithm", backend,
+            ):
+                try:
+                    MODULE._execute_block(payload)
+                except RuntimeError as exc:
+                    rejected = exc
+            self.assertFalse(
+                escaped_write.exists(), "backend wrote through the cell symlink"
+            )
+            self.assertIsNotNone(rejected)
+            self.assertRegex(str(rejected), "unsafe batch cell path")
+            client.assert_not_called()
+            backend.assert_not_called()
+            self.assertEqual(cell.resolve(), outside.resolve())
+
+    def test_worker_rejects_traversal_and_task_alias_before_factories(self):
+        spec = MODULE.find_task(
+            "Chemistry/LennardJonesCluster", include_uncertified=True
+        )
+        frozen = MODULE._frozen_task_bindings([spec])[spec.task_id]
+        with tempfile.TemporaryDirectory() as temporary:
+            for task_id, feedback_modes in (
+                (spec.task_id, ["../outside"]),
+                ("LennardJonesCluster", ["normal"]),
+            ):
+                with self.subTest(task=task_id, feedback_modes=feedback_modes):
+                    payload = {
+                        "block_index": 1,
+                        "task": task_id,
+                        "algorithm": "greedy_rewrite",
+                        "seed": 0,
+                        "feedback_modes": feedback_modes,
+                        "llm_config": self.Config(),
+                        "work_root": temporary,
+                        "budget": 1,
+                        "timeout_s": 1.0,
+                        "resume": False,
+                        "skip_keys": [],
+                        "frozen_task_binding": frozen,
+                    }
+                    client = Mock()
+                    backend = Mock()
+                    with patch.object(
+                        MODULE, "_assert_task_binding", return_value=None,
+                    ), patch.object(
+                        MODULE, "LLMClient", client,
+                    ), patch.object(
+                        MODULE, "get_algorithm", backend,
+                    ):
+                        with self.assertRaisesRegex(
+                            RuntimeError, "unsafe batch cell path"
+                        ):
+                            MODULE._execute_block(payload)
+                    client.assert_not_called()
+                    backend.assert_not_called()
+
+    def test_worker_rechecks_cell_alias_before_backend_execution(self):
+        spec = MODULE.find_task(
+            "Chemistry/LennardJonesCluster", include_uncertified=True
+        )
+        frozen = MODULE._frozen_task_bindings([spec])[spec.task_id]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            outside = root / "outside"
+            outside.mkdir()
+            cell = (
+                root / "Chemistry__LennardJonesCluster" / "greedy_rewrite"
+                / "normal" / "seed_0"
+            )
+            cell.parent.mkdir(parents=True)
+            payload = {
+                "block_index": 1,
+                "task": spec.task_id,
+                "algorithm": "greedy_rewrite",
+                "seed": 0,
+                "feedback_modes": ["normal"],
+                "llm_config": self.Config(),
+                "work_root": temporary,
+                "budget": 1,
+                "timeout_s": 1.0,
+                "resume": False,
+                "skip_keys": [],
+                "frozen_task_binding": frozen,
+            }
+            checks = 0
+
+            def binding_check(*_args):
+                nonlocal checks
+                checks += 1
+                if checks == 2:
+                    cell.symlink_to(outside, target_is_directory=True)
+
+            backend = Mock()
+            with patch.object(
+                MODULE, "_assert_task_binding", side_effect=binding_check,
+            ), patch.object(
+                MODULE, "LLMClient", return_value=Mock(),
+            ), patch.object(
+                MODULE, "get_algorithm", return_value=backend,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "unsafe batch cell path"):
+                    MODULE._execute_block(payload)
+            backend.assert_not_called()
+            self.assertEqual(cell.resolve(), outside.resolve())
+
     def test_worker_rechecks_full_binding_before_backend_execution(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
         spec = MODULE.find_task(
             "Chemistry/LennardJonesCluster", include_uncertified=True
         )
@@ -248,7 +401,7 @@ class BatchAggregationTests(unittest.TestCase):
             "seed": 0,
             "feedback_modes": ["normal"],
             "llm_config": self.Config(),
-            "work_root": "/does/not/matter",
+            "work_root": temporary.name,
             "budget": 1,
             "timeout_s": 1.0,
             "resume": False,
@@ -268,6 +421,8 @@ class BatchAggregationTests(unittest.TestCase):
         backend.assert_not_called()
 
     def test_worker_rechecks_binding_immediately_before_model_call(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
         spec = MODULE.find_task(
             "Chemistry/LennardJonesCluster", include_uncertified=True
         )
@@ -281,7 +436,7 @@ class BatchAggregationTests(unittest.TestCase):
             "seed": 0,
             "feedback_modes": ["normal"],
             "llm_config": self.Config(),
-            "work_root": "/does/not/matter",
+            "work_root": temporary.name,
             "budget": 1,
             "timeout_s": 1.0,
             "resume": False,
@@ -312,6 +467,8 @@ class BatchAggregationTests(unittest.TestCase):
         raw_client.complete.assert_not_called()
 
     def test_worker_postchecks_binding_after_backend_exception(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
         spec = MODULE.find_task(
             "Chemistry/LennardJonesCluster", include_uncertified=True
         )
@@ -325,7 +482,7 @@ class BatchAggregationTests(unittest.TestCase):
             "seed": 0,
             "feedback_modes": ["normal"],
             "llm_config": self.Config(),
-            "work_root": "/does/not/matter",
+            "work_root": temporary.name,
             "budget": 1,
             "timeout_s": 1.0,
             "resume": False,
