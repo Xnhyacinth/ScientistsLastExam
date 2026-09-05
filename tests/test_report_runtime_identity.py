@@ -61,10 +61,12 @@ def write_verified_run(root: Path, *, budget: int = 10) -> None:
     ledger = EvaluationLedger(root)
     identity = {
         key: manifest[key] for key in (
-            "task_id", "task_contract_sha256", "task_package_sha256",
-            "runtime_source_sha256",
+            "task_id", "algorithm", "feedback_mode", "seed",
+            "llm_condition_sha256", "llm_condition", "task_contract_sha256",
+            "task_package_sha256", "runtime_source_sha256",
         )
     }
+    identity["proposal_budget"] = budget
     runtime_hash = runtime["fingerprint_sha256"]
     cumulative = 0.0
     incumbent = "VALUE = 0\n"
