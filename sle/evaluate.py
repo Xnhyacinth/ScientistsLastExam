@@ -51,7 +51,7 @@ def canonical_trusted_context(value: dict[str, Any]) -> bytes:
 
 
 def _trusted_python() -> str:
-    """Keep trusted evaluation independent from optional framework environments."""
+    """Use the configured oracle entrypoint, or the invoking interpreter when unset."""
     configured = os.environ.get("FRONTIER_SCIENCE_TRUSTED_PYTHON")
     selected = configured or sys.executable
     # Keep the virtualenv entrypoint. Resolving its symlink selects the base

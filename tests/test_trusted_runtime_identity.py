@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import json
 import tempfile
@@ -16,6 +17,7 @@ from sle.runtime_identity import (
     TrustedRuntime,
     current_runtime_descriptor,
     task_runtime_distributions,
+    validate_runtime_descriptor,
 )
 
 
@@ -33,6 +35,18 @@ class _Spec:
 
 
 class TrustedRuntimeIdentityTests(unittest.TestCase):
+    @staticmethod
+    def _resign_descriptor(descriptor):
+        identity = {
+            key: value for key, value in descriptor.items()
+            if key != "fingerprint_sha256"
+        }
+        payload = json.dumps(
+            identity, allow_nan=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        descriptor["fingerprint_sha256"] = hashlib.sha256(payload).hexdigest()
+        return descriptor
+
     def test_unconfigured_evaluator_uses_invoking_virtualenv_entrypoint(self):
         entrypoint = "/tmp/example-oracle/bin/python"
         with patch.dict(os.environ, {}, clear=True), patch.object(
@@ -50,6 +64,24 @@ class TrustedRuntimeIdentityTests(unittest.TestCase):
         self.assertNotIn("executable", rendered)
         self.assertNotIn("/another/host", rendered)
         self.assertEqual(len(first["fingerprint_sha256"]), 64)
+
+    def test_runtime_descriptor_rejects_host_path_and_nul_fields(self):
+        mutations = {
+            "distribution name": lambda row: row["distributions"].update(
+                {"host/path": "1.0"}
+            ),
+            "implementation": lambda row: row.update({"implementation": "cpython/host"}),
+            "python_version": lambda row: row.update({"python_version": "3.8.20\0host"}),
+            "cache_tag": lambda row: row.update({"cache_tag": "cpython\\host"}),
+            "soabi": lambda row: row.update({"soabi": "/host/cpython-38"}),
+        }
+        for label, mutate in mutations.items():
+            with self.subTest(field=label):
+                descriptor = current_runtime_descriptor(())
+                mutate(descriptor)
+                self._resign_descriptor(descriptor)
+                with self.assertRaisesRegex(ValueError, "path-free"):
+                    validate_runtime_descriptor(descriptor)
 
     def test_manifest_separates_path_free_search_and_trusted_evaluator_runtimes(self):
         descriptor = current_runtime_descriptor(())

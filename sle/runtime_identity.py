@@ -41,6 +41,10 @@ def _fingerprint(value: dict) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
+def _is_path_free(value: str) -> bool:
+    return not any(marker in value for marker in ("/", "\\", "\0"))
+
+
 def current_runtime_descriptor(distributions: Iterable[str] = ()) -> dict:
     """Describe the active Python ABI and selected distributions without host paths."""
 
@@ -76,15 +80,19 @@ def validate_runtime_descriptor(value: object) -> dict:
     distributions = identity.get("distributions")
     if not isinstance(distributions, dict) or any(
         not isinstance(name, str)
+        or not _is_path_free(name)
         or (version is not None and not isinstance(version, str))
-        or "/" in str(version)
-        or "\\" in str(version)
+        or (isinstance(version, str) and not _is_path_free(version))
         for name, version in distributions.items()
     ):
-        raise ValueError("trusted runtime distribution identity is invalid")
+        raise ValueError("trusted runtime distribution identity must be path-free")
     for key in ("implementation", "python_version", "cache_tag", "soabi"):
-        if not isinstance(identity.get(key), str) or not identity[key]:
-            raise ValueError("trusted runtime Python identity is invalid")
+        if (
+            not isinstance(identity.get(key), str)
+            or not identity[key]
+            or not _is_path_free(identity[key])
+        ):
+            raise ValueError("trusted runtime Python identity must be path-free")
     if value.get("fingerprint_sha256") != _fingerprint(identity):
         raise ValueError("trusted runtime fingerprint differs from descriptor")
     return dict(value)
