@@ -29,6 +29,7 @@ from sle.protocol import (TrajectoryEvent, append_event, best_so_far_auc,
                                        summarize_at_token_horizon, summarize_trajectory)
 from sle.registry import find_task
 from sle.runtime_identity import TrustedRuntime
+from sle.run_verification import verify_run
 from sle import upstream_evaluator
 from sle.upstream_evaluator import write_configured_wrapper
 from _sandbox_tools import skip_unless_sandbox  # noqa: E402
@@ -1300,6 +1301,64 @@ class GreedyRewriteTests(unittest.TestCase):
         self.assertIn(proposal_one.strip(), resumed_llm.prompts[0])
         self.assertEqual(events[3]["parent_sha256"], sha256_text(proposal_one.strip()))
         self.assertEqual(resumed.best_score, 0.8)
+
+    def test_shuffled_resume_matches_uninterrupted_feedback_sequence(self):
+        spec = find_task("LennardJonesCluster")
+        proposals = [
+            "# SHUFFLED_%d\ndef optimize_cluster(n_atoms):\n    return []\n" % step
+            for step in range(1, 4)
+        ]
+        replies = ["```python\n%s\n```" % proposal for proposal in proposals]
+        metrics = [
+            {"combined_score": score, "valid": 1.0, "raw_score": score}
+            for score in (0.0, 0.8, 0.7, 0.6)
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            uninterrupted = root / "uninterrupted"
+            with patch(
+                "sle.algorithms.evolve.evaluate_candidate",
+                side_effect=runtime_bound_evaluator(metrics),
+            ):
+                greedy_rewrite(
+                    spec, FakeLLM(replies), budget=3, seed=4, timeout_s=20,
+                    workdir=uninterrupted, feedback_mode="shuffled",
+                    log_fn=lambda _: None,
+                )
+
+            resumed = root / "resumed"
+            with patch(
+                "sle.algorithms.evolve.evaluate_candidate",
+                side_effect=runtime_bound_evaluator(metrics[:2]),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "provider request"):
+                    greedy_rewrite(
+                        spec,
+                        FakeLLM([replies[0], RuntimeError("interrupted")]),
+                        budget=3, seed=4, timeout_s=20, workdir=resumed,
+                        feedback_mode="shuffled", log_fn=lambda _: None,
+                    )
+            with patch(
+                "sle.algorithms.evolve.evaluate_candidate",
+                side_effect=runtime_bound_evaluator(metrics[2:]),
+            ):
+                greedy_rewrite(
+                    spec, FakeLLM(replies[1:]), budget=3, seed=4,
+                    timeout_s=20, workdir=resumed, feedback_mode="shuffled",
+                    resume=True, log_fn=lambda _: None,
+                )
+
+            def prompt_metric_hashes(workdir: Path) -> list[str]:
+                return [
+                    event["algorithm_metadata"]["prompt_metrics_sha256"]
+                    for event in load_trajectory(workdir / "trajectory.jsonl")[1:]
+                ]
+
+            self.assertEqual(
+                prompt_metric_hashes(resumed), prompt_metric_hashes(uninterrupted)
+            )
+            self.assertTrue(verify_run(resumed)["verified"])
+            self.assertTrue(verify_run(uninterrupted)["verified"])
 
 
 class AlgorithmAdapterTests(unittest.TestCase):

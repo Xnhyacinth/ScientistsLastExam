@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import json
 import math
-import random
 import re
 from pathlib import Path
 from typing import Any
 
 from .evaluation_ledger import EvaluationLedger, RunLease
-from .metric_visibility import score_only_metrics, search_visible_metrics
+from .metric_visibility import (
+    score_only_metrics,
+    search_visible_metrics,
+    shuffled_feedback_metrics,
+)
 from .protocol import load_trajectory, sha256_text, summarize_trajectory
 from .runtime_identity import validate_runtime_descriptor
 
@@ -212,7 +215,6 @@ def _verify_run_unlocked(
         incumbent_score = INVALID_SCORE
         incumbent_metrics: dict[str, Any] = {}
         candidate_history: list[dict[str, Any]] = []
-        shuffle_rng = random.Random(identity["seed"])
         horizon = (manifest.get("protocol") or {}).get("active_wall_horizon_s")
         baseline_receipt_score = None
         for event in events:
@@ -252,9 +254,10 @@ def _verify_run_unlocked(
                 elif identity["feedback_mode"] == "score_only":
                     expected_prompt_metrics = score_only_metrics(incumbent_metrics)
                 elif identity["feedback_mode"] == "shuffled":
-                    expected_prompt_metrics = shuffle_rng.choice([
-                        prior.get("metrics") or {} for prior in events[:step]
-                    ])
+                    expected_prompt_metrics = shuffled_feedback_metrics(
+                        [prior.get("metrics") or {} for prior in events[:step]],
+                        seed=identity["seed"], proposal_step=step,
+                    )
                 else:
                     expected_prompt_metrics = expected_source["metrics"]
                 visible_prompt_metrics = search_visible_metrics(

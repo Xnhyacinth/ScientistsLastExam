@@ -21,7 +21,11 @@ from ..evaluate import evaluate_candidate, INVALID_SCORE, resolve_trusted_runtim
 from ..evaluation_ledger import EvaluationLedger, RunLease
 from ..frontier import frontier_binding
 from ..llm import LLMClient
-from ..metric_visibility import score_only_metrics, search_visible_metrics
+from ..metric_visibility import (
+    score_only_metrics,
+    search_visible_metrics,
+    shuffled_feedback_metrics,
+)
 from ..spec import TaskSpec
 from ..protocol import TrajectoryEvent, append_event, load_trajectory, sha256_text, summarize_trajectory
 from ..sentinels import SentinelLedger
@@ -859,7 +863,9 @@ def _greedy_rewrite_impl(
         elif feedback_mode == "shuffled":
             shuffled = load_trajectory(trajectory_path)
             prior = [e.get("metrics", {}) for e in shuffled if int(e.get("step", 0)) < it]
-            prompt_metrics = random.choice(prior) if prior else best_metrics
+            prompt_metrics = shuffled_feedback_metrics(
+                prior, seed=seed, proposal_step=it
+            )
         elif feedback_mode == "delayed_replay":
             feedback_released_through_step = max(0, it - 2)
             eligible = [
