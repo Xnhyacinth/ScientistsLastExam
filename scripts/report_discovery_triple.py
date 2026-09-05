@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from sle.registry import list_tasks  # noqa: E402
+from sle.run_verification import verify_run  # noqa: E402
 from sle.task_versions import version_class  # noqa: E402
 
 
@@ -121,7 +122,7 @@ def best_metrics(directory: Path) -> dict | None:
     return best
 
 
-def run_identity(document: dict) -> tuple[str, str, str, str, str] | None:
+def run_identity(document: dict) -> tuple[str, str, str, str, str, str, str] | None:
     """Return the full evidence identity shared with the admission report."""
     task = str(document.get("task_id") or "")
     if not task:
@@ -134,7 +135,13 @@ def run_identity(document: dict) -> tuple[str, str, str, str, str] | None:
         task, str(document.get("task_package_sha256") or "unknown")
     )[:14]
     runtime = str(document.get("runtime_source_sha256") or "unrecorded")
-    return task, model, condition, task_version, runtime
+    trusted_runtime = str(
+        (document.get("trusted_evaluator_runtime") or {}).get(
+            "fingerprint_sha256"
+        ) or "unrecorded"
+    )
+    algorithm = str(document.get("algorithm") or "unrecorded")
+    return task, model, condition, task_version, runtime, trusted_runtime, algorithm
 
 
 # Some evaluators publish a count where the report needs a rate, and do not publish the
@@ -183,7 +190,7 @@ def main(argv: list[str] | None = None) -> int:
     # tree holding hundreds of them, and would have reported one arbitrary run if it had found
     # any. Directory names are not reliable here either: budget-sweep cohorts are named for their
     # budget, not their task.
-    by_identity: dict[tuple[str, str, str, str, str], list[Path]] = {}
+    by_identity: dict[tuple[str, str, str, str, str, str, str, bool], list[Path]] = {}
     for manifest in root.rglob("run_manifest.json"):
         try:
             document = json.loads(manifest.read_text(encoding="utf-8"))
@@ -192,14 +199,31 @@ def main(argv: list[str] | None = None) -> int:
         identity = run_identity(document)
         if identity is None:
             continue
+        trusted_evidence = False
+        try:
+            verification = verify_run(manifest.parent)
+            trusted_evidence = bool(
+                verification.get("verified") is True
+                and verification.get("trusted_evaluator_runtime_sha256")
+                == identity[-2]
+                and document.get("task_package_sha256")
+                and all(value not in {"", "unrecorded", "unknown"} for value in identity)
+            )
+        except (OSError, ValueError):
+            pass
         name = identity[0].split("/")[-1]
         if name in wanted:
-            by_identity.setdefault(identity, []).append(manifest.parent)
+            by_identity.setdefault(identity + (trusted_evidence,), []).append(
+                manifest.parent
+            )
 
     rows = []
     represented = set()
     for identity, directories in sorted(by_identity.items()):
-        task, model, condition, task_version, runtime = identity
+        (
+            task, model, condition, task_version, runtime, trusted_runtime,
+            algorithm, trusted_evidence,
+        ) = identity
         represented.add(task.split("/")[-1])
         candidates = [m for m in (best_metrics(d) for d in directories)
                       if m is not None]
@@ -218,7 +242,13 @@ def main(argv: list[str] | None = None) -> int:
                 "llm_condition_sha256": condition,
                 "task_version": task_version,
                 "runtime_source_sha256": runtime,
-                "status": "no valid proposal",
+                "trusted_evaluator_runtime_sha256": trusted_runtime,
+                "algorithm": algorithm,
+                "trusted_evidence": trusted_evidence,
+                "status": (
+                    "no valid proposal" if trusted_evidence
+                    else "unattributable_evidence"
+                ),
             })
             continue
         axes = extract(metrics)
@@ -228,7 +258,10 @@ def main(argv: list[str] | None = None) -> int:
             "llm_condition_sha256": condition,
             "task_version": task_version,
             "runtime_source_sha256": runtime,
-            "status": "ok",
+            "trusted_evaluator_runtime_sha256": trusted_runtime,
+            "algorithm": algorithm,
+            "trusted_evidence": trusted_evidence,
+            "status": "ok" if trusted_evidence else "unattributable_evidence",
             "runs_seen": len(directories),
             "axes_published_by_some_run": sorted(published_anywhere),
             "combined_score": metrics.get("combined_score"),
@@ -322,7 +355,7 @@ def main(argv: list[str] | None = None) -> int:
         print("  rebinds that task's analysis artifacts - a governance step, not a cleanup.")
 
     Path(args.output).write_text(json.dumps({
-        "schema_version": 1,
+        "schema_version": 2,
         "note": "the three axes are reported separately and must not be averaged",
         "task_count": len(rows),
         "incomplete_count": len(incomplete),

@@ -70,6 +70,9 @@ class DiscoveryAdmissionTests(unittest.TestCase):
             "llm_condition_sha256": "condition-a",
             "task_version": "task-v1",
             "runtime_source_sha256": "runtime-a",
+            "trusted_evaluator_runtime_sha256": "trusted-a",
+            "algorithm": "greedy_rewrite",
+            "trusted_evidence": True,
             "status": "ok",
             "axes": axes,
         }]}
@@ -80,6 +83,9 @@ class DiscoveryAdmissionTests(unittest.TestCase):
                 "llm_condition_sha256": "condition-a",
                 "task_version": "task-v1",
                 "runtime_source_sha256": "runtime-a",
+                "trusted_evaluator_runtime_sha256": "trusted-a",
+                "algorithm": "greedy_rewrite",
+                "trusted_evidence": True,
                 "verdict": "measures_iteration",
             },
             {
@@ -88,6 +94,9 @@ class DiscoveryAdmissionTests(unittest.TestCase):
                 "llm_condition_sha256": "condition-b",
                 "task_version": "task-v2",
                 "runtime_source_sha256": "runtime-b",
+                "trusted_evaluator_runtime_sha256": "trusted-b",
+                "algorithm": "greedy_rewrite",
+                "trusted_evidence": True,
                 "verdict": "measures_iteration",
             },
         ]}

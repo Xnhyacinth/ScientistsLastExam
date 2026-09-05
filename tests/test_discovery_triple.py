@@ -38,6 +38,8 @@ class DiscoveryTripleLayoutTests(unittest.TestCase):
             "llm_condition_sha256": condition,
             "task_package_sha256": "task-package",
             "runtime_source_sha256": "runtime-source",
+            "trusted_evaluator_runtime": {"fingerprint_sha256": "trusted-runtime"},
+            "algorithm": "greedy_rewrite",
         }), encoding="utf-8")
         (directory / "trajectory.jsonl").write_text(json.dumps({
             "step": 1,
@@ -61,7 +63,10 @@ class DiscoveryTripleLayoutTests(unittest.TestCase):
                 "condition-nested",
             )
             output = Path(tmp) / "triple.json"
-            with contextlib.redirect_stdout(io.StringIO()):
+            with patch.object(self.module, "verify_run", return_value={
+                "verified": True,
+                "trusted_evaluator_runtime_sha256": "trusted-runtime",
+            }), contextlib.redirect_stdout(io.StringIO()):
                 self.module.main(["--runs", str(root), "--output", str(output)])
             rows = [
                 row for row in json.loads(output.read_text(encoding="utf-8"))["rows"]
@@ -87,3 +92,33 @@ class DiscoveryTripleLayoutTests(unittest.TestCase):
             identity = self.module.run_identity(document)
         self.assertIsNotNone(identity)
         self.assertEqual(identity[1], "hy3-ioa")
+
+    def test_identity_includes_algorithm_and_trusted_evaluator_runtime(self):
+        document = {
+            "task_id": "Mathematics/SequenceLawRecovery",
+            "llm_condition": {"model": "hy3"},
+            "llm_condition_sha256": "condition",
+            "task_package_sha256": "package",
+            "runtime_source_sha256": "runtime",
+            "trusted_evaluator_runtime": {"fingerprint_sha256": "trusted"},
+            "algorithm": "greedy_rewrite",
+        }
+        identity = self.module.run_identity(document)
+        self.assertEqual(identity[-2:], ("trusted", "greedy_rewrite"))
+
+    def test_unverified_run_is_only_unattributable_evidence(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp) / "runs"
+            self.write_run(root / "cohort/cell", "condition")
+            output = Path(tmp) / "triple.json"
+            with patch.object(
+                self.module, "discovery_task_names",
+                return_value={"SequenceLawRecovery"},
+            ), patch.object(
+                self.module, "verify_run", side_effect=ValueError("unbound")
+            ), contextlib.redirect_stdout(io.StringIO()):
+                self.module.main(["--runs", str(root), "--output", str(output)])
+            rows = json.loads(output.read_text(encoding="utf-8"))["rows"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["status"], "unattributable_evidence")
+        self.assertFalse(rows[0]["trusted_evidence"])

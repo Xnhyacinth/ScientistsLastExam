@@ -81,6 +81,8 @@ IDENTITY_FIELDS = (
     "llm_condition_sha256",
     "task_version",
     "runtime_source_sha256",
+    "trusted_evaluator_runtime_sha256",
+    "algorithm",
 )
 
 
@@ -88,7 +90,11 @@ def triple_index(document: dict) -> dict[tuple[str, ...], dict]:
     """Index only fully attributable, unambiguous triple rows."""
     grouped: dict[tuple[str, ...], list[dict]] = {}
     for entry in document.get("rows") or []:
-        if entry.get("status") != "ok" or any(entry.get(field) is None for field in IDENTITY_FIELDS):
+        if (
+            entry.get("status") != "ok"
+            or entry.get("trusted_evidence") is not True
+            or any(not entry.get(field) for field in IDENTITY_FIELDS)
+        ):
             continue
         key = tuple(str(entry[field]) for field in IDENTITY_FIELDS)
         grouped.setdefault(key, []).append(entry)
@@ -122,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
         task = str(row.get("task") or "")
         role = roles.get(task) or roles.get(task.split("/")[-1]) or ""
         identity = tuple(str(row.get(field) or "") for field in IDENTITY_FIELDS)
-        axes = triples.get(identity)
+        axes = triples.get(identity) if row.get("trusted_evidence") is True else None
         rows.append(classify_discovery_row(row, role, axes))
 
     discovery = [r for r in rows if r.get("scientific_role") == "discovery"]
@@ -131,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
         if r.get("verdict") != r.get("public_score_verdict")
     )
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "source_admission": str(Path(args.admission)),
         "note": (
             "Discovery rows never inherit measures_iteration from combined_score. "
