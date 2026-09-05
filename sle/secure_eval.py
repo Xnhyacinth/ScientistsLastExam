@@ -21,6 +21,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .oracle_package_pins import candidate_distribution_pins
 from .rpc_codec import decode, encode
 
 INVALID_SCORE = -1e18
@@ -58,20 +59,6 @@ ALLOWED_CANDIDATE_PACKAGES = {
         "yaml", "_yaml", "PyYAML.libs",
     ),
 }
-
-# Toolkit versions are part of the scientific contract. In particular, Astropy's
-# Lomb--Scargle implementation is the RadialVelocityPlanets oracle/reference platform;
-# silently substituting a newer Astropy changes the benchmark rather than fixing its runtime.
-CANDIDATE_PACKAGE_VERSIONS = {
-    "rdkit": ("rdkit", "2024.3.5"),
-    "sympy": ("sympy", "1.13.3"),
-    "ViennaRNA": ("ViennaRNA", "2.7.2"),
-    "nmrsim": ("nmrsim", "0.6.0"),
-    "networkx": ("networkx", "3.1"),
-    "qutip": ("qutip", "4.7.6"),
-    "astropy": ("astropy", "5.2.2"),
-}
-
 
 def _candidate_runtime() -> tuple[Path, Path, Path | None]:
     """Resolve the exact trusted CPython runtime used by candidate extensions.
@@ -114,6 +101,29 @@ def _site_package_roots() -> list[Path]:
         if resolved not in roots:
             roots.append(resolved)
     return roots
+
+
+@functools.lru_cache(maxsize=8)
+def _hidden_package_mount_args(source: Path, destination: str) -> tuple[str, ...]:
+    """Hide package stores nested below an otherwise required runtime tree.
+
+    ``python -S`` only prevents automatic site initialization. Candidate code can still append
+    an explicit host path to ``sys.path``, so package contents must be absent from the mount
+    namespace itself. Each discovered package store is over-mounted with a fresh empty tmpfs.
+    """
+    root = source.resolve()
+    if not root.is_dir():
+        return ()
+    args: list[str] = []
+    for current, directories, _files in os.walk(str(root), followlinks=False):
+        for name in tuple(directories):
+            if name not in {"site-packages", "dist-packages"}:
+                continue
+            package_root = Path(current) / name
+            relative = package_root.relative_to(root)
+            args += ["--tmpfs", str(Path(destination) / relative)]
+            directories.remove(name)
+    return tuple(args)
 
 
 class CandidateError(RuntimeError):
@@ -211,10 +221,9 @@ def read_candidate_packages(task_dir: Path) -> tuple[str, ...]:
     which would otherwise show up as an unexplained candidate ImportError.
     """
     listing = Path(task_dir) / "frontier_eval" / "candidate_packages.txt"
-    if not listing.is_file():
-        return ()
-    resolved: list[str] = []
-    for raw in listing.read_text(encoding="utf-8").splitlines():
+    toolkits: list[str] = []
+    lines = listing.read_text(encoding="utf-8").splitlines() if listing.is_file() else ()
+    for raw in lines:
         name = raw.split("#", 1)[0].strip()
         if not name:
             continue
@@ -222,18 +231,24 @@ def read_candidate_packages(task_dir: Path) -> tuple[str, ...]:
             raise RuntimeError(
                 "task requests candidate package %r which is not in the trusted allowlist" % name
             )
-        distribution, expected_version = CANDIDATE_PACKAGE_VERSIONS[name]
+        if name not in toolkits:
+            toolkits.append(name)
+    for distribution, expected_version in candidate_distribution_pins(
+        sys.version_info[:2], toolkits
+    ).items():
         try:
             installed_version = importlib.metadata.version(distribution)
         except importlib.metadata.PackageNotFoundError as exc:
             raise RuntimeError(
-                "trusted candidate package %r is not installed" % name
+                "trusted candidate package %r is not installed" % distribution
             ) from exc
         if installed_version != expected_version:
             raise RuntimeError(
                 "trusted candidate package %r has version %s, expected %s"
-                % (name, installed_version, expected_version)
+                % (distribution, installed_version, expected_version)
             )
+    resolved: list[str] = []
+    for name in toolkits:
         for directory in ALLOWED_CANDIDATE_PACKAGES[name]:
             if directory not in resolved:
                 resolved.append(directory)
@@ -257,11 +272,13 @@ def _proc_mount_args() -> tuple[str, ...]:
         return ("--proc", "/proc")
     probe = [
         bwrap, "--unshare-all", "--die-with-parent",
-        "--ro-bind", "/usr", "/usr", "--ro-bind", "/lib", "/lib",
+        "--dir", "/runtime", "--dir", "/runtime/bin",
+        "--ro-bind", "/usr/bin/true", "/runtime/bin/true",
+        "--ro-bind", "/lib", "/lib",
     ]
     if Path("/lib64").exists():
         probe += ["--ro-bind", "/lib64", "/lib64"]
-    probe += ["--proc", "/proc", "--dev", "/dev", "--", "/usr/bin/true"]
+    probe += ["--proc", "/proc", "--dev", "/dev", "--", "/runtime/bin/true"]
     try:
         result = subprocess.run(probe, capture_output=True, timeout=5)
     except (OSError, subprocess.TimeoutExpired):
@@ -281,14 +298,20 @@ def _sandbox_command(candidate: Path, entrypoint: str, seccomp_fd: int,
     cmd = [
         bwrap, "--unshare-all", "--die-with-parent", "--new-session", "--seccomp", str(seccomp_fd),
         "--uid", "65534", "--gid", "65534", "--hostname", "frontier-candidate", "--as-pid-1",
-        "--ro-bind", "/usr", "/usr",
-        "--ro-bind", "/lib", "/lib",
-        "--ro-bind", "/lib64", "/lib64",
+    ]
+    for library_root in (Path("/lib"), Path("/lib64")):
+        if library_root.exists():
+            cmd += ["--ro-bind", str(library_root), str(library_root)]
+            cmd += _hidden_package_mount_args(library_root, str(library_root))
+    cmd += [
         *_proc_mount_args(), "--dev", "/dev", "--tmpfs", "/tmp",
         "--dir", "/runner", "--dir", "/runner/sle", "--dir", "/work",
         "--dir", "/runtime", "--dir", "/runtime/bin", "--dir", "/runtime/lib",
         "--ro-bind", str(runtime_python), "/runtime/bin/python",
         "--ro-bind", str(runtime_stdlib), "/runtime/lib/python" + runtime_version,
+        *_hidden_package_mount_args(
+            runtime_stdlib, "/runtime/lib/python" + runtime_version
+        ),
         "--ro-bind", str(PACKAGE_DIR / "candidate_worker.py"), "/runner/sle/candidate_worker.py",
         "--ro-bind", str(PACKAGE_DIR / "rpc_codec.py"), "/runner/sle/rpc_codec.py",
         # Free submission-shape validation the candidate may import. It reveals no score, no
@@ -324,7 +347,7 @@ def _sandbox_command(candidate: Path, entrypoint: str, seccomp_fd: int,
         "--chdir", "/work", "--setenv", "HOME", "/tmp", "--setenv", "TMPDIR", "/tmp",
         "--setenv", "PYTHONPATH", "/runner:/packages", "--setenv", "PYTHONDONTWRITEBYTECODE", "1",
         "--setenv", "PYTHONHOME", "/runtime", "--setenv", "PYTHONNOUSERSITE", "1",
-        "--setenv", "PYTHONHASHSEED", "0", "--setenv", "PATH", "/usr/bin:/bin",
+        "--setenv", "PYTHONHASHSEED", "0", "--setenv", "PATH", "/runtime/bin",
         "--", "/runtime/bin/python", "-S", "/runner/sle/candidate_worker.py",
         "--candidate", "/work/candidate.py", "--entrypoint", entrypoint,
     ]

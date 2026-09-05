@@ -23,13 +23,104 @@ TASK_DIR = ROOT / "benchmarks" / "Physics" / "RadialVelocityPlanets"
 
 
 class RadialVelocityPackageContractTests(unittest.TestCase):
+    @staticmethod
+    def pinned_versions():
+        base = (
+            {"numpy": "1.26.4", "scipy": "1.14.1"}
+            if sys.version_info[:2] == (3, 12)
+            else {"numpy": "1.24.4", "scipy": "1.10.1"}
+        )
+        return {
+            **base,
+            "astropy": "5.2.2",
+            "pyerfa": "2.0.0.3",
+            "PyYAML": "6.0.2",
+        }
+
     def test_candidate_package_version_mismatch_fails_closed(self):
-        with patch("sle.secure_eval.importlib.metadata.version", return_value="7.0.0"):
+        versions = self.pinned_versions()
+        versions["astropy"] = "7.0.0"
+        with patch(
+            "sle.secure_eval.importlib.metadata.version",
+            side_effect=lambda distribution: versions[distribution],
+        ):
             with self.assertRaisesRegex(
                 RuntimeError,
                 "trusted candidate package 'astropy' has version 7.0.0, expected 5.2.2",
             ):
                 read_candidate_packages(TASK_DIR)
+
+    def test_base_candidate_package_version_mismatch_fails_closed(self):
+        versions = self.pinned_versions()
+        versions["numpy"] = "0.0"
+        with patch(
+            "sle.secure_eval.importlib.metadata.version",
+            side_effect=lambda distribution: versions[distribution],
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "trusted candidate package 'numpy' has version 0.0, expected",
+            ):
+                read_candidate_packages(TASK_DIR)
+
+    def test_astropy_numeric_dependency_version_mismatch_fails_closed(self):
+        for distribution, expected in (("pyerfa", "2.0.0.3"), ("PyYAML", "6.0.2")):
+            with self.subTest(distribution=distribution):
+                versions = self.pinned_versions()
+                versions[distribution] = "0.0"
+                with patch(
+                    "sle.secure_eval.importlib.metadata.version",
+                    side_effect=lambda package: versions[package],
+                ):
+                    with self.assertRaisesRegex(
+                        RuntimeError,
+                        "trusted candidate package %r has version 0.0, expected %s"
+                        % (distribution, expected),
+                    ):
+                        read_candidate_packages(TASK_DIR)
+
+    def test_missing_astropy_numeric_dependency_fails_closed(self):
+        versions = self.pinned_versions()
+
+        def installed_version(distribution):
+            if distribution == "PyYAML":
+                raise importlib.metadata.PackageNotFoundError(distribution)
+            return versions[distribution]
+
+        with patch(
+            "sle.secure_eval.importlib.metadata.version",
+            side_effect=installed_version,
+        ):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "trusted candidate package 'PyYAML' is not installed",
+            ):
+                read_candidate_packages(TASK_DIR)
+
+    def test_oracle_setup_check_returns_nonzero_for_a_version_mismatch(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            fake_python = Path(temporary) / "python"
+            fake_python.write_text(textwrap.dedent("""\
+                #!/usr/bin/env bash
+                case "$*" in
+                  *"setup_requirements"*) echo "numpy==1.24.4" ;;
+                  *"get_path('purelib')"*) echo "/tmp/fake-site" ;;
+                  *"importlib.metadata"*) echo "0.0" ;;
+                  *"-V"*) echo "Python 3.8.20" ;;
+                  *) exit 0 ;;
+                esac
+            """), encoding="utf-8")
+            fake_python.chmod(0o755)
+            completed = subprocess.run(
+                ["bash", "scripts/setup_oracle_env.sh", "--check"],
+                cwd=str(ROOT),
+                capture_output=True,
+                text=True,
+                env={**os.environ, "ORACLE_PYTHON": str(fake_python)},
+            )
+
+        self.assertNotEqual(completed.returncode, 0, completed.stdout)
+        self.assertIn("MISMATCH 0.0 (expected 1.24.4)", completed.stdout)
 
 
 @skip_unless_sandbox("bwrap")
@@ -75,6 +166,10 @@ class RadialVelocitySecureRuntimeTests(unittest.TestCase):
         )
 
         self.assertRegex(completed.stdout, r"(?m)^\s*astropy\s+present\s+5\.2\.2$")
+        self.assertRegex(completed.stdout, r"(?m)^\s*numpy\s+present\s+1\.24\.4$")
+        self.assertRegex(completed.stdout, r"(?m)^\s*scipy\s+present\s+1\.10\.1$")
+        self.assertRegex(completed.stdout, r"(?m)^\s*erfa\s+present\s+2\.0\.0\.3$")
+        self.assertRegex(completed.stdout, r"(?m)^\s*yaml\s+present\s+6\.0\.2$")
 
     def test_candidate_gets_the_trusted_abi_without_the_oracle_virtualenv(self):
         try:
