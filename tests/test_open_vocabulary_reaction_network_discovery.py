@@ -49,6 +49,22 @@ class OpenVocabularyReactionNetworkDiscoveryTests(unittest.TestCase):
             "open_network_reference",
         )
 
+    def test_public_contract_exposes_the_seed_species_container_shape(self):
+        task_text = (TASK / "Task.md").read_text(encoding="utf-8")
+
+        self.assertIn('"seed_species": [{"atoms":', task_text)
+        self.assertIn('problem["seed_species"][0]', task_text)
+        self.assertIn("one-element list", task_text)
+
+        def shape_only_policy(problem, _probe):
+            seed = problem["seed_species"][0]
+            self.assertEqual(set(seed), {"atoms", "bonds"})
+            return {"abstain": True, "confidence": 0.0}
+
+        result = self.evaluator.evaluate(shape_only_policy)
+        self.assertEqual(result["valid"], 1.0)
+        self.assertEqual(result["combined_score"], 0.0)
+
     def test_independent_always_abstain_is_valid_and_normalized_to_zero(self):
         result = self.evaluator.evaluate(
             lambda _problem, _probe: {"abstain": True, "confidence": 0.0}

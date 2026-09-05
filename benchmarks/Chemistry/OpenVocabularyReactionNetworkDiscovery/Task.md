@@ -100,7 +100,7 @@ invalidate that world. Repeating an edge costs another call.
 | key | meaning |
 |---|---|
 | `atom_inventory` | conserved heavy-atom multiset; currently `C, C, N, O` |
-| `seed_species` | one valid starting graph, not a list of all possible species |
+| `seed_species` | a one-element list containing the valid starting graph; it is not a catalogue of all possible species |
 | `probe_budget` | maximum charged calls, currently 24 |
 | `max_claimed_species` | maximum number of submitted canonical species |
 | `max_claimed_reactions` | maximum number of submitted directed edges |
@@ -111,6 +111,20 @@ invalidate that world. Repeating an edge costs another call.
 | `abstain_when` | the two scientifically correct refusal cases |
 
 There are deliberately no `candidate_species` or `candidate_reactions` keys.
+
+The container shape is intentional. Read the starting graph as
+`problem["seed_species"][0]`, not as `problem["seed_species"]`:
+
+```python
+{
+    "seed_species": [{"atoms": ["C", "C", "N", "O"], "bonds": [[0, 1, 1], ...]}],
+    "atom_inventory": ["C", "C", "N", "O"],
+    # the remaining keys are exactly those in the table above
+}
+```
+
+The list has length one in this wave so a later immutable wave may provide several admissible
+starting species without changing the public type. It does not expose any unobserved product.
 
 ## Evaluation
 

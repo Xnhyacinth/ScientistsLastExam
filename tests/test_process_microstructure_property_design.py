@@ -184,6 +184,26 @@ class ProcessMicrostructurePropertyDesignTests(unittest.TestCase):
             "process_structure_reference",
         )
 
+    def test_public_contract_exposes_nested_surrogate_inputs(self):
+        task_text = (TASK / "Task.md").read_text(encoding="utf-8")
+
+        self.assertIn('problem["constituent_properties"]["reduced_modulus"]', task_text)
+        self.assertIn('problem["constituent_properties"]["reduced_permeability"]', task_text)
+        self.assertIn('problem["reference_search"]["proxy_parameters"]', task_text)
+        self.assertIn('problem["reference_search"]["objective_normalization"]', task_text)
+
+        problem = self.evaluator._problem(self.evaluator.DEVELOPMENT_WORLDS[0])
+        self.assertEqual(
+            set(problem["constituent_properties"]),
+            {"reduced_modulus", "reduced_permeability"},
+        )
+        self.assertEqual(len(problem["constituent_properties"]["reduced_modulus"]), 2)
+        self.assertIsInstance(problem["reference_search"]["proxy_parameters"], dict)
+        self.assertEqual(
+            set(problem["reference_search"]["objective_normalization"]),
+            {"specific_modulus", "barrier_index", "process_energy_maximum", "clip"},
+        )
+
     def test_shipped_process_archive_is_legal_and_normalized_to_zero(self):
         result = self.evaluator.evaluate(self.baseline.design_process_archive)
         self.assertEqual(result["valid"], 1.0)

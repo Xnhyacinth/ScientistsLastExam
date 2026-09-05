@@ -79,6 +79,47 @@ Every key passed to `design_process_archive` is listed here:
 | `objectives` | rows with objective `name` and optimization `sense` |
 | `scope_warning` | explicit non-real-discovery interpretation |
 
+The two nested inputs most easily confused with per-constituent records have these exact shapes.
+The two entries in each property list are constituent A then B; they are not dictionaries:
+
+```python
+modulus_a, modulus_b = problem["constituent_properties"]["reduced_modulus"]
+permeability_a, permeability_b = problem["constituent_properties"]["reduced_permeability"]
+
+proxy = problem["reference_search"]["proxy_parameters"]
+normalization = problem["reference_search"]["objective_normalization"]
+```
+
+A representative mapping is:
+
+```python
+{
+    "constituent_properties": {
+        "reduced_modulus": [2.2, 5.4],
+        "reduced_permeability": [0.62, 1.55],
+    },
+    "reference_search": {
+        "pool_size": 1024,
+        "archive_size": 20,
+        "coordinate_refinement_passes": 2,
+        "coordinate_refinement_points_per_axis": 11,
+        "latin_hypercube_multipliers": [1, 73, 127, 181, 239],
+        "latin_hypercube_offsets": [0, 19, 43, 71, 101],
+        "proxy_parameters": {"crystallization_rate_constant": 700.0, ...},
+        "objective_normalization": {
+            "specific_modulus": {"offset": 1.2, "scale": 4.4},
+            "barrier_index": {"offset": 0.7, "scale": 5.5},
+            "process_energy_maximum": 7.5,
+            "clip": {"minimum": 0.0, "maximum": 1.0},
+        },
+    },
+}
+```
+
+Every `proxy_parameters` coefficient used by the public reference is supplied in that mapping;
+consume the mapping rather than recreating coefficients from prose. Numerical property values can
+change between worlds, but these nested keys and list ordering do not.
+
 ## Frozen mechanism oracle
 
 For each schedule, a deterministic initial composition perturbation is evolved in spectral space.
