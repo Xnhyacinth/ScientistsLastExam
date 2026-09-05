@@ -55,6 +55,46 @@ done
   exit 2
 }
 
+if [[ "$ALGORITHM" != "greedy_rewrite" ]]; then
+  echo "cohort evidence is supported only for greedy_rewrite because other backends lack durable receipt verification" >&2
+  exit 2
+fi
+
+valid_component () {
+  [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ ]]
+}
+
+valid_component "$COHORT" || {
+  echo "invalid cohort name: use a bounded canonical path component" >&2
+  exit 2
+}
+for mode in "${MODES[@]}"; do
+  case "$mode" in
+    normal|none|shuffled|score_only|delayed_replay|selection_blind) ;;
+    *) echo "invalid feedback mode: $mode" >&2; exit 2 ;;
+  esac
+done
+IFS=',' read -r -a SEED_LIST <<< "$SEEDS"
+[[ ${#SEED_LIST[@]} -gt 0 ]] || {
+  echo "invalid seed: at least one canonical integer is required" >&2
+  exit 2
+}
+for seed in "${SEED_LIST[@]}"; do
+  [[ "$seed" =~ ^(0|[1-9][0-9]{0,9})$ ]] || {
+    echo "invalid seed: use a bounded canonical non-negative integer" >&2
+    exit 2
+  }
+done
+for task_spec in "$@"; do
+  task_id="${task_spec%%:*}"
+  task_alias="${task_spec##*:}"
+  [[ "$task_id" == "$task_alias" ]] && task_alias="${task_id##*/}"
+  valid_component "$task_alias" || {
+    echo "invalid task alias: use a bounded canonical path component" >&2
+    exit 2
+  }
+done
+
 # The key is never read from a file or a flag, only from the environment, and it is never echoed.
 if [[ -z "${ANTHROPIC_API_KEY:-}" && "$CONFIG" == *claude* ]]; then
   echo "ANTHROPIC_API_KEY is not set; export it before running (it is a shared key: never commit it)" >&2
@@ -66,7 +106,6 @@ fi
 # lock directory reported as a run missing its manifest.
 LOCK_ROOT="$ROOT/.locks/$COHORT"
 mkdir -p "$ROOT/runs/$COHORT" "$ROOT/logs" "$LOCK_ROOT"
-IFS=',' read -r -a SEED_LIST <<< "$SEEDS"
 failures=0
 
 # Resolve every task-specific trusted evaluator before any run process can
@@ -185,6 +224,24 @@ if (root_path / "sle").is_dir():
 PY
 }
 
+resolved_run_target () {
+  python3 - "$ROOT/runs/$COHORT" "$1" <<'PY'
+import sys
+from pathlib import Path
+
+cohort_root = Path(sys.argv[1]).resolve()
+raw_target = Path(sys.argv[2])
+target = raw_target.resolve()
+if (
+    raw_target.is_symlink()
+    or raw_target.parent.resolve() != cohort_root
+    or target.parent != cohort_root
+):
+    raise SystemExit(1)
+print(target)
+PY
+}
+
 run_one () {
   local task="$1" short="$2" mode="$3" seed="$4"
   local name="${short}_${mode}_s${seed}"
@@ -222,7 +279,12 @@ run_one () {
     fi
 
     # Safe now: the kernel lock is held, so no concurrent driver is writing into this directory.
-    rm -rf "$dir"
+    local reset_target
+    if ! reset_target="$(resolved_run_target "$dir")"; then
+      echo "CONFLICT $short $mode s$seed (unsafe run target)"
+      exit 1
+    fi
+    rm -rf -- "$reset_target"
     local log="$ROOT/logs/${COHORT}_${short}_${mode}_s${seed}.log"
     if python3 -m sle run --task "$task" --algorithm "$ALGORITHM" \
         --feedback-mode "$mode" --budget "$BUDGET" --seed "$seed" --allow-uncertified \

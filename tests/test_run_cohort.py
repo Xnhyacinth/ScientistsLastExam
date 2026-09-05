@@ -389,6 +389,79 @@ class CohortRunnerTests(unittest.TestCase):
         self.assertIn("trusted evaluator runtime unavailable", result.stderr)
         self.assertFalse(self.calls.exists())
 
+    def test_non_greedy_backend_is_rejected_before_any_python_process(self):
+        self.fake_python('echo "SHOULD NOT RUN" >> "%s"; exit 1' % self.calls)
+        result = self.run_script(
+            "--cohort", "c", "--config", "x.yaml", "--seeds", "0",
+            "--algorithm", "abmcts", "T/t:t",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("durable receipt verification", result.stderr)
+        self.assertFalse(self.calls.exists())
+
+    def test_traversal_alias_is_rejected_without_deleting_outside_fixture(self):
+        home = self.tmp / "repo"
+        outside = home / "outside_normal_s0"
+        outside.mkdir(parents=True)
+        marker = outside / "keep.txt"
+        marker.write_text("keep", encoding="utf-8")
+        self.fake_python('''
+            for arg in "$@"; do
+              case "$prev" in --workdir) out="$arg" ;; esac
+              prev="$arg"
+            done
+            mkdir -p "$out"
+            echo '{}' > "$out/run_manifest.json"
+            echo '{}' > "$out/summary.json"
+        ''')
+        result = self.run_script(
+            "--cohort", "c", "--config", "x.yaml", "--seeds", "0",
+            "--modes", "normal", "T/t:../../outside", root=home,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("invalid task alias", result.stderr)
+        self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
+
+    def test_symlinked_run_target_outside_cohort_is_not_deleted(self):
+        home = self.tmp / "repo"
+        outside = home / "outside"
+        outside.mkdir(parents=True)
+        marker = outside / "keep.txt"
+        marker.write_text("keep", encoding="utf-8")
+        run_link = home / "runs/c/t_normal_s0"
+        run_link.parent.mkdir(parents=True)
+        run_link.symlink_to(outside, target_is_directory=True)
+        self.fake_python('echo "SHOULD NOT RUN" >> "%s"; exit 1' % self.calls)
+        result = self.run_script(
+            "--cohort", "c", "--config", "x.yaml", "--seeds", "0",
+            "--modes", "normal", "T/t:t", root=home,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unsafe run target", result.stdout)
+        self.assertTrue(run_link.is_symlink())
+        self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
+        self.assertFalse(self.calls.exists())
+
+    def test_noncanonical_cohort_mode_and_seed_components_are_rejected(self):
+        self.fake_python('echo "SHOULD NOT RUN" >> "%s"; exit 1' % self.calls)
+        cases = (
+            (("--cohort", "../escape", "--config", "x.yaml", "T/t:t"),
+             "invalid cohort name"),
+            (("--cohort", "c", "--config", "x.yaml", "--modes", "../normal",
+              "T/t:t"), "invalid feedback mode"),
+            (("--cohort", "c", "--config", "x.yaml", "--seeds", "../0",
+              "T/t:t"), "invalid seed"),
+            (("--cohort", "c", "--config", "x.yaml", "--seeds", ",",
+              "T/t:t"), "invalid seed"),
+        )
+        for index, (args, message) in enumerate(cases):
+            with self.subTest(message=message):
+                home = self.tmp / ("repo_%d" % index)
+                result = self.run_script(*args, root=home)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, result.stderr)
+        self.assertFalse(self.calls.exists())
+
     # -- failure reporting ---------------------------------------------------------------------
 
     def test_a_failing_run_is_reported_rather_than_passing_silently(self):

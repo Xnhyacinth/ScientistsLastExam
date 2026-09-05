@@ -5,7 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from sle.llm import LLMConfig
 from sle.runtime_identity import current_runtime_descriptor
@@ -207,14 +207,15 @@ class BatchAggregationTests(unittest.TestCase):
             self.assertEqual(set(block["feedback_modes"]), set(modes))
 
     def test_worker_rejects_runtime_change_before_constructing_llm_client(self):
-        frozen = {"schema_version": 1, "fingerprint_sha256": "1" * 64}
-        current = type("Runtime", (), {
-            "descriptor": {"schema_version": 1, "fingerprint_sha256": "2" * 64},
-            "fingerprint_sha256": "2" * 64,
-        })()
+        spec = MODULE.find_task(
+            "Chemistry/LennardJonesCluster", include_uncertified=True
+        )
+        frozen = MODULE._frozen_task_bindings([spec])[spec.task_id]
+        current = dict(frozen)
+        current["trusted_evaluator_runtime_sha256"] = "2" * 64
         payload = {
             "block_index": 1,
-            "task": "Chemistry/LennardJonesCluster",
+            "task": spec.task_id,
             "algorithm": "greedy_rewrite",
             "seed": 0,
             "feedback_modes": ["normal"],
@@ -224,15 +225,131 @@ class BatchAggregationTests(unittest.TestCase):
             "timeout_s": 1.0,
             "resume": False,
             "skip_keys": [],
-            "trusted_evaluator_runtime": frozen,
-            "trusted_evaluator_runtime_sha256": "1" * 64,
+            "frozen_task_binding": frozen,
         }
         with patch.object(
-            MODULE, "resolve_trusted_runtime", return_value=current,
+            MODULE, "_frozen_task_bindings", return_value={spec.task_id: current},
         ), patch.object(MODULE, "LLMClient") as llm_client:
-            with self.assertRaisesRegex(RuntimeError, "changed before worker dispatch"):
+            with self.assertRaisesRegex(RuntimeError, "task binding changed"):
                 MODULE._execute_block(payload)
         llm_client.assert_not_called()
+
+    def test_worker_rechecks_full_binding_before_backend_execution(self):
+        spec = MODULE.find_task(
+            "Chemistry/LennardJonesCluster", include_uncertified=True
+        )
+        frozen = MODULE._frozen_task_bindings([spec])[spec.task_id]
+        changed = dict(frozen)
+        changed["task_package_sha256"] = "0" * 64
+        payload = {
+            "block_index": 1,
+            "task": spec.task_id,
+            "algorithm": "greedy_rewrite",
+            "seed": 0,
+            "feedback_modes": ["normal"],
+            "llm_config": self.Config(),
+            "work_root": "/does/not/matter",
+            "budget": 1,
+            "timeout_s": 1.0,
+            "resume": False,
+            "skip_keys": [],
+            "frozen_task_binding": frozen,
+        }
+        backend = Mock()
+        with patch.object(
+            MODULE, "_frozen_task_bindings",
+            side_effect=[{spec.task_id: frozen}, {spec.task_id: changed}],
+        ), patch.object(MODULE, "LLMClient") as llm_client, patch.object(
+            MODULE, "get_algorithm", return_value=backend,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "task binding changed"):
+                MODULE._execute_block(payload)
+        llm_client.assert_called_once()
+        backend.assert_not_called()
+
+    def test_worker_rechecks_binding_immediately_before_model_call(self):
+        spec = MODULE.find_task(
+            "Chemistry/LennardJonesCluster", include_uncertified=True
+        )
+        frozen = MODULE._frozen_task_bindings([spec])[spec.task_id]
+        changed = dict(frozen)
+        changed["runtime_source_sha256"] = "0" * 64
+        payload = {
+            "block_index": 1,
+            "task": spec.task_id,
+            "algorithm": "greedy_rewrite",
+            "seed": 0,
+            "feedback_modes": ["normal"],
+            "llm_config": self.Config(),
+            "work_root": "/does/not/matter",
+            "budget": 1,
+            "timeout_s": 1.0,
+            "resume": False,
+            "skip_keys": [],
+            "frozen_task_binding": frozen,
+        }
+        raw_client = type("Client", (), {
+            "config": self.Config(),
+            "complete": Mock(return_value="must not be returned"),
+        })()
+
+        def backend(**kwargs):
+            kwargs["llm"].complete("proposal")
+            raise AssertionError("model call was not guarded")
+
+        with patch.object(
+            MODULE, "_frozen_task_bindings", side_effect=[
+                {spec.task_id: frozen},
+                {spec.task_id: frozen},
+                {spec.task_id: changed},
+                {spec.task_id: changed},
+            ],
+        ), patch.object(MODULE, "LLMClient", return_value=raw_client), patch.object(
+            MODULE, "get_algorithm", return_value=backend,
+        ):
+            result = MODULE._execute_block(payload)
+        self.assertIn("frozen task binding changed", result["entries"][0]["error"])
+        raw_client.complete.assert_not_called()
+
+    def test_worker_postchecks_binding_after_backend_exception(self):
+        spec = MODULE.find_task(
+            "Chemistry/LennardJonesCluster", include_uncertified=True
+        )
+        frozen = MODULE._frozen_task_bindings([spec])[spec.task_id]
+        changed = dict(frozen)
+        changed["task_contract_sha256"] = "0" * 64
+        payload = {
+            "block_index": 1,
+            "task": spec.task_id,
+            "algorithm": "greedy_rewrite",
+            "seed": 0,
+            "feedback_modes": ["normal"],
+            "llm_config": self.Config(),
+            "work_root": "/does/not/matter",
+            "budget": 1,
+            "timeout_s": 1.0,
+            "resume": False,
+            "skip_keys": [],
+            "frozen_task_binding": frozen,
+        }
+
+        def backend(**_kwargs):
+            raise ValueError("backend failed")
+
+        with patch.object(
+            MODULE, "_frozen_task_bindings", side_effect=[
+                {spec.task_id: frozen},
+                {spec.task_id: frozen},
+                {spec.task_id: changed},
+            ],
+        ), patch.object(MODULE, "LLMClient"), patch.object(
+            MODULE, "get_algorithm", return_value=backend,
+        ):
+            result = MODULE._execute_block(payload)
+        self.assertIn(
+            "frozen task binding changed after backend execution",
+            result["entries"][0]["error"],
+        )
 
     def test_task_runtime_records_are_path_free_and_resolved_once(self):
         specs = [
@@ -255,16 +372,50 @@ class BatchAggregationTests(unittest.TestCase):
             set(records), {"Chemistry/LennardJonesCluster", "Optics/DiffractionGratingDesign"}
         )
 
-    def test_completed_report_entry_requires_verified_underlying_run(self):
+    def test_parent_freezes_complete_task_bindings_with_one_runtime_probe_each(self):
+        specs = [
+            MODULE.find_task("Chemistry/LennardJonesCluster", include_uncertified=True),
+            MODULE.find_task("Optics/DiffractionGratingDesign", include_uncertified=True),
+        ]
         descriptor = current_runtime_descriptor(())
-        runtimes = {"T/X": {
+        runtime = type("Runtime", (), {
             "descriptor": descriptor,
             "fingerprint_sha256": descriptor["fingerprint_sha256"],
+        })()
+        with patch.object(
+            MODULE, "resolve_trusted_runtime", return_value=runtime,
+        ) as resolve:
+            bindings = MODULE._frozen_task_bindings(specs)
+        self.assertEqual(resolve.call_count, len(specs))
+        for spec in specs:
+            binding = bindings[spec.task_id]
+            self.assertEqual(
+                binding["task_contract_sha256"], MODULE.task_contract_sha256(spec)
+            )
+            self.assertEqual(
+                binding["task_package_sha256"], MODULE.task_package_sha256(spec)
+            )
+            self.assertEqual(
+                binding["task_card_sha256"], MODULE.hashlib.sha256(
+                    (spec.task_dir / "TASK_CARD.yaml").read_bytes()
+                ).hexdigest(),
+            )
+            self.assertEqual(
+                binding["runtime_source_sha256"], MODULE.runtime_source_sha256()
+            )
+            self.assertEqual(binding["trusted_evaluator_runtime"], descriptor)
+
+    def test_completed_report_entry_requires_verified_underlying_run(self):
+        descriptor = current_runtime_descriptor(())
+        bindings = {"T/X": {
+            "trusted_evaluator_runtime": descriptor,
+            "trusted_evaluator_runtime_sha256": descriptor["fingerprint_sha256"],
         }}
         entry = {
             "task": "T/X", "algorithm": "greedy_rewrite",
-            "feedback_mode": "normal", "seed": 0,
+            "feedback_mode": "normal", "seed": 0, "budget": 3,
             "workdir": "/missing/run",
+            "workdir_scope": "local_only_not_portable_evidence_identity",
             "trusted_evaluator_runtime": descriptor,
             "trusted_evaluator_runtime_sha256": descriptor["fingerprint_sha256"],
         }
@@ -272,11 +423,36 @@ class BatchAggregationTests(unittest.TestCase):
             MODULE, "verify_run", side_effect=ValueError("missing ledger"),
         ) as verify:
             with self.assertRaisesRegex(SystemExit, "completed cell is unverifiable"):
-                MODULE._verified_completed_keys([entry], runtimes, expected_budget=3)
+                MODULE._verified_completed_keys([entry], bindings, expected_budget=3)
         verify.assert_called_once_with(
             Path("/missing/run"), expected_budget=3,
             expected_trusted_runtime_sha256=descriptor["fingerprint_sha256"],
         )
+
+    def test_completed_report_entry_cannot_claim_a_different_seed(self):
+        descriptor = current_runtime_descriptor(())
+        bindings = {"T/X": {
+            "trusted_evaluator_runtime": descriptor,
+            "trusted_evaluator_runtime_sha256": descriptor["fingerprint_sha256"],
+        }}
+        entry = {
+            "task": "T/X", "algorithm": "greedy_rewrite",
+            "feedback_mode": "normal", "seed": 999, "budget": 3,
+            "workdir": "/verified/run",
+            "workdir_scope": "local_only_not_portable_evidence_identity",
+            "trusted_evaluator_runtime": descriptor,
+            "trusted_evaluator_runtime_sha256": descriptor["fingerprint_sha256"],
+        }
+        verified = {
+            "verified": True,
+            "task_id": "T/X", "algorithm": "greedy_rewrite",
+            "feedback_mode": "normal", "seed": 0, "budget": 3,
+            "trusted_evaluator_runtime": descriptor,
+            "trusted_evaluator_runtime_sha256": descriptor["fingerprint_sha256"],
+        }
+        with patch.object(MODULE, "verify_run", return_value=verified):
+            with self.assertRaisesRegex(SystemExit, "identity differs"):
+                MODULE._verified_completed_keys([entry], bindings, expected_budget=3)
 
     def test_parent_freezes_task_runtimes_before_loading_model_client(self):
         order = []
@@ -294,7 +470,7 @@ class BatchAggregationTests(unittest.TestCase):
             raise RuntimeError("stop after ordering check")
 
         with tempfile.TemporaryDirectory() as tmp, patch.object(
-            MODULE, "_trusted_runtime_records", side_effect=freeze,
+            MODULE, "_frozen_task_bindings", side_effect=freeze,
         ), patch.object(MODULE, "load_llm_client", side_effect=load):
             with self.assertRaisesRegex(RuntimeError, "ordering check"):
                 MODULE.main([
@@ -304,6 +480,28 @@ class BatchAggregationTests(unittest.TestCase):
                 ])
         self.assertEqual(order, ["runtime", "llm"])
 
+    def test_final_integrity_recheck_detects_task_and_source_changes(self):
+        spec = MODULE.find_task(
+            "Chemistry/LennardJonesCluster", include_uncertified=True
+        )
+        frozen = MODULE._frozen_task_bindings([spec])[spec.task_id]
+        changed = dict(frozen)
+        changed["task_contract_sha256"] = "0" * 64
+        initial = {
+            "git_available": True,
+            "git_revision": "abc",
+            "source_tree_dirty": False,
+            "source_changes": [],
+        }
+        final = dict(initial, source_tree_dirty=True, source_changes=[" M sle/x.py"])
+        with patch.object(
+            MODULE, "_frozen_task_bindings", return_value={spec.task_id: changed},
+        ), patch.object(MODULE, "source_provenance", return_value=final):
+            errors = MODULE._final_integrity_errors(
+                [spec], {spec.task_id: frozen}, initial
+            )
+        self.assertEqual(errors, ["task_binding_changed", "source_provenance_changed"])
+
     @skip_unless_sandbox("bwrap")  # runs the baseline through the real harness
     def test_block_resume_retries_started_cell_then_runs_unstarted_cells(self):
         task = "Chemistry/LennardJonesCluster"
@@ -312,7 +510,7 @@ class BatchAggregationTests(unittest.TestCase):
             task, include_uncertified=True
         ).initial_program_path.read_text(encoding="utf-8")
         task_spec = MODULE.find_task(task, include_uncertified=True)
-        runtime = MODULE.resolve_trusted_runtime(task_spec.task_dir)
+        frozen_binding = MODULE._frozen_task_bindings([task_spec])[task]
         fenced = "```python\n%s\n```" % source
         config = LLMConfig(
             wire="chat", base_url="https://example.invalid/v1",
@@ -333,8 +531,7 @@ class BatchAggregationTests(unittest.TestCase):
                 "timeout_s": 20.0,
                 "resume": False,
                 "skip_keys": [],
-                "trusted_evaluator_runtime": runtime.descriptor,
-                "trusted_evaluator_runtime_sha256": runtime.fingerprint_sha256,
+                "frozen_task_binding": frozen_binding,
             }
             failing = type("Failing", (), {
                 "config": config,
@@ -476,6 +673,7 @@ class BatchAggregationTests(unittest.TestCase):
             self.assertTrue(report["passed"])
             self.assertTrue(report["execution_passed"])
             self.assertTrue(report["trusted_evidence"])
+            self.assertEqual(report["final_integrity"], {"passed": True, "errors": []})
             snapshot = report["runs"][0]["trajectory_snapshot"]
             self.assertEqual(report["config"]["trajectory_snapshot_schema_version"], 2)
             self.assertEqual(snapshot["schema_version"], 2)
@@ -485,20 +683,28 @@ class BatchAggregationTests(unittest.TestCase):
             self.assertIn("wall_seconds", snapshot["events"][0])
             self.assertIn("cumulative_wall_seconds", snapshot["events"][0])
             task_id = "Chemistry/LennardJonesCluster"
-            runtime = report["config"]["trusted_evaluator_runtimes"][task_id]
+            runtime = report["config"]["frozen_task_bindings"][task_id]
             self.assertEqual(
                 report["runs"][0]["trusted_evaluator_runtime"],
-                runtime["descriptor"],
+                runtime["trusted_evaluator_runtime"],
             )
             self.assertEqual(
                 report["runs"][0]["trusted_evaluator_runtime_sha256"],
-                runtime["fingerprint_sha256"],
+                runtime["trusted_evaluator_runtime_sha256"],
             )
             self.assertEqual(
                 report["aggregate"][
                     "trusted_evaluator_runtime_sha256_by_task"
                 ],
-                {task_id: runtime["fingerprint_sha256"]},
+                {task_id: runtime["trusted_evaluator_runtime_sha256"]},
+            )
+            self.assertEqual(
+                report["config"]["work_root_scope"],
+                "local_only_not_portable_evidence_identity",
+            )
+            self.assertEqual(
+                report["runs"][0]["workdir_scope"],
+                "local_only_not_portable_evidence_identity",
             )
 
     def test_nonzero_protocol_smoke_cannot_be_labelled_model_performance(self):
@@ -564,10 +770,20 @@ class BatchAggregationTests(unittest.TestCase):
         spec = MODULE.find_task("LennardJonesCluster", include_uncertified=True)
         client = type("Client", (), {"config": self.Config()})()
         descriptor = current_runtime_descriptor(())
-        runtimes = {spec.task_id: {
-            "descriptor": descriptor,
-            "fingerprint_sha256": descriptor["fingerprint_sha256"],
-        }}
+        binding = {
+            "task_contract_sha256": MODULE.task_contract_sha256(spec),
+            "task_package_sha256": MODULE.task_package_sha256(spec),
+            "task_card_sha256": MODULE.hashlib.sha256(
+                (spec.task_dir / "TASK_CARD.yaml").read_bytes()
+            ).hexdigest(),
+            "runtime_source_sha256": MODULE.runtime_source_sha256(),
+            **MODULE.frontier_binding(spec),
+            "trusted_evaluator_runtime": descriptor,
+            "trusted_evaluator_runtime_sha256": descriptor[
+                "fingerprint_sha256"
+            ],
+        }
+        bindings = {spec.task_id: binding}
         with tempfile.TemporaryDirectory() as tmp, patch.object(
             MODULE, "_execution_preregistration_is_committed", return_value=True
         ):
@@ -588,18 +804,7 @@ class BatchAggregationTests(unittest.TestCase):
                         "python3", "scripts/batch_evolve.py",
                         "--tasks", "LennardJonesCluster",
                     ],
-                    "tasks": [{
-                        "task": spec.task_id,
-                        "task_contract_sha256": MODULE.task_contract_sha256(spec),
-                        "task_package_sha256": MODULE.task_package_sha256(spec),
-                        "task_card_sha256": MODULE.hashlib.sha256(
-                            (spec.task_dir / "TASK_CARD.yaml").read_bytes()
-                        ).hexdigest(),
-                        "trusted_evaluator_runtime": descriptor,
-                        "trusted_evaluator_runtime_sha256": descriptor[
-                            "fingerprint_sha256"
-                        ],
-                    }],
+                    "tasks": [{"task": spec.task_id, **binding}],
                 },
                 "prerequisites": [],
             }
@@ -609,7 +814,7 @@ class BatchAggregationTests(unittest.TestCase):
                 raw_argv=["--tasks", "LennardJonesCluster"],
                 specs=[spec],
                 llm=client,
-                trusted_runtimes=runtimes,
+                task_bindings=bindings,
             )
             self.assertTrue(record["execution_contract_validated"])
             self.assertTrue(record["command_contract_matches"])
@@ -618,7 +823,7 @@ class BatchAggregationTests(unittest.TestCase):
                 raw_argv=["--tasks", "LennardJonesCluster", "--resume"],
                 specs=[spec],
                 llm=client,
-                trusted_runtimes=runtimes,
+                task_bindings=bindings,
             )
             self.assertEqual(record, resumed)
 
@@ -628,7 +833,7 @@ class BatchAggregationTests(unittest.TestCase):
                     raw_argv=["--tasks", "LennardJonesCluster", "--budget", "1"],
                     specs=[spec],
                     llm=client,
-                    trusted_runtimes=runtimes,
+                    task_bindings=bindings,
                 )
 
             document["source_cohort"]["sha256"] = "0" * 64
@@ -639,7 +844,7 @@ class BatchAggregationTests(unittest.TestCase):
                     raw_argv=["--tasks", "LennardJonesCluster"],
                     specs=[spec],
                     llm=client,
-                    trusted_runtimes=runtimes,
+                    task_bindings=bindings,
                 )
             document["source_cohort"]["sha256"] = MODULE.hashlib.sha256(
                 cohort.read_bytes()
@@ -652,7 +857,7 @@ class BatchAggregationTests(unittest.TestCase):
                     raw_argv=["--tasks", "LennardJonesCluster"],
                     specs=[spec],
                     llm=client,
-                    trusted_runtimes=runtimes,
+                    task_bindings=bindings,
                 )
 
             document["design"]["tasks"][0]["task_package_sha256"] = (
@@ -670,7 +875,7 @@ class BatchAggregationTests(unittest.TestCase):
                     raw_argv=["--tasks", "LennardJonesCluster"],
                     specs=[spec],
                     llm=client,
-                    trusted_runtimes=runtimes,
+                    task_bindings=bindings,
                 )
 
     def test_execution_preregistration_rejects_uncommitted_file(self):
@@ -798,6 +1003,33 @@ class BatchAggregationTests(unittest.TestCase):
                     "--resume",
                 ])
 
+    @skip_unless_sandbox("bwrap")
+    def test_resume_skips_only_the_verified_matching_run_cell(self):
+        client = type("Client", (), {"config": self.Config()})()
+        clean = {
+            "git_available": True, "git_revision": "abc",
+            "source_tree_dirty": False, "source_changes": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch.object(
+            MODULE, "load_llm_client", return_value=client,
+        ), patch.object(MODULE, "source_provenance", return_value=clean):
+            output = Path(tmp) / "report.json"
+            workdir = Path(tmp) / "runs"
+            arguments = [
+                "--tasks", "LennardJonesCluster", "--budget", "0",
+                "--seeds", "0", "--timeout", "20",
+                "--workdir", str(workdir), "--output", str(output),
+            ]
+            self.assertEqual(MODULE.main(arguments), 0)
+            with patch.object(
+                MODULE, "_execute_block",
+                side_effect=AssertionError("verified cell was rerun"),
+            ) as execute:
+                self.assertEqual(MODULE.main([*arguments, "--resume"]), 0)
+            execute.assert_not_called()
+            report = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(len(report["runs"]), 1)
+
     @skip_unless_sandbox("bwrap")  # runs the baseline through the real harness
     def test_dirty_smoke_executes_but_is_not_trusted_evidence(self):
         client = type("Client", (), {"config": self.Config()})()
@@ -818,6 +1050,36 @@ class BatchAggregationTests(unittest.TestCase):
             self.assertFalse(report["trusted_evidence"])
             self.assertFalse(report["passed"])
 
+    @skip_unless_sandbox("bwrap")
+    def test_final_binding_failure_prevents_trusted_completion(self):
+        client = type("Client", (), {"config": self.Config()})()
+        clean = {
+            "git_available": True, "git_revision": "abc",
+            "source_tree_dirty": False, "source_changes": [],
+        }
+        with tempfile.TemporaryDirectory() as tmp, patch.object(
+            MODULE, "load_llm_client", return_value=client,
+        ), patch.object(
+            MODULE, "source_provenance", return_value=clean,
+        ), patch.object(
+            MODULE, "_final_integrity_errors",
+            return_value=["task_binding_changed"],
+        ):
+            output = Path(tmp) / "report.json"
+            result = MODULE.main([
+                "--tasks", "LennardJonesCluster", "--budget", "0",
+                "--seeds", "0", "--timeout", "20",
+                "--workdir", str(Path(tmp) / "runs"),
+                "--output", str(output),
+            ])
+            report = json.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(result, 1)
+        self.assertEqual(report["final_integrity"], {
+            "passed": False, "errors": ["task_binding_changed"],
+        })
+        self.assertFalse(report["execution_passed"])
+        self.assertFalse(report["trusted_evidence"])
+
     def test_greedy_only_controls_reject_unsupported_backend_mix(self):
         for mode in ("score_only", "delayed_replay", "selection_blind"):
             with self.subTest(mode=mode), self.assertRaisesRegex(
@@ -829,6 +1091,20 @@ class BatchAggregationTests(unittest.TestCase):
                     "--feedback-modes", mode,
                     "--budget", "0",
                 ])
+
+    def test_non_greedy_backend_is_rejected_before_client_or_backend_creation(self):
+        with patch.object(MODULE, "_trusted_runtime_records") as runtimes, patch.object(
+            MODULE, "load_llm_client"
+        ) as client, patch.object(MODULE, "get_algorithm") as backend:
+            with self.assertRaisesRegex(SystemExit, "durable receipt verification"):
+                MODULE.main([
+                    "--tasks", "LennardJonesCluster",
+                    "--algorithms", "abmcts",
+                    "--budget", "0",
+                ])
+        runtimes.assert_not_called()
+        client.assert_not_called()
+        backend.assert_not_called()
 
     def test_active_wall_horizon_is_greedy_only_and_interval_requires_horizon(self):
         with self.assertRaisesRegex(SystemExit, "requires --active-wall-horizon"):

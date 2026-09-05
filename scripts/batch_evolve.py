@@ -36,6 +36,7 @@ from sle.algorithms.common import task_package_sha256  # noqa: E402
 from sle.config import load_llm_client  # noqa: E402
 from sle.certification import certification_status  # noqa: E402
 from sle.evaluate import resolve_trusted_runtime  # noqa: E402
+from sle.frontier import frontier_binding  # noqa: E402
 from sle.llm import LLMClient  # noqa: E402
 from sle.protocol import mean_confidence_interval  # noqa: E402
 from sle.protocol import compact_trajectory_snapshot  # noqa: E402
@@ -79,6 +80,82 @@ def _trusted_runtime_records(specs: list[Any]) -> dict[str, dict[str, Any]]:
             "fingerprint_sha256": runtime.fingerprint_sha256,
         }
     return records
+
+
+def _frozen_task_bindings(specs: list[Any]) -> dict[str, dict[str, Any]]:
+    """Freeze every source, task, frontier, and evaluator input used by workers."""
+
+    runtimes = _trusted_runtime_records(specs)
+    bindings = {}
+    for spec in specs:
+        card = spec.task_dir / "TASK_CARD.yaml"
+        runtime = runtimes[spec.task_id]
+        bindings[spec.task_id] = {
+            "task_contract_sha256": task_contract_sha256(spec),
+            "task_package_sha256": task_package_sha256(spec),
+            "task_card_sha256": (
+                hashlib.sha256(card.read_bytes()).hexdigest()
+                if card.is_file() else None
+            ),
+            "runtime_source_sha256": runtime_source_sha256(),
+            **frontier_binding(spec),
+            "trusted_evaluator_runtime": runtime["descriptor"],
+            "trusted_evaluator_runtime_sha256": runtime[
+                "fingerprint_sha256"
+            ],
+        }
+    return bindings
+
+
+def _assert_task_binding(spec: Any, frozen: dict[str, Any]) -> None:
+    current = _frozen_task_bindings([spec])[spec.task_id]
+    if current != frozen:
+        raise RuntimeError("frozen task binding changed")
+
+
+def _assert_task_bindings(
+    specs: list[Any], bindings: dict[str, dict[str, Any]]
+) -> None:
+    for spec in specs:
+        _assert_task_binding(spec, bindings[spec.task_id])
+
+
+def _final_integrity_errors(
+    specs: list[Any],
+    bindings: dict[str, dict[str, Any]],
+    initial_provenance: dict[str, Any],
+) -> list[str]:
+    errors = []
+    try:
+        _assert_task_bindings(specs, bindings)
+    except Exception:  # noqa: BLE001 - emit a path-free trust decision
+        errors.append("task_binding_changed")
+    current = source_provenance(ROOT)
+    provenance_fields = ("git_revision", "source_tree_dirty", "source_changes")
+    if any(
+        current.get(field) != initial_provenance.get(field)
+        for field in provenance_fields
+    ):
+        errors.append("source_provenance_changed")
+    return errors
+
+
+class _BindingCheckedLLM:
+    """Guard every provider call against task/runtime TOCTOU changes."""
+
+    def __init__(self, delegate: LLMClient, spec: Any, binding: dict[str, Any]):
+        self._delegate = delegate
+        self._spec = spec
+        self._binding = binding
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._delegate, name)
+
+    def complete(self, *args: Any, **kwargs: Any) -> str:
+        _assert_task_binding(self._spec, self._binding)
+        result = self._delegate.complete(*args, **kwargs)
+        _assert_task_binding(self._spec, self._binding)
+        return result
 
 
 def _condition_order(
@@ -184,7 +261,7 @@ def _preregistration_record(
     raw_argv: list[str] | None = None,
     specs: list[Any] | None = None,
     llm: LLMClient | None = None,
-    trusted_runtimes: dict[str, dict[str, Any]] | None = None,
+    task_bindings: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     """Bind and, when declared, enforce an execution preregistration.
 
@@ -236,7 +313,7 @@ def _preregistration_record(
         )
     if (
         raw_argv is None or specs is None or llm is None
-        or trusted_runtimes is None
+        or task_bindings is None
     ):
         raise SystemExit("execution preregistration lacks runtime validation inputs")
     expected_argv = expected_command[2:]
@@ -282,21 +359,7 @@ def _preregistration_record(
         ] != [spec.task_id for spec in specs]:
             raise SystemExit("runtime task cohort differs from preregistration")
         for row, spec in zip(task_rows, specs):
-            runtime = trusted_runtimes[spec.task_id]
-            actual = {
-                "task_contract_sha256": task_contract_sha256(spec),
-                "task_package_sha256": task_package_sha256(spec),
-                "task_card_sha256": (
-                    hashlib.sha256(
-                        (spec.task_dir / "TASK_CARD.yaml").read_bytes()
-                    ).hexdigest()
-                    if (spec.task_dir / "TASK_CARD.yaml").is_file() else None
-                ),
-                "trusted_evaluator_runtime": runtime["descriptor"],
-                "trusted_evaluator_runtime_sha256": runtime[
-                    "fingerprint_sha256"
-                ],
-            }
+            actual = task_bindings[spec.task_id]
             for field, value in actual.items():
                 if row.get(field) != value:
                     if field.startswith("trusted_evaluator_runtime"):
@@ -349,7 +412,7 @@ def _preregistration_record(
             or current_provenance.get("source_tree_dirty") is False
         ),
         "task_count": len(specs),
-        "trusted_runtime_count": len(trusted_runtimes),
+        "trusted_runtime_count": len(task_bindings),
         "prerequisite_count": len(prerequisites),
         "source_cohort_matches": source_cohort is not None,
     })
@@ -489,19 +552,15 @@ def _execute_block(payload: dict[str, Any]) -> dict[str, Any]:
     algorithm_name = str(payload["algorithm"])
     seed = int(payload["seed"])
     spec = find_task(task_id, include_uncertified=True)
+    frozen_binding = payload["frozen_task_binding"]
+    _assert_task_binding(spec, frozen_binding)
     algorithm = get_algorithm(algorithm_name)
-    runtime = resolve_trusted_runtime(spec.task_dir)
-    if not (
-        runtime.fingerprint_sha256
-        == payload.get("trusted_evaluator_runtime_sha256")
-        and runtime.descriptor == payload.get("trusted_evaluator_runtime")
-    ):
-        raise RuntimeError(
-            "trusted evaluator runtime changed before worker dispatch"
-        )
     # The parent hashes this exact config object before dispatch.  Do not
     # re-read a mutable git-ignored YAML file inside the worker.
-    llm = LLMClient(payload["llm_config"])
+    llm = _BindingCheckedLLM(
+        LLMClient(payload["llm_config"]), spec, frozen_binding
+    )
+    _assert_task_binding(spec, frozen_binding)
     work_root = Path(payload["work_root"])
     skip_keys = set(payload.get("skip_keys") or [])
     entries = []
@@ -597,12 +656,26 @@ def _execute_block(payload: dict[str, Any]) -> dict[str, Any]:
                 "error": "%s: %s" % (type(exc).__name__, exc),
                 "wall_seconds": time.monotonic() - started,
             }
-        entry["trusted_evaluator_runtime"] = payload[
+        try:
+            _assert_task_binding(spec, frozen_binding)
+        except Exception:  # noqa: BLE001 - record post-execution TOCTOU failure
+            entry = {
+                "task": spec.task_id,
+                "algorithm": algorithm_name,
+                "feedback_mode": feedback_mode,
+                "seed": seed,
+                "workdir": str(run_dir),
+                "error": "RuntimeError: frozen task binding changed after backend execution",
+                "wall_seconds": time.monotonic() - started,
+            }
+        entry["trusted_evaluator_runtime"] = frozen_binding[
             "trusted_evaluator_runtime"
         ]
-        entry["trusted_evaluator_runtime_sha256"] = payload[
+        entry["trusted_evaluator_runtime_sha256"] = frozen_binding[
             "trusted_evaluator_runtime_sha256"
         ]
+        entry["budget"] = int(payload["budget"])
+        entry["workdir_scope"] = "local_only_not_portable_evidence_identity"
         entry["execution_block_index"] = int(payload["block_index"])
         entry["within_block_position"] = position
         entries.append(entry)
@@ -634,7 +707,7 @@ def _latest_runs(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _verified_completed_keys(
     runs: list[dict[str, Any]],
-    trusted_runtimes: dict[str, dict[str, Any]],
+    task_bindings: dict[str, dict[str, Any]],
     *,
     expected_budget: int,
 ) -> set[str]:
@@ -644,34 +717,77 @@ def _verified_completed_keys(
     for run in _latest_runs(runs):
         if run.get("error"):
             continue
-        task_id = str(run.get("task") or "")
-        frozen = trusted_runtimes.get(task_id)
+        task_id = run.get("task")
+        if not (
+            isinstance(task_id, str) and task_id
+            and isinstance(run.get("algorithm"), str)
+            and isinstance(run.get("feedback_mode"), str)
+            and isinstance(run.get("seed"), int)
+            and not isinstance(run.get("seed"), bool)
+            and isinstance(run.get("budget"), int)
+            and not isinstance(run.get("budget"), bool)
+            and run.get("workdir_scope")
+            == "local_only_not_portable_evidence_identity"
+        ):
+            raise SystemExit("completed cell report identity is invalid")
+        frozen = task_bindings.get(task_id)
         workdir = run.get("workdir")
         if not frozen or not isinstance(workdir, str) or not workdir:
             raise SystemExit("completed cell is unverifiable")
+        run_path = Path(workdir).expanduser()
+        if not run_path.is_absolute() or str(run_path.resolve()) != workdir:
+            raise SystemExit("completed cell workdir is not a canonical local path")
         if not (
-            run.get("trusted_evaluator_runtime") == frozen["descriptor"]
+            run.get("trusted_evaluator_runtime")
+            == frozen["trusted_evaluator_runtime"]
             and run.get("trusted_evaluator_runtime_sha256")
-            == frozen["fingerprint_sha256"]
+            == frozen["trusted_evaluator_runtime_sha256"]
         ):
             raise SystemExit("completed cell trusted evaluator runtime differs")
         try:
             verified = verify_run(
-                Path(workdir),
+                run_path,
                 expected_budget=expected_budget,
-                expected_trusted_runtime_sha256=frozen["fingerprint_sha256"],
+                expected_trusted_runtime_sha256=frozen[
+                    "trusted_evaluator_runtime_sha256"
+                ],
             )
         except (OSError, ValueError) as exc:
             raise SystemExit("completed cell is unverifiable") from exc
+        if verified.get("verified") is not True:
+            raise SystemExit("completed cell is unverifiable")
         if verified.get("trusted_evaluator_runtime_sha256") != frozen[
-            "fingerprint_sha256"
+            "trusted_evaluator_runtime_sha256"
         ]:
             raise SystemExit("completed cell trusted evaluator runtime differs")
+        expected_identity = {
+            "task_id": task_id,
+            "algorithm": run["algorithm"],
+            "feedback_mode": run["feedback_mode"],
+            "seed": run["seed"],
+            "budget": int(expected_budget),
+            "trusted_evaluator_runtime": frozen["trusted_evaluator_runtime"],
+            "trusted_evaluator_runtime_sha256": frozen[
+                "trusted_evaluator_runtime_sha256"
+            ],
+        }
+        for field in (
+            "task_contract_sha256", "task_package_sha256",
+            "runtime_source_sha256", "task_family_id", "wave_id",
+            "wave_manifest_sha256",
+        ):
+            if field in frozen:
+                expected_identity[field] = frozen[field]
+        if run.get("budget") != expected_budget or any(
+            verified.get(field) != value
+            for field, value in expected_identity.items()
+        ):
+            raise SystemExit("completed cell verified identity differs from report")
         completed.add(_run_key(
             task_id,
-            str(run["algorithm"]),
-            str(run["feedback_mode"]),
-            int(run["seed"]),
+            run["algorithm"],
+            run["feedback_mode"],
+            run["seed"],
         ))
     return completed
 
@@ -921,6 +1037,11 @@ def main(argv: list[str] | None = None) -> int:
     unknown = sorted(set(algorithms) - set(ALGORITHMS))
     if unknown:
         raise SystemExit("unknown algorithms: %s" % ", ".join(unknown))
+    if set(algorithms) != {"greedy_rewrite"}:
+        raise SystemExit(
+            "batch evidence is supported only for greedy_rewrite because other "
+            "backends lack durable receipt verification"
+        )
     if args.active_wall_horizon is not None and set(algorithms) != {"greedy_rewrite"}:
         raise SystemExit(
             "--active-wall-horizon is currently implemented only for greedy_rewrite"
@@ -960,7 +1081,7 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("no tasks selected")
     # Freeze task-specific evaluator identities before constructing any worker
     # or permitting any provider call. Executable paths remain private.
-    trusted_runtimes = _trusted_runtime_records(specs)
+    task_bindings = _frozen_task_bindings(specs)
     cohort_manifest = _cohort_manifest_record(
         args.cohort_manifest, specs, include_uncertified=include_uncertified
     )
@@ -995,13 +1116,13 @@ def main(argv: list[str] | None = None) -> int:
             {"replicate_identifier": seed, "feedback_modes": order}
             for seed, order in zip(args.seeds, condition_schedule)
         ],
-        "trusted_evaluator_runtimes": trusted_runtimes,
+        "frozen_task_bindings": task_bindings,
         "preregistration": _preregistration_record(
             args.preregistration,
             raw_argv=raw_argv,
             specs=specs,
             llm=llm,
-            trusted_runtimes=trusted_runtimes,
+            task_bindings=task_bindings,
         ),
         "cohort_manifest": cohort_manifest,
         "run_role": args.run_role,
@@ -1052,6 +1173,7 @@ def main(argv: list[str] | None = None) -> int:
             "maximum_concurrent_blocks": args.block_workers,
         },
         "work_root": str(work_root),
+        "work_root_scope": "local_only_not_portable_evidence_identity",
         "llm_condition_sha256": llm_condition_sha256(llm),
         "llm": {
             "wire": llm.config.wire,
@@ -1107,7 +1229,7 @@ def main(argv: list[str] | None = None) -> int:
     # A report row is an index, never completion evidence on its own. Rebuild
     # every terminal run before allowing --resume to skip a cell.
     done = _verified_completed_keys(
-        document.get("runs", []), trusted_runtimes,
+        document.get("runs", []), task_bindings,
         expected_budget=args.budget,
     )
     total = len(specs) * len(algorithms) * len(feedback_modes) * len(args.seeds)
@@ -1128,12 +1250,7 @@ def main(argv: list[str] | None = None) -> int:
             "signed_decision_policy": args.signed_decision_policy,
             "resume": args.resume,
             "skip_keys": sorted(done),
-            "trusted_evaluator_runtime": trusted_runtimes[block["task"]][
-                "descriptor"
-            ],
-            "trusted_evaluator_runtime_sha256": trusted_runtimes[
-                block["task"]
-            ]["fingerprint_sha256"],
+            "frozen_task_binding": task_bindings[block["task"]],
         }
         for block in blocks
         if any(
@@ -1143,6 +1260,7 @@ def main(argv: list[str] | None = None) -> int:
             for mode in block["feedback_modes"]
         )
     ]
+    _assert_task_bindings(specs, task_bindings)
     # Persist the cohort plan and source provenance before any worker can make
     # an LLM call. A process interruption can then be resumed without
     # reconstructing an unrecorded design.
@@ -1156,7 +1274,7 @@ def main(argv: list[str] | None = None) -> int:
             print("  " + line, flush=True)
         entries = result.get("entries") or []
         _verified_completed_keys(
-            entries, trusted_runtimes, expected_budget=args.budget
+            entries, task_bindings, expected_budget=args.budget
         )
         document.setdefault("runs", []).extend(entries)
         document["aggregate"] = aggregate_runs(document["runs"])
@@ -1217,9 +1335,17 @@ def main(argv: list[str] | None = None) -> int:
 
     document["completed_at"] = datetime.now(timezone.utc).isoformat()
     document["aggregate"] = aggregate_runs(document["runs"])
+    integrity_errors = _final_integrity_errors(
+        specs, task_bindings, provenance
+    )
+    document["final_integrity"] = {
+        "passed": not integrity_errors,
+        "errors": integrity_errors,
+    }
     execution_passed = (
         document["aggregate"]["failed_runs"] == 0
         and document["aggregate"]["successful_runs"] == total
+        and not integrity_errors
     )
     finalize_report_trust(document, execution_passed)
     atomic_write_text(output, json.dumps(document, indent=2, allow_nan=False) + "\n")
