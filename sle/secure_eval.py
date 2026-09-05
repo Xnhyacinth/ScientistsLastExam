@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import importlib.metadata
 import importlib.util
 import json
 import math
@@ -14,6 +15,7 @@ import signal
 import struct
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import time
 from pathlib import Path
@@ -51,49 +53,67 @@ ALLOWED_CANDIDATE_PACKAGES = {
                "importlib_metadata", "typing_extensions"),
     "networkx": ("networkx",),
     "qutip": ("qutip", "packaging"),
-    "astropy": ("astropy", "pyerfa", "erfa", "packaging", "PyYAML", "yaml"),
+    "astropy": (
+        "astropy", "astropy.libs", "erfa", "pyerfa.libs", "packaging",
+        "yaml", "_yaml", "PyYAML.libs",
+    ),
+}
+
+# Toolkit versions are part of the scientific contract. In particular, Astropy's
+# Lomb--Scargle implementation is the RadialVelocityPlanets oracle/reference platform;
+# silently substituting a newer Astropy changes the benchmark rather than fixing its runtime.
+CANDIDATE_PACKAGE_VERSIONS = {
+    "rdkit": ("rdkit", "2024.3.5"),
+    "sympy": ("sympy", "1.13.3"),
+    "ViennaRNA": ("ViennaRNA", "2.7.2"),
+    "nmrsim": ("nmrsim", "0.6.0"),
+    "networkx": ("networkx", "3.1"),
+    "qutip": ("qutip", "4.7.6"),
+    "astropy": ("astropy", "5.2.2"),
 }
 
 
-def _candidate_python() -> Path:
-    """Use the host interpreter's major/minor when it is available under /usr.
+def _candidate_runtime() -> tuple[Path, Path, Path | None]:
+    """Resolve the exact trusted CPython runtime used by candidate extensions.
 
-    The current benchmark environment is Python 3.8, but this avoids silently
-    coupling the sandbox protocol to that exact minor version.
+    Only the base interpreter executable, standard library and libpython are exposed.
+    The trusted virtualenv itself is never mounted; selected package directories are
+    mounted separately below.
     """
-    preferred = Path("/usr/bin/python%d.%d" % sys.version_info[:2])
-    return preferred if preferred.is_file() else Path("/usr/bin/python3")
-
-
-def _candidate_python_version() -> tuple[int, int]:
-    """Major/minor of the interpreter that will actually import the mounted packages.
-
-    The parent process is not necessarily the candidate interpreter. An optional search
-    backend runs the whole harness under its own virtualenv (3.10 or 3.12 here) while the
-    sandbox still execs a ``/usr/bin`` interpreter, which may be a different minor version.
-    Site-packages must be resolved for the interpreter that imports them, not for the parent:
-    mounting 3.10 C extensions into a 3.8 candidate cannot work, and looking up a version that
-    has no site-packages tree mounts nothing at all, so every candidate fails on ``import numpy``.
-    """
-    python = _candidate_python()
-    try:
-        out = subprocess.run(
-            [str(python), "-c", "import sys; print('%d %d' % sys.version_info[:2])"],
-            capture_output=True, text=True, timeout=30, check=True,
-        ).stdout.split()
-        return int(out[0]), int(out[1])
-    except Exception:  # noqa: BLE001 - fall back to the parent's version
-        return sys.version_info[0], sys.version_info[1]
+    if sys.implementation.name != "cpython":
+        raise RuntimeError("candidate runtime requires CPython")
+    executable = Path(sys.executable).resolve()
+    stdlib_value = sysconfig.get_path("stdlib")
+    soabi = str(sysconfig.get_config_var("SOABI") or "")
+    abi_prefix = "cpython-%d%d" % sys.version_info[:2]
+    if not executable.is_file() or not stdlib_value or not soabi.startswith(abi_prefix):
+        raise RuntimeError("trusted CPython executable or ABI is unavailable")
+    stdlib = Path(stdlib_value).resolve()
+    if not stdlib.is_dir():
+        raise RuntimeError("trusted CPython standard library is unavailable")
+    libpython = None
+    libdir = sysconfig.get_config_var("LIBDIR")
+    ldlibrary = sysconfig.get_config_var("LDLIBRARY")
+    if libdir and ldlibrary:
+        candidate = (Path(str(libdir)) / str(ldlibrary)).resolve()
+        if candidate.is_file():
+            libpython = candidate
+    return executable, stdlib, libpython
 
 
 def _site_package_roots() -> list[Path]:
-    version = "%d.%d" % _candidate_python_version()
-    candidates = [
-        Path.home() / ".local/lib" / ("python" + version) / "site-packages",
-        Path("/usr/local/lib") / ("python" + version) / "dist-packages",
-        Path("/usr/lib") / ("python" + version) / "dist-packages",
-    ]
-    return [path for path in candidates if path.is_dir()]
+    """Site-package roots active in the trusted interpreter, in import order."""
+    roots: list[Path] = []
+    for value in sys.path:
+        if not value:
+            continue
+        path = Path(value)
+        if path.name not in {"site-packages", "dist-packages"} or not path.is_dir():
+            continue
+        resolved = path.resolve()
+        if resolved not in roots:
+            roots.append(resolved)
+    return roots
 
 
 class CandidateError(RuntimeError):
@@ -202,6 +222,18 @@ def read_candidate_packages(task_dir: Path) -> tuple[str, ...]:
             raise RuntimeError(
                 "task requests candidate package %r which is not in the trusted allowlist" % name
             )
+        distribution, expected_version = CANDIDATE_PACKAGE_VERSIONS[name]
+        try:
+            installed_version = importlib.metadata.version(distribution)
+        except importlib.metadata.PackageNotFoundError as exc:
+            raise RuntimeError(
+                "trusted candidate package %r is not installed" % name
+            ) from exc
+        if installed_version != expected_version:
+            raise RuntimeError(
+                "trusted candidate package %r has version %s, expected %s"
+                % (name, installed_version, expected_version)
+            )
         for directory in ALLOWED_CANDIDATE_PACKAGES[name]:
             if directory not in resolved:
                 resolved.append(directory)
@@ -212,9 +244,14 @@ def read_candidate_packages(task_dir: Path) -> tuple[str, ...]:
 def _proc_mount_args() -> tuple[str, ...]:
     """Prefer a fresh procfs. Some container hosts forbid that mount.
 
-    An empty tmpfs is sufficient for candidates when a private procfs is unavailable.
-    Never bind the host process table into the candidate namespace.
+    A synthetic procfs is sufficient when a private procfs is unavailable. Its sole
+    ``self/exe`` link lets the dynamic loader expand ``$ORIGIN`` for relocatable CPython
+    builds without exposing the host process table.
     """
+    fallback = (
+        "--tmpfs", "/proc", "--dir", "/proc/self",
+        "--symlink", "/runtime/bin/python", "/proc/self/exe",
+    )
     bwrap = shutil.which("bwrap")
     if not bwrap:
         return ("--proc", "/proc")
@@ -228,10 +265,10 @@ def _proc_mount_args() -> tuple[str, ...]:
     try:
         result = subprocess.run(probe, capture_output=True, timeout=5)
     except (OSError, subprocess.TimeoutExpired):
-        return ("--tmpfs", "/proc")
+        return fallback
     if result.returncode == 0:
         return ("--proc", "/proc")
-    return ("--tmpfs", "/proc")
+    return fallback
 
 
 def _sandbox_command(candidate: Path, entrypoint: str, seccomp_fd: int,
@@ -239,6 +276,8 @@ def _sandbox_command(candidate: Path, entrypoint: str, seccomp_fd: int,
     bwrap = shutil.which("bwrap")
     if not bwrap:
         raise RuntimeError("secure evaluation requires bubblewrap (bwrap)")
+    runtime_python, runtime_stdlib, runtime_libpython = _candidate_runtime()
+    runtime_version = "%d.%d" % sys.version_info[:2]
     cmd = [
         bwrap, "--unshare-all", "--die-with-parent", "--new-session", "--seccomp", str(seccomp_fd),
         "--uid", "65534", "--gid", "65534", "--hostname", "frontier-candidate", "--as-pid-1",
@@ -247,6 +286,9 @@ def _sandbox_command(candidate: Path, entrypoint: str, seccomp_fd: int,
         "--ro-bind", "/lib64", "/lib64",
         *_proc_mount_args(), "--dev", "/dev", "--tmpfs", "/tmp",
         "--dir", "/runner", "--dir", "/runner/sle", "--dir", "/work",
+        "--dir", "/runtime", "--dir", "/runtime/bin", "--dir", "/runtime/lib",
+        "--ro-bind", str(runtime_python), "/runtime/bin/python",
+        "--ro-bind", str(runtime_stdlib), "/runtime/lib/python" + runtime_version,
         "--ro-bind", str(PACKAGE_DIR / "candidate_worker.py"), "/runner/sle/candidate_worker.py",
         "--ro-bind", str(PACKAGE_DIR / "rpc_codec.py"), "/runner/sle/rpc_codec.py",
         # Free submission-shape validation the candidate may import. It reveals no score, no
@@ -255,6 +297,11 @@ def _sandbox_command(candidate: Path, entrypoint: str, seccomp_fd: int,
         "--ro-bind", str(PACKAGE_DIR / "__init__.py"), "/runner/sle/__init__.py",
         "--ro-bind", str(candidate), "/work/candidate.py",
     ]
+    if runtime_libpython is not None:
+        cmd += [
+            "--ro-bind", str(runtime_libpython),
+            "/runtime/lib/" + runtime_libpython.name,
+        ]
     mounted: set[str] = set()
     requested = BASE_CANDIDATE_PACKAGES + tuple(packages)
     for root in _site_package_roots():
@@ -263,13 +310,22 @@ def _sandbox_command(candidate: Path, entrypoint: str, seccomp_fd: int,
                 raise RuntimeError("candidate package name must be a bare directory")
             src = root / package
             if src.exists() and package not in mounted:
-                cmd += ["--dir", "/packages/" + package, "--ro-bind", str(src), "/packages/" + package]
+                resolved = src.resolve()
+                try:
+                    resolved.relative_to(root)
+                except ValueError as exc:
+                    raise RuntimeError("candidate package directory escapes its site root") from exc
+                cmd += [
+                    "--dir", "/packages/" + package,
+                    "--ro-bind", str(resolved), "/packages/" + package,
+                ]
                 mounted.add(package)
     cmd += [
         "--chdir", "/work", "--setenv", "HOME", "/tmp", "--setenv", "TMPDIR", "/tmp",
         "--setenv", "PYTHONPATH", "/runner:/packages", "--setenv", "PYTHONDONTWRITEBYTECODE", "1",
+        "--setenv", "PYTHONHOME", "/runtime", "--setenv", "PYTHONNOUSERSITE", "1",
         "--setenv", "PYTHONHASHSEED", "0", "--setenv", "PATH", "/usr/bin:/bin",
-        "--", str(_candidate_python()), "/runner/sle/candidate_worker.py",
+        "--", "/runtime/bin/python", "-S", "/runner/sle/candidate_worker.py",
         "--candidate", "/work/candidate.py", "--entrypoint", entrypoint,
     ]
     return cmd
