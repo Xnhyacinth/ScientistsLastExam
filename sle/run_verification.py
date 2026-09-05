@@ -33,6 +33,11 @@ GREEDY_FEEDBACK_MODES = {
 
 IDENTITY_FIELDS = (
     "task_id",
+    "algorithm",
+    "feedback_mode",
+    "seed",
+    "llm_condition_sha256",
+    "llm_condition",
     "task_contract_sha256",
     "task_package_sha256",
     "runtime_source_sha256",
@@ -72,11 +77,18 @@ def _manifest_identity(manifest: dict[str, Any]) -> dict[str, Any]:
     feedback_mode = manifest.get("feedback_mode")
     if feedback_mode not in GREEDY_FEEDBACK_MODES:
         raise ValueError("run manifest feedback_mode is unsupported")
+    llm_condition = manifest.get("llm_condition")
+    if not isinstance(llm_condition, dict) or not llm_condition:
+        raise ValueError("run manifest llm_condition must be a nonempty object")
     identity = {
         "task_id": task_id,
         "algorithm": algorithm,
         "feedback_mode": feedback_mode,
         "seed": seed,
+        "llm_condition_sha256": _hash(
+            manifest.get("llm_condition_sha256"), "llm_condition_sha256"
+        ),
+        "llm_condition": llm_condition,
         "task_contract_sha256": _hash(
             manifest.get("task_contract_sha256"), "task_contract_sha256"
         ),
@@ -217,6 +229,7 @@ def _verify_run_unlocked(
                     for key in IDENTITY_FIELDS
                     if identity.get(key) is not None
                 }
+                expected_request_identity["proposal_budget"] = budget
                 for key, value in expected_request_identity.items():
                     if request.get(key) != value:
                         raise ValueError("evaluation receipt %s differs from manifest" % key)

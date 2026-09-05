@@ -26,6 +26,7 @@ class RunVerificationTests(unittest.TestCase):
         *,
         frontier: dict[str, str] | None = None,
         extra_request_frontier: dict[str, str] | None = None,
+        proposal_budget: int = 0,
     ) -> str:
         program = "def solve():\n    return 1\n"
         candidate_hash = sha256_text(program)
@@ -39,6 +40,8 @@ class RunVerificationTests(unittest.TestCase):
             "trusted_evaluator_runtime": current_runtime_descriptor(()),
             "seed": 0,
             "feedback_mode": "normal",
+            "llm_condition_sha256": "d" * 64,
+            "llm_condition": {"model": "test-model"},
             **(frontier or {}),
         }
         atomic_write_text(root / "run_manifest.json", json.dumps(manifest) + "\n")
@@ -46,9 +49,11 @@ class RunVerificationTests(unittest.TestCase):
             {
                 "kind": "baseline",
                 **{key: manifest[key] for key in (
-                    "task_id", "task_contract_sha256", "task_package_sha256",
-                    "runtime_source_sha256",
+                    "algorithm", "task_id", "task_contract_sha256",
+                    "task_package_sha256", "runtime_source_sha256", "seed",
+                    "feedback_mode", "llm_condition_sha256", "llm_condition",
                 )},
+                "proposal_budget": proposal_budget,
                 **(frontier or {}),
                 **(extra_request_frontier or {}),
                 "trusted_evaluator_runtime_sha256": manifest[
@@ -101,6 +106,12 @@ class RunVerificationTests(unittest.TestCase):
                 "task_contract_sha256": "a" * 64,
                 "task_package_sha256": "b" * 64,
                 "runtime_source_sha256": "c" * 64,
+                "algorithm": "greedy_rewrite",
+                "feedback_mode": "normal",
+                "seed": 0,
+                "proposal_budget": 1,
+                "llm_condition_sha256": "d" * 64,
+                "llm_condition": {"model": "test-model"},
                 "trusted_evaluator_runtime_sha256": json.loads(
                     (root / "run_manifest.json").read_text(encoding="utf-8")
                 )["trusted_evaluator_runtime"]["fingerprint_sha256"],
@@ -213,6 +224,47 @@ class RunVerificationTests(unittest.TestCase):
             manifest["schema_version"] = 2
             atomic_write_text(root / "run_manifest.json", json.dumps(manifest) + "\n")
             with self.assertRaisesRegex(ValueError, "manifest schema"):
+                verify_run(root)
+
+    def test_rejects_relabelled_model_mode_or_seed_cell(self):
+        cases = (
+            ({"llm_condition_sha256": "e" * 64,
+              "llm_condition": {"model": "other-model"}}, {}),
+            ({"feedback_mode": "selection_blind"},
+             {"feedback_mode": "selection_blind"}),
+            ({"seed": 19}, {"seed": 19}),
+        )
+        for manifest_update, summary_update in cases:
+            with self.subTest(manifest_update=manifest_update), \
+                 tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                self._run(root)
+                manifest = json.loads((root / "run_manifest.json").read_text())
+                manifest.update(manifest_update)
+                atomic_write_text(
+                    root / "run_manifest.json", json.dumps(manifest) + "\n"
+                )
+                summary = json.loads((root / "summary.json").read_text())
+                summary.update(summary_update)
+                atomic_write_text(root / "summary.json", json.dumps(summary) + "\n")
+                with self.assertRaisesRegex(
+                    ValueError, "evaluation receipt .* manifest"
+                ):
+                    verify_run(root)
+
+    def test_rejects_receipt_without_proposal_budget_binding(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            request_id = self._run(root)
+            request_path = (
+                root / "evaluation_ledger" / "requests" / (request_id + ".json")
+            )
+            document = json.loads(request_path.read_text(encoding="utf-8"))
+            document["request"].pop("proposal_budget")
+            atomic_write_text(request_path, json.dumps(document) + "\n")
+            with self.assertRaisesRegex(
+                ValueError, "request content binding|proposal_budget"
+            ):
                 verify_run(root)
 
     def test_rejects_missing_required_manifest_hashes(self):
@@ -404,7 +456,7 @@ class RunVerificationTests(unittest.TestCase):
     def test_rejects_improving_receipt_marked_not_accepted(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            self._run(root)
+            self._run(root, proposal_budget=1)
             self._proposal(root, score=0.5, accepted=False)
             with self.assertRaisesRegex(ValueError, "incumbent state"):
                 verify_run(root)
@@ -412,7 +464,7 @@ class RunVerificationTests(unittest.TestCase):
     def test_rejects_oracle_counter_smaller_than_receipt_count(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            self._run(root)
+            self._run(root, proposal_budget=1)
             self._proposal(root, score=0.5, accepted=True)
             events = load_trajectory(root / "trajectory.jsonl")
             events[1]["oracle_calls"] = 1
@@ -429,7 +481,7 @@ class RunVerificationTests(unittest.TestCase):
     def test_equal_score_candidate_cannot_replace_incumbent_artifact(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            self._run(root)
+            self._run(root, proposal_budget=1)
             proposal = self._proposal(root, score=0.25, accepted=False)
             atomic_write_text(root / "best_program.py", proposal)
             with self.assertRaisesRegex(ValueError, "replayed incumbent"):
@@ -438,7 +490,7 @@ class RunVerificationTests(unittest.TestCase):
     def test_summary_cannot_redefine_the_frozen_proposal_budget(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            self._run(root)
+            self._run(root, proposal_budget=1)
             self._proposal(root, score=0.5, accepted=True)
             summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
             summary["budget"] = 0

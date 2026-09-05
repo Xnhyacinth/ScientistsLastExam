@@ -312,6 +312,8 @@ cells:
                 "trusted_evaluator_runtime": TRUSTED_RUNTIME,
                 "seed": 0,
                 "feedback_mode": "normal",
+                "llm_condition_sha256": "d" * 64,
+                "llm_condition": {"model": "test-model"},
                 **wave.binding(),
             }
             (run / "run_manifest.json").write_text(
@@ -322,6 +324,7 @@ cells:
                     **frozen,
                     "trusted_evaluator_runtime_sha256": TRUSTED_RUNTIME_SHA256,
                     "kind": "proposal",
+                    "proposal_budget": 0,
                     "candidate_sha256": "d" * 64,
                 },
                 lambda: {"combined_score": 0.0, "valid": 1.0,
@@ -358,6 +361,8 @@ cells:
                 "trusted_evaluator_runtime": TRUSTED_RUNTIME,
                 "seed": 0,
                 "feedback_mode": "normal",
+                "llm_condition_sha256": "d" * 64,
+                "llm_condition": {"model": "test-model"},
                 **wave.binding(),
             }
             (run / "run_manifest.json").write_text(
@@ -366,11 +371,13 @@ cells:
             receipt = EvaluationLedger(run).evaluate_once(
                 {
                     **{key: frozen[key] for key in (
-                        "task_id", "task_contract_sha256", "task_package_sha256",
-                        "runtime_source_sha256", "task_family_id", "wave_id",
-                        "wave_manifest_sha256",
+                        "algorithm", "task_id", "task_contract_sha256",
+                        "task_package_sha256", "runtime_source_sha256", "seed",
+                        "feedback_mode", "llm_condition_sha256", "llm_condition",
+                        "task_family_id", "wave_id", "wave_manifest_sha256",
                     )},
                     "kind": "baseline",
+                    "proposal_budget": 0,
                     "trusted_evaluator_runtime_sha256": TRUSTED_RUNTIME_SHA256,
                     "step": 0,
                     "candidate_sha256": candidate_hash,

@@ -442,6 +442,14 @@ def _greedy_rewrite_impl(
     frozen_trusted_runtime = str(
         run_manifest["trusted_evaluator_runtime"]["fingerprint_sha256"]
     )
+    frozen_cell = {
+        "algorithm": str(run_manifest["algorithm"]),
+        "feedback_mode": str(run_manifest["feedback_mode"]),
+        "seed": int(run_manifest["seed"]),
+        "proposal_budget": int(budget),
+        "llm_condition_sha256": str(run_manifest["llm_condition_sha256"]),
+        "llm_condition": dict(run_manifest["llm_condition"]),
+    }
     frozen_frontier = {
         key: str(run_manifest[key])
         for key in ("task_family_id", "wave_id", "wave_manifest_sha256")
@@ -644,6 +652,7 @@ def _greedy_rewrite_impl(
                 "task_package_sha256": frozen_task_package,
                 "runtime_source_sha256": frozen_runtime_source,
                 "trusted_evaluator_runtime_sha256": frozen_trusted_runtime,
+                **frozen_cell,
                 **frozen_frontier,
                 "step": 0,
                 "candidate_sha256": sha256_text(baseline_src),
@@ -1051,6 +1060,7 @@ def _greedy_rewrite_impl(
                     "task_package_sha256": frozen_task_package,
                     "runtime_source_sha256": frozen_runtime_source,
                     "trusted_evaluator_runtime_sha256": frozen_trusted_runtime,
+                    **frozen_cell,
                     **frozen_frontier,
                     "step": int(it),
                     "candidate_sha256": sha256_text(code),
