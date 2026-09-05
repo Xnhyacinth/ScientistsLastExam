@@ -51,8 +51,9 @@ TOOLKIT_DEPENDENCY_PINS = {
     },
 }
 
-# Trusted-only dependencies are not mounted into the candidate, but setup must still lock the
-# full resolver closure so reinstalling one oracle toolkit cannot drift another task's runtime.
+# Matplotlib and its runtime closure are trusted-only for the toolkits that use it. Keep the
+# complete closure together so task-specific identities do not rely on unrelated toolkits being
+# present in the global oracle environment.
 ORACLE_DEPENDENCY_PINS = {
     "matplotlib": "3.7.5",
     "contourpy": "1.1.1",
@@ -60,9 +61,21 @@ ORACLE_DEPENDENCY_PINS = {
     "fonttools": "4.57.0",
     "importlib-resources": "6.4.5",
     "kiwisolver": "1.4.7",
+    "packaging": TOOLKIT_DEPENDENCY_PINS["qutip"]["packaging"],
+    "Pillow": TOOLKIT_DEPENDENCY_PINS["rdkit"]["Pillow"],
     "pyparsing": "3.1.4",
     "python-dateutil": "2.9.0.post0",
     "six": "1.17.0",
+    "zipp": TOOLKIT_DEPENDENCY_PINS["nmrsim"]["zipp"],
+}
+
+# Associate trusted-only packages with only the task toolkits whose oracle code imports them.
+TRUSTED_TOOLKIT_DEPENDENCY_PINS = {
+    "pymatching": {
+        "networkx": ORACLE_PACKAGE_PINS["networkx"],
+        **ORACLE_DEPENDENCY_PINS,
+    },
+    "nmrsim": dict(ORACLE_DEPENDENCY_PINS),
 }
 
 
@@ -93,5 +106,6 @@ def setup_requirements(python_version: tuple[int, int]) -> tuple[str, ...]:
     pins.update(candidate_distribution_pins(python_version))
     for dependencies in TOOLKIT_DEPENDENCY_PINS.values():
         pins.update(dependencies)
-    pins.update(ORACLE_DEPENDENCY_PINS)
+    for dependencies in TRUSTED_TOOLKIT_DEPENDENCY_PINS.values():
+        pins.update(dependencies)
     return tuple("%s==%s" % item for item in pins.items())

@@ -72,8 +72,12 @@ def main() -> int:
         }
     if trusted_context_sha256 is not None:
         metrics["trusted_context_sha256"] = trusted_context_sha256
-    metrics["trusted_evaluator_runtime_sha256"] = runtime["fingerprint_sha256"]
-    args.result.write_text(json.dumps(metrics, allow_nan=False), encoding="utf-8")
+    envelope = {
+        "schema_version": 1,
+        "trusted_evaluator_runtime_sha256": runtime["fingerprint_sha256"],
+        "metrics": metrics,
+    }
+    args.result.write_text(json.dumps(envelope, allow_nan=False), encoding="utf-8")
     return 0
 
 

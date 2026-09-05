@@ -174,23 +174,31 @@ def evaluate_candidate(
                     "infrastructure_failure": 1.0}
         try:
             raw = json.loads(result_path.read_text(encoding="utf-8"))
-            if raw.get("trusted_evaluator_runtime_sha256") != runtime.fingerprint_sha256:
+            if (
+                not isinstance(raw, dict)
+                or raw.get("trusted_evaluator_runtime_sha256")
+                != runtime.fingerprint_sha256
+            ):
                 return {
                     "combined_score": INVALID_SCORE,
                     "valid": 0.0,
                     "error_message": "trusted evaluator runtime binding mismatch",
                     "infrastructure_failure": 1.0,
                 }
+            if set(raw) != {
+                "schema_version", "trusted_evaluator_runtime_sha256", "metrics"
+            } or raw.get("schema_version") != 1 or not isinstance(raw.get("metrics"), dict):
+                raise ValueError("trusted evaluator result envelope is invalid")
             # The driver keeps its outward message fixed so nothing a candidate could read holds
             # evaluator internals, and it writes the cause to its stderr instead. Surface that to
             # the operator's log without putting it in `metrics`: an earlier attempt merged it
             # into `error_message`, which reaches the ledger and the trajectory, and a test
             # caught it leaking the oracle's entrypoint name. The record a candidate can reach
             # stays fixed; the log says why.
-            if raw.get("infrastructure_failure") and (stderr or "").strip():
+            if raw["metrics"].get("infrastructure_failure") and (stderr or "").strip():
                 print("trusted evaluator failure in %s:\n%s"
                       % (spec.task_id, (stderr or "").strip()[-2000:]), file=sys.stderr)
-            metrics = validate_metrics(raw, score_mode)
+            metrics = validate_metrics(raw["metrics"], score_mode)
             if context_payload is not None:
                 expected = hashlib.sha256(context_payload).hexdigest()
                 if metrics.get("trusted_context_sha256") != expected:
