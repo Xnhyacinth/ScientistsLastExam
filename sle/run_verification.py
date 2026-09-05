@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,22 @@ from .protocol import load_trajectory, sha256_text, summarize_trajectory
 from .runtime_identity import validate_runtime_descriptor
 
 INVALID_SCORE = -1.0e18
+
+_HASH = re.compile(r"^[0-9a-f]{64}$")
+_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+FRONTIER_IDENTITY_FIELDS = (
+    "task_family_id",
+    "wave_id",
+    "wave_manifest_sha256",
+)
+GREEDY_FEEDBACK_MODES = {
+    "normal",
+    "none",
+    "shuffled",
+    "score_only",
+    "delayed_replay",
+    "selection_blind",
+}
 
 
 IDENTITY_FIELDS = (
@@ -23,6 +40,69 @@ IDENTITY_FIELDS = (
     "wave_id",
     "wave_manifest_sha256",
 )
+
+
+def _identifier(value: Any, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > 256
+        or not _IDENTIFIER.fullmatch(value)
+    ):
+        raise ValueError("run manifest %s is not a canonical identifier" % label)
+    return value
+
+
+def _hash(value: Any, label: str) -> str:
+    if not isinstance(value, str) or not _HASH.fullmatch(value):
+        raise ValueError("run manifest %s must be a lowercase SHA-256" % label)
+    return value
+
+
+def _manifest_identity(manifest: dict[str, Any]) -> dict[str, Any]:
+    if manifest.get("schema_version") != 1:
+        raise ValueError("run manifest schema_version must be 1")
+    task_id = _identifier(manifest.get("task_id"), "task_id")
+    algorithm = manifest.get("algorithm")
+    if not isinstance(algorithm, str) or not algorithm:
+        raise ValueError("run manifest algorithm must be a nonempty string")
+    seed = manifest.get("seed")
+    if isinstance(seed, bool) or not isinstance(seed, int):
+        raise ValueError("run manifest seed must be an integer")
+    feedback_mode = manifest.get("feedback_mode")
+    if feedback_mode not in GREEDY_FEEDBACK_MODES:
+        raise ValueError("run manifest feedback_mode is unsupported")
+    identity = {
+        "task_id": task_id,
+        "algorithm": algorithm,
+        "feedback_mode": feedback_mode,
+        "seed": seed,
+        "task_contract_sha256": _hash(
+            manifest.get("task_contract_sha256"), "task_contract_sha256"
+        ),
+        "task_package_sha256": _hash(
+            manifest.get("task_package_sha256"), "task_package_sha256"
+        ),
+        "runtime_source_sha256": _hash(
+            manifest.get("runtime_source_sha256"), "runtime_source_sha256"
+        ),
+    }
+    present_frontier = {key for key in FRONTIER_IDENTITY_FIELDS if key in manifest}
+    if present_frontier and present_frontier != set(FRONTIER_IDENTITY_FIELDS):
+        raise ValueError("run manifest frontier binding must be complete or absent")
+    if present_frontier:
+        identity.update({
+            "task_family_id": _identifier(
+                manifest.get("task_family_id"), "task_family_id"
+            ),
+            "wave_id": _identifier(manifest.get("wave_id"), "wave_id"),
+            "wave_manifest_sha256": _hash(
+                manifest.get("wave_manifest_sha256"), "wave_manifest_sha256"
+            ),
+        })
+    else:
+        identity.update({key: None for key in FRONTIER_IDENTITY_FIELDS})
+    return identity
 
 
 def _document(path: Path, label: str) -> dict[str, Any]:
@@ -42,6 +122,7 @@ def _verify_run_unlocked(
     expected_trusted_runtime_sha256: str | None = None,
 ) -> dict[str, Any]:
     manifest = _document(root / "run_manifest.json", "run_manifest.json")
+    identity = _manifest_identity(manifest)
     trusted_runtime = validate_runtime_descriptor(
         manifest.get("trusted_evaluator_runtime")
     )
@@ -65,6 +146,8 @@ def _verify_run_unlocked(
         events = load_trajectory(root / "trajectory.jsonl")
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         raise ValueError("run lacks a valid trajectory.jsonl") from exc
+    if not events:
+        raise ValueError("completed run trajectory must contain a baseline event")
     budget = summary.get("budget")
     if (
         isinstance(budget, bool)
@@ -80,6 +163,13 @@ def _verify_run_unlocked(
         or budget != expected_budget
     ):
         raise ValueError("run summary budget differs from the externally expected budget")
+    final_budget_units = int(events[-1].get("budget_units", -1))
+    if final_budget_units < budget + 1:
+        raise ValueError(
+            "early termination is not a verified completed budget contract"
+        )
+    if final_budget_units > budget + 1:
+        raise ValueError("trajectory exceeds the completed budget contract")
     rebuilt = summarize_trajectory(events, budget=budget + 1)
     if any(summary.get(key) != value for key, value in rebuilt.items()):
         raise ValueError("run summary accounting differs from trajectory")
@@ -122,9 +212,25 @@ def _verify_run_unlocked(
                 expected_oracle_calls += 1
                 verified_request_ids.append(str(request_id))
                 verified_receipts[str(request_id)] = str(receipt["metrics_sha256"])
-                for key in IDENTITY_FIELDS:
-                    if key in manifest and request.get(key) != manifest.get(key):
+                expected_request_identity = {
+                    key: identity[key]
+                    for key in IDENTITY_FIELDS
+                    if identity.get(key) is not None
+                }
+                for key, value in expected_request_identity.items():
+                    if request.get(key) != value:
                         raise ValueError("evaluation receipt %s differs from manifest" % key)
+                request_frontier = {
+                    key for key in FRONTIER_IDENTITY_FIELDS if key in request
+                }
+                expected_frontier = {
+                    key for key in FRONTIER_IDENTITY_FIELDS
+                    if identity.get(key) is not None
+                }
+                if request_frontier != expected_frontier:
+                    raise ValueError(
+                        "evaluation receipt frontier binding differs from manifest"
+                    )
                 expected_kind = "baseline" if int(event["step"]) == 0 else "proposal"
                 event_metrics = receipt.get("metrics") or {}
                 if "trusted_evaluator_runtime_sha256" in event_metrics:
@@ -209,8 +315,6 @@ def _verify_run_unlocked(
     except OSError as exc:
         raise ValueError("run lacks best_program.py") from exc
     best_score = float(summary.get("best_score"))
-    if int(events[-1].get("budget_units", -1)) > budget + 1:
-        raise ValueError("trajectory exceeds the frozen proposal budget")
     if manifest.get("algorithm") == "greedy_rewrite" and best_hash != incumbent_hash:
         raise ValueError("best program differs from replayed incumbent")
     if manifest.get("algorithm") != "greedy_rewrite" and not any(
@@ -220,8 +324,8 @@ def _verify_run_unlocked(
         raise ValueError("best program is not bound to a best-scoring trajectory event")
     return {
         "verified": True,
-        "task_id": manifest.get("task_id"),
-        "algorithm": manifest.get("algorithm"),
+        **identity,
+        "budget": budget,
         "event_count": len(events),
         "best_program_sha256": best_hash,
         "verified_request_ids": sorted(verified_request_ids),

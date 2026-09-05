@@ -303,11 +303,15 @@ cells:
             run = root / "run"
             run.mkdir()
             frozen = {
+                "schema_version": 1,
+                "algorithm": "greedy_rewrite",
                 "task_id": spec.task_id,
                 "task_contract_sha256": "a" * 64,
                 "task_package_sha256": "b" * 64,
                 "runtime_source_sha256": "c" * 64,
                 "trusted_evaluator_runtime": TRUSTED_RUNTIME,
+                "seed": 0,
+                "feedback_mode": "normal",
                 **wave.binding(),
             }
             (run / "run_manifest.json").write_text(
@@ -327,7 +331,7 @@ cells:
                  patch.object(common, "task_package_sha256", return_value="b" * 64), \
                  patch.object(common, "runtime_source_sha256", return_value="c" * 64), \
                  patch("sle.evaluate.resolve_trusted_runtime", return_value=TrustedRuntime("python", TRUSTED_RUNTIME)), \
-                 self.assertRaisesRegex(ValueError, "trusted run verification"):
+                 self.assertRaisesRegex(ValueError, "run lacks a valid"):
                 promote_frontier_receipt(
                     spec,
                     run_workdir=run,

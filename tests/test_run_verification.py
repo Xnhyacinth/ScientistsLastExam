@@ -20,7 +20,13 @@ from sle.runtime_identity import current_runtime_descriptor
 
 
 class RunVerificationTests(unittest.TestCase):
-    def _run(self, root: Path) -> str:
+    def _run(
+        self,
+        root: Path,
+        *,
+        frontier: dict[str, str] | None = None,
+        extra_request_frontier: dict[str, str] | None = None,
+    ) -> str:
         program = "def solve():\n    return 1\n"
         candidate_hash = sha256_text(program)
         manifest = {
@@ -33,6 +39,7 @@ class RunVerificationTests(unittest.TestCase):
             "trusted_evaluator_runtime": current_runtime_descriptor(()),
             "seed": 0,
             "feedback_mode": "normal",
+            **(frontier or {}),
         }
         atomic_write_text(root / "run_manifest.json", json.dumps(manifest) + "\n")
         receipt = EvaluationLedger(root).evaluate_once(
@@ -42,6 +49,8 @@ class RunVerificationTests(unittest.TestCase):
                     "task_id", "task_contract_sha256", "task_package_sha256",
                     "runtime_source_sha256",
                 )},
+                **(frontier or {}),
+                **(extra_request_frontier or {}),
                 "trusted_evaluator_runtime_sha256": manifest[
                     "trusted_evaluator_runtime"
                 ]["fingerprint_sha256"],
@@ -151,6 +160,117 @@ class RunVerificationTests(unittest.TestCase):
                 verified["trusted_evaluator_runtime_sha256"],
                 verified["trusted_evaluator_runtime"]["fingerprint_sha256"],
             )
+            self.assertEqual(
+                {
+                    key: verified[key] for key in (
+                        "task_id",
+                        "algorithm",
+                        "feedback_mode",
+                        "seed",
+                        "budget",
+                        "task_contract_sha256",
+                        "task_package_sha256",
+                        "runtime_source_sha256",
+                        "task_family_id",
+                        "wave_id",
+                        "wave_manifest_sha256",
+                    )
+                },
+                {
+                    "task_id": "ScientificComputing/Example",
+                    "algorithm": "greedy_rewrite",
+                    "feedback_mode": "normal",
+                    "seed": 0,
+                    "budget": 0,
+                    "task_contract_sha256": "a" * 64,
+                    "task_package_sha256": "b" * 64,
+                    "runtime_source_sha256": "c" * 64,
+                    "task_family_id": None,
+                    "wave_id": None,
+                    "wave_manifest_sha256": None,
+                },
+            )
+
+    def test_returns_complete_frontier_cell_identity(self):
+        frontier = {
+            "task_family_id": "ScientificComputing/Example",
+            "wave_id": "wave-1",
+            "wave_manifest_sha256": "d" * 64,
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._run(root, frontier=frontier)
+            verified = verify_run(root)
+            self.assertEqual(
+                {key: verified[key] for key in frontier}, frontier
+            )
+
+    def test_rejects_wrong_manifest_schema(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._run(root)
+            manifest = json.loads((root / "run_manifest.json").read_text())
+            manifest["schema_version"] = 2
+            atomic_write_text(root / "run_manifest.json", json.dumps(manifest) + "\n")
+            with self.assertRaisesRegex(ValueError, "manifest schema"):
+                verify_run(root)
+
+    def test_rejects_missing_required_manifest_hashes(self):
+        for key in (
+            "task_contract_sha256",
+            "task_package_sha256",
+            "runtime_source_sha256",
+        ):
+            with self.subTest(key=key), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                self._run(root)
+                manifest = json.loads((root / "run_manifest.json").read_text())
+                manifest.pop(key)
+                atomic_write_text(
+                    root / "run_manifest.json", json.dumps(manifest) + "\n"
+                )
+                with self.assertRaisesRegex(ValueError, key):
+                    verify_run(root)
+
+    def test_rejects_partial_frontier_manifest_binding(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._run(root)
+            manifest = json.loads((root / "run_manifest.json").read_text())
+            manifest["task_family_id"] = "ScientificComputing/Example"
+            atomic_write_text(root / "run_manifest.json", json.dumps(manifest) + "\n")
+            with self.assertRaisesRegex(ValueError, "frontier binding"):
+                verify_run(root)
+
+    def test_rejects_unexpected_request_frontier_binding(self):
+        frontier = {
+            "task_family_id": "ScientificComputing/Example",
+            "wave_id": "wave-1",
+            "wave_manifest_sha256": "d" * 64,
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._run(root, extra_request_frontier=frontier)
+            with self.assertRaisesRegex(ValueError, "frontier binding"):
+                verify_run(root)
+
+    def test_rejects_invalid_manifest_identity_values(self):
+        cases = {
+            "task_id": ("not canonical", "task_id"),
+            "seed": (True, "seed"),
+            "feedback_mode": ("unknown", "feedback_mode"),
+        }
+        for key, (value, message) in cases.items():
+            with self.subTest(key=key), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                self._run(root)
+                manifest = json.loads((root / "run_manifest.json").read_text())
+                manifest[key] = value
+                atomic_write_text(
+                    root / "run_manifest.json", json.dumps(manifest) + "\n"
+                )
+                with self.assertRaisesRegex(ValueError, message):
+                    verify_run(root)
 
     def test_rejects_legacy_run_without_trusted_runtime_binding(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -326,6 +446,16 @@ class RunVerificationTests(unittest.TestCase):
                 json.dumps(summary) + "\n", encoding="utf-8"
             )
             with self.assertRaisesRegex(ValueError, "smaller than its trajectory"):
+                verify_run(root)
+
+    def test_summary_cannot_inflate_a_completed_run_budget(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._run(root)
+            summary = json.loads((root / "summary.json").read_text(encoding="utf-8"))
+            summary["budget"] = 10
+            atomic_write_text(root / "summary.json", json.dumps(summary) + "\n")
+            with self.assertRaisesRegex(ValueError, "early termination|completed budget"):
                 verify_run(root)
 
     def test_release_verification_binds_external_budget(self):
