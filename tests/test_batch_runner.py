@@ -183,6 +183,23 @@ class BatchAggregationTests(unittest.TestCase):
                 ["normal"], [0], "reverse_parity", randomization_seed=1
             )
 
+    def test_main_rejects_empty_or_duplicate_schedule_axes(self):
+        invalid_arguments = (
+            ["--feedback-modes", ","],
+            ["--feedback-modes", "normal,normal"],
+            ["--algorithms", "greedy_rewrite,greedy_rewrite"],
+            ["--seeds", "0,0"],
+            ["--tasks", "LennardJonesCluster,LennardJonesCluster"],
+        )
+        with patch.object(
+            MODULE, "_frozen_task_bindings",
+            side_effect=AssertionError("must reject before runtime freeze"),
+        ):
+            for arguments in invalid_arguments:
+                with self.subTest(arguments=arguments):
+                    with self.assertRaises(SystemExit):
+                        MODULE.main(arguments)
+
     def test_execution_blocks_keep_conditions_serial_with_fixed_indices(self):
         modes = ["normal", "score_only", "delayed_replay", "selection_blind"]
         seeds = [3, 7, 11, 15]
@@ -756,8 +773,19 @@ class BatchAggregationTests(unittest.TestCase):
             })()
             with patch.object(MODULE, "LLMClient", return_value=failing):
                 first = MODULE._execute_block(payload)
-            self.assertEqual(len(first["entries"]), 1)
+            self.assertEqual(len(first["entries"]), 2)
             self.assertIn("LLMInfrastructureError", first["entries"][0]["error"])
+            self.assertTrue(first["entries"][0]["attempt_started"])
+            self.assertEqual(
+                first["entries"][1]["error"],
+                "BlockedByPriorConditionError: earlier condition failed before "
+                "this scheduled condition could start",
+            )
+            self.assertEqual(
+                first["entries"][1]["blocked_by_run_key"],
+                "Chemistry/LennardJonesCluster|greedy_rewrite|normal|0",
+            )
+            self.assertFalse(first["entries"][1]["attempt_started"])
             normal_dir = (
                 root / "Chemistry__LennardJonesCluster" / "greedy_rewrite"
                 / "normal" / "seed_0"
@@ -765,6 +793,9 @@ class BatchAggregationTests(unittest.TestCase):
             self.assertTrue((normal_dir / "checkpoint.json").is_file())
             self.assertEqual(
                 len((normal_dir / "trajectory.jsonl").read_text().splitlines()), 1
+            )
+            self.assertEqual(
+                len(first["entries"][0]["trajectory_snapshot"]["events"]), 1
             )
 
             replies = iter([fenced, fenced])
@@ -811,14 +842,54 @@ class BatchAggregationTests(unittest.TestCase):
             "successful_runs": 1,
             "terminal_failed_runs": 0,
             "completion_rate": 1.0,
+            "observed_run_rows": 1,
+            "missing_run_rows": 0,
             "run_cells_with_any_failed_attempt": 1,
             "run_cells_with_protocol_incomplete_attempt": 0,
             "recovered_runs": 1,
+        })
+        self.assertEqual(got["first_attempt_intent_to_evaluate"], {
+            "scheduled_runs": 1,
+            "observed_run_rows": 1,
+            "missing_run_rows": 0,
+            "successful_runs": 0,
+            "failed_runs": 1,
+            "completion_rate": 0.0,
         })
         condition = got["by_condition"]["T/X|greedy_rewrite|normal"]
         self.assertEqual(condition["attempt_count"], 2)
         self.assertEqual(condition["failed_attempts"], 1)
         self.assertEqual(condition["recovered_runs"], 1)
+
+    def test_aggregation_uses_frozen_schedule_for_missing_run_rows(self):
+        successful = {
+            "task": "T/X", "algorithm": "greedy_rewrite",
+            "feedback_mode": "normal", "seed": 0, "best": 0.3,
+            **self.runtime_fields(),
+            "summary": {
+                "best_so_far_auc": 0.2, "budget_units": 2,
+                "oracle_calls": 2, "wall_seconds": 1,
+                "llm": {"total_tokens": None, "estimated_cost_usd": None},
+            },
+        }
+        scheduled = {
+            "T/X|greedy_rewrite|normal|0",
+            "T/X|greedy_rewrite|normal|1",
+        }
+        got = MODULE.aggregate_runs(
+            [successful], scheduled_run_keys=scheduled
+        )
+        self.assertEqual(got["intent_to_evaluate"]["scheduled_runs"], 2)
+        self.assertEqual(got["intent_to_evaluate"]["terminal_failed_runs"], 1)
+        self.assertEqual(got["intent_to_evaluate"]["completion_rate"], 0.5)
+        self.assertEqual(got["first_attempt_intent_to_evaluate"], {
+            "scheduled_runs": 2,
+            "observed_run_rows": 1,
+            "missing_run_rows": 1,
+            "successful_runs": 1,
+            "failed_runs": 1,
+            "completion_rate": 0.5,
+        })
 
     def test_failed_condition_stays_visible_without_valid_quality_rows(self):
         failed = {"task": "T/X", "algorithm": "greedy_rewrite",
@@ -1032,6 +1103,10 @@ class BatchAggregationTests(unittest.TestCase):
             )
             self.assertTrue(record["execution_contract_validated"])
             self.assertTrue(record["command_contract_matches"])
+            self.assertFalse(record["readable_model_condition_matches"])
+            self.assertEqual(
+                record["readable_model_condition_status"], "not_declared"
+            )
             resumed = MODULE._preregistration_record(
                 path,
                 raw_argv=["--tasks", "LennardJonesCluster", "--resume"],
@@ -1040,6 +1115,61 @@ class BatchAggregationTests(unittest.TestCase):
                 task_bindings=bindings,
             )
             self.assertEqual(record, resumed)
+
+            document["design"]["resume_permitted"] = False
+            path.write_text(json.dumps(document), encoding="utf-8")
+            with self.assertRaisesRegex(SystemExit, "does not permit resume"):
+                MODULE._preregistration_record(
+                    path,
+                    raw_argv=["--tasks", "LennardJonesCluster", "--resume"],
+                    specs=[spec],
+                    llm=client,
+                    task_bindings=bindings,
+                )
+            document["design"].pop("resume_permitted")
+
+            document["model_condition"]["required_readable_fields"] = [
+                "model", "wire"
+            ]
+            path.write_text(json.dumps(document), encoding="utf-8")
+            with self.assertRaisesRegex(SystemExit, "missing readable model"):
+                MODULE._preregistration_record(
+                    path,
+                    raw_argv=["--tasks", "LennardJonesCluster"],
+                    specs=[spec],
+                    llm=client,
+                    task_bindings=bindings,
+                )
+            document["model_condition"].update({
+                "model": client.config.model,
+                "wire": client.config.wire,
+            })
+            path.write_text(json.dumps(document), encoding="utf-8")
+            readable = MODULE._preregistration_record(
+                path,
+                raw_argv=["--tasks", "LennardJonesCluster"],
+                specs=[spec],
+                llm=client,
+                task_bindings=bindings,
+            )
+            self.assertTrue(readable["readable_model_condition_matches"])
+            self.assertEqual(
+                readable["readable_model_condition_status"], "matched"
+            )
+            for field in ("required_readable_fields", "model", "wire"):
+                document["model_condition"].pop(field)
+
+            document["model_condition"]["model"] = "different-model"
+            path.write_text(json.dumps(document), encoding="utf-8")
+            with self.assertRaisesRegex(SystemExit, "readable model condition"):
+                MODULE._preregistration_record(
+                    path,
+                    raw_argv=["--tasks", "LennardJonesCluster"],
+                    specs=[spec],
+                    llm=client,
+                    task_bindings=bindings,
+                )
+            document["model_condition"].pop("model")
 
             with self.assertRaisesRegex(SystemExit, "runtime command differs"):
                 MODULE._preregistration_record(

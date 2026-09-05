@@ -179,6 +179,10 @@ def llm_condition_descriptor(llm: LLMClient) -> dict[str, Any]:
     return {
         "model": getattr(config, "model", None),
         "wire": getattr(config, "wire", None),
+        "endpoint_sha256": (
+            hashlib.sha256(str(base_url).encode("utf-8")).hexdigest()
+            if base_url is not None else None
+        ),
         "reasoning_effort": getattr(config, "reasoning_effort", None),
         "temperature": getattr(config, "temperature", None),
         "max_output_tokens": getattr(config, "max_output_tokens", None),
@@ -191,6 +195,7 @@ def llm_condition_descriptor(llm: LLMClient) -> dict[str, Any]:
         "chat_reasoning_fallback": bool(
             getattr(config, "chat_reasoning_fallback", False)
         ),
+        "server_side_seed_control": False,
     }
 
 

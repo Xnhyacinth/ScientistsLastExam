@@ -322,11 +322,66 @@ def _preregistration_record(
     resume_matches = raw_argv == expected_argv + ["--resume"]
     if not (command_matches or resume_matches):
         raise SystemExit("runtime command differs from preregistration primary_command")
+    resume_permitted = design.get("resume_permitted", True)
+    if not isinstance(resume_permitted, bool):
+        raise SystemExit("preregistration resume_permitted must be boolean")
+    if resume_matches and not resume_permitted:
+        raise SystemExit("preregistration does not permit resume")
 
     model = document.get("model_condition") or {}
     expected_llm = model.get("llm_condition_sha256")
     if expected_llm and expected_llm != llm_condition_sha256(llm):
         raise SystemExit("runtime model condition differs from preregistration")
+    readable_model_condition = {
+        "wire": llm.config.wire,
+        "endpoint_sha256": hashlib.sha256(
+            llm.config.base_url.encode("utf-8")
+        ).hexdigest(),
+        "model": llm.config.model,
+        "max_output_tokens": llm.config.max_output_tokens,
+        "temperature": llm.config.temperature,
+        "reasoning_effort": llm.config.reasoning_effort,
+        "provider_request_timeout_seconds": llm.config.timeout_seconds,
+        "stream": bool(getattr(llm.config, "stream", False)),
+        "chat_max_tokens_field": getattr(
+            llm.config, "chat_max_tokens_field", "max_tokens"
+        ),
+        "chat_reasoning_fallback": bool(getattr(
+            llm.config, "chat_reasoning_fallback", False
+        )),
+        "server_side_seed_control": False,
+    }
+    declared_readable_fields = sorted(
+        field for field in readable_model_condition if field in model
+    )
+    required_readable_fields = model.get("required_readable_fields")
+    if required_readable_fields is not None:
+        if not (
+            isinstance(required_readable_fields, list)
+            and required_readable_fields
+            and all(
+                isinstance(field, str) and field in readable_model_condition
+                for field in required_readable_fields
+            )
+        ):
+            raise SystemExit(
+                "preregistration required readable model fields are invalid"
+            )
+        missing_readable = sorted(
+            set(required_readable_fields) - set(declared_readable_fields)
+        )
+        if missing_readable:
+            raise SystemExit(
+                "preregistration is missing readable model condition fields: %s"
+                % ", ".join(missing_readable)
+            )
+    if any(
+        field in model and model[field] != value
+        for field, value in readable_model_condition.items()
+    ):
+        raise SystemExit(
+            "runtime readable model condition differs from preregistration"
+        )
     frozen_source = document.get("frozen_source") or {}
     expected_runtime = frozen_source.get("runtime_source_sha256")
     if expected_runtime and expected_runtime != runtime_source_sha256():
@@ -401,10 +456,15 @@ def _preregistration_record(
         "claim_limit": document.get("claim_limit"),
         "execution_contract_validated": True,
         "command_contract_matches": True,
-        "resume_suffix_permitted": True,
+        "resume_suffix_permitted": resume_permitted,
         "model_condition_matches": not expected_llm or bool(
             expected_llm == llm_condition_sha256(llm)
         ),
+        "readable_model_condition_matches": bool(declared_readable_fields),
+        "readable_model_condition_status": (
+            "matched" if declared_readable_fields else "not_declared"
+        ),
+        "readable_model_condition_declared_fields": declared_readable_fields,
         "runtime_source_matches": not expected_runtime or bool(
             expected_runtime == runtime_source_sha256()
         ),
@@ -746,6 +806,15 @@ def _execute_block(payload: dict[str, Any]) -> dict[str, Any]:
                 "error": "%s: %s" % (type(exc).__name__, exc),
                 "wall_seconds": time.monotonic() - started,
             }
+            if trajectory.is_file():
+                try:
+                    entry["trajectory_snapshot"] = compact_trajectory_snapshot(
+                        trajectory, schema_version=2
+                    )
+                except Exception as snapshot_exc:  # noqa: BLE001 - retain failure
+                    entry["trajectory_snapshot_error"] = type(
+                        snapshot_exc
+                    ).__name__
         try:
             _assert_task_binding(spec, frozen_binding)
         except Exception:  # noqa: BLE001 - record post-execution TOCTOU failure
@@ -765,6 +834,7 @@ def _execute_block(payload: dict[str, Any]) -> dict[str, Any]:
             "trusted_evaluator_runtime_sha256"
         ]
         entry["budget"] = int(payload["budget"])
+        entry["attempt_started"] = True
         entry["workdir_scope"] = "local_only_not_portable_evidence_identity"
         entry["execution_block_index"] = int(payload["block_index"])
         entry["within_block_position"] = position
@@ -775,6 +845,40 @@ def _execute_block(payload: dict[str, Any]) -> dict[str, Any]:
                 "[%s] block halted before later conditions after outer error"
                 % feedback_mode
             )
+            for blocked_position, (blocked_mode, blocked_dir) in enumerate(
+                zip(feedback_modes[position:], run_dirs[position:]),
+                position + 1,
+            ):
+                blocked_key = _run_key(
+                    task_id, algorithm_name, blocked_mode, seed
+                )
+                if blocked_key in skip_keys:
+                    logs.append("skip completed %s" % blocked_key)
+                    continue
+                entries.append({
+                    "task": spec.task_id,
+                    "algorithm": algorithm_name,
+                    "feedback_mode": blocked_mode,
+                    "seed": seed,
+                    "workdir": str(blocked_dir),
+                    "error": (
+                        "BlockedByPriorConditionError: earlier condition failed "
+                        "before this scheduled condition could start"
+                    ),
+                    "blocked_by_run_key": key,
+                    "attempt_started": False,
+                    "wall_seconds": 0.0,
+                    "trusted_evaluator_runtime": frozen_binding[
+                        "trusted_evaluator_runtime"
+                    ],
+                    "trusted_evaluator_runtime_sha256": frozen_binding[
+                        "trusted_evaluator_runtime_sha256"
+                    ],
+                    "budget": int(payload["budget"]),
+                    "workdir_scope": "local_only_not_portable_evidence_identity",
+                    "execution_block_index": int(payload["block_index"]),
+                    "within_block_position": blocked_position,
+                })
             break
     return {
         "block_index": int(payload["block_index"]),
@@ -895,7 +999,11 @@ def _verified_completed_keys(
     return completed
 
 
-def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
+def aggregate_runs(
+    runs: list[dict[str, Any]],
+    *,
+    scheduled_run_keys: set[str] | None = None,
+) -> dict[str, Any]:
     runtime_by_task: dict[str, str] = {}
     for run in runs:
         task_id = str(run["task"])
@@ -944,10 +1052,24 @@ def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
         attempts_by_run.setdefault(_run_key(
             run["task"], run["algorithm"], run["feedback_mode"], int(run["seed"])
         ), []).append(run)
+    observed_keys = set(attempts_by_run)
+    planned_keys = (
+        set(scheduled_run_keys) if scheduled_run_keys is not None
+        else observed_keys
+    )
+    if not observed_keys <= planned_keys:
+        raise ValueError("run lies outside the frozen schedule")
     groups: dict[str, list[dict[str, Any]]] = {}
     for run in current:
         key = "%s|%s|%s" % (run["task"], run["algorithm"], run["feedback_mode"])
         groups.setdefault(key, []).append(run)
+    scheduled_by_condition: dict[str, int] = {}
+    for key in planned_keys:
+        condition_key = key.rsplit("|", 1)[0]
+        scheduled_by_condition[condition_key] = (
+            scheduled_by_condition.get(condition_key, 0) + 1
+        )
+        groups.setdefault(condition_key, [])
 
     by_condition = {}
     for key, group in sorted(groups.items()):
@@ -970,15 +1092,19 @@ def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
             )
             for run in group
         )
+        scheduled_count = scheduled_by_condition.get(key, len(group))
         by_condition[key] = {
             # ``n`` remains the valid-only sample size for compatibility. The
             # scheduled denominator and retry history are retained separately so
             # a recovered condition cannot erase an earlier failure.
             "n": len(successful_group),
-            "scheduled_n": len(group),
+            "scheduled_n": scheduled_count,
             "successful_runs": len(successful_group),
-            "terminal_failed_runs": len(group) - len(successful_group),
-            "completion_rate": len(successful_group) / len(group),
+            "terminal_failed_runs": scheduled_count - len(successful_group),
+            "completion_rate": (
+                len(successful_group) / scheduled_count
+                if scheduled_count else 0.0
+            ),
             "attempt_count": len(group_attempts),
             "failed_attempts": sum(bool(run.get("error")) for run in group_attempts),
             "protocol_incomplete_attempts": sum(
@@ -1002,6 +1128,13 @@ def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
             and any(run.get("error") for run in attempts)
         )
     }
+    first_attempts = [
+        attempts[0] for attempts in attempts_by_run.values()
+    ]
+    successful_first_attempts = [
+        run for run in first_attempts
+        if not run.get("error") and not run.get("protocol_incomplete")
+    ]
     valid_only = {
         name: mean_confidence_interval(getter(run) for run in successful)
         for name, getter in fields.items()
@@ -1019,12 +1152,16 @@ def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
         "attempt_failure_rate": failed_attempts / len(runs) if runs else 0.0,
         "recovered_runs": len(recovered_run_keys),
         "successful_runs": len(successful),
-        "failed_runs": len(current) - len(successful),
+        "failed_runs": len(planned_keys) - len(successful),
         "intent_to_evaluate": {
-            "scheduled_runs": len(current),
+            "scheduled_runs": len(planned_keys),
             "successful_runs": len(successful),
-            "terminal_failed_runs": len(current) - len(successful),
-            "completion_rate": len(successful) / len(current) if current else 0.0,
+            "terminal_failed_runs": len(planned_keys) - len(successful),
+            "completion_rate": (
+                len(successful) / len(planned_keys) if planned_keys else 0.0
+            ),
+            "observed_run_rows": len(current),
+            "missing_run_rows": len(planned_keys) - len(current),
             "run_cells_with_any_failed_attempt": sum(
                 any(run.get("error") for run in attempts)
                 for attempts in attempts_by_run.values()
@@ -1034,6 +1171,17 @@ def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
                 for attempts in attempts_by_run.values()
             ),
             "recovered_runs": len(recovered_run_keys),
+        },
+        "first_attempt_intent_to_evaluate": {
+            "scheduled_runs": len(planned_keys),
+            "observed_run_rows": len(first_attempts),
+            "missing_run_rows": len(planned_keys) - len(first_attempts),
+            "successful_runs": len(successful_first_attempts),
+            "failed_runs": len(planned_keys) - len(successful_first_attempts),
+            "completion_rate": (
+                len(successful_first_attempts) / len(planned_keys)
+                if planned_keys else 0.0
+            ),
         },
         "quality_metrics_scope": (
             "latest successful runs only; interpret jointly with intent_to_evaluate "
@@ -1137,6 +1285,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.block_workers < 1:
         raise SystemExit("--block-workers must be >= 1")
     algorithms = _csv(args.algorithms)
+    if not algorithms or len(set(algorithms)) != len(algorithms):
+        raise SystemExit("algorithms must be nonempty and unique")
     unknown = sorted(set(algorithms) - set(ALGORITHMS))
     if unknown:
         raise SystemExit("unknown algorithms: %s" % ", ".join(unknown))
@@ -1150,6 +1300,10 @@ def main(argv: list[str] | None = None) -> int:
             "--active-wall-horizon is currently implemented only for greedy_rewrite"
         )
     feedback_modes = _csv(args.feedback_modes)
+    if not feedback_modes or len(set(feedback_modes)) != len(feedback_modes):
+        raise SystemExit("feedback modes must be nonempty and unique")
+    if len(set(args.seeds)) != len(args.seeds):
+        raise SystemExit("replicate identifiers must be unique")
     unknown_modes = sorted(
         set(feedback_modes) - {
             "normal", "none", "shuffled", "score_only", "delayed_replay",
@@ -1182,6 +1336,16 @@ def main(argv: list[str] | None = None) -> int:
         specs = list_tasks(None if args.all else "certified")
     if not specs:
         raise SystemExit("no tasks selected")
+    if len({spec.task_id for spec in specs}) != len(specs):
+        raise SystemExit("tasks must resolve to unique canonical identifiers")
+    planned_run_keys = {
+        _run_key(spec.task_id, algorithm, mode, seed)
+        for spec in specs
+        for algorithm in algorithms
+        for mode in feedback_modes
+        for seed in args.seeds
+    }
+    total = len(planned_run_keys)
     # Freeze task-specific evaluator identities before constructing any worker
     # or permitting any provider call. Executable paths remain private.
     task_bindings = _frozen_task_bindings(specs)
@@ -1207,6 +1371,7 @@ def main(argv: list[str] | None = None) -> int:
         "tasks": [spec.task_id for spec in specs],
         "algorithms": algorithms,
         "feedback_modes": feedback_modes,
+        "scheduled_run_count": total,
         "trajectory_snapshot_schema_version": 2,
         "feedback_protocols": {
             mode: feedback_scope(mode) for mode in feedback_modes
@@ -1336,7 +1501,6 @@ def main(argv: list[str] | None = None) -> int:
         expected_budget=args.budget,
         expected_work_root=work_root,
     )
-    total = len(specs) * len(algorithms) * len(feedback_modes) * len(args.seeds)
     blocks = _execution_blocks(
         [spec.task_id for spec in specs], algorithms, args.seeds,
         condition_schedule,
@@ -1368,7 +1532,9 @@ def main(argv: list[str] | None = None) -> int:
     # Persist the cohort plan and source provenance before any worker can make
     # an LLM call. A process interruption can then be resumed without
     # reconstructing an unrecorded design.
-    document["aggregate"] = aggregate_runs(document.get("runs") or [])
+    document["aggregate"] = aggregate_runs(
+        document.get("runs") or [], scheduled_run_keys=planned_run_keys
+    )
     atomic_write_text(
         output, json.dumps(document, indent=2, allow_nan=False) + "\n"
     )
@@ -1382,7 +1548,9 @@ def main(argv: list[str] | None = None) -> int:
             expected_work_root=work_root,
         )
         document.setdefault("runs", []).extend(entries)
-        document["aggregate"] = aggregate_runs(document["runs"])
+        document["aggregate"] = aggregate_runs(
+            document["runs"], scheduled_run_keys=planned_run_keys
+        )
         atomic_write_text(
             output, json.dumps(document, indent=2, allow_nan=False) + "\n"
         )
@@ -1421,7 +1589,8 @@ def main(argv: list[str] | None = None) -> int:
                         "completed_at": datetime.now(timezone.utc).isoformat(),
                     })
                     document["aggregate"] = aggregate_runs(
-                        document.get("runs") or []
+                        document.get("runs") or [],
+                        scheduled_run_keys=planned_run_keys,
                     )
                     atomic_write_text(
                         output,
@@ -1439,7 +1608,9 @@ def main(argv: list[str] | None = None) -> int:
                 retain_block(result)
 
     document["completed_at"] = datetime.now(timezone.utc).isoformat()
-    document["aggregate"] = aggregate_runs(document["runs"])
+    document["aggregate"] = aggregate_runs(
+        document["runs"], scheduled_run_keys=planned_run_keys
+    )
     integrity_errors = _final_integrity_errors(
         specs, task_bindings, provenance
     )
