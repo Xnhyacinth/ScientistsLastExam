@@ -16,6 +16,7 @@ from sle.algorithms.shinkaevolve_backend import _evaluation_rows
 from sle.algorithms.common import restore_committed_trajectory
 from sle.algorithms.common import require_evaluation_budget
 from sle.algorithms.common import llm_condition_sha256
+from sle.evaluation_ledger import EvaluationLedger
 from sle.llm import LLMClient, LLMConfig
 from sle.metric_visibility import (load_full_metrics, search_visible_metrics,
                                                 score_only_metrics, source_sha256,
@@ -52,15 +53,12 @@ class FakeLLM:
 
 
 def runtime_bound_evaluator(rows):
-    """Build a fake evaluator that obeys the trusted-runtime receipt contract."""
+    """Build a fake evaluator that returns science metrics without ledger bindings."""
     remaining = iter(rows)
 
     def evaluate(_spec, _candidate, timeout_s, *, trusted_runtime):
-        del timeout_s
-        return {
-            **next(remaining),
-            "trusted_evaluator_runtime_sha256": trusted_runtime.fingerprint_sha256,
-        }
+        del timeout_s, trusted_runtime
+        return next(remaining)
 
     return evaluate
 
@@ -347,6 +345,33 @@ class ProtocolMetricTests(unittest.TestCase):
 
 
 class GreedyRewriteTests(unittest.TestCase):
+    def test_mismatched_bound_runtime_request_cannot_be_consumed(self):
+        spec = find_task("LennardJonesCluster")
+        original = EvaluationLedger.evaluate_once
+
+        def evaluate_with_mismatched_binding(
+            ledger, request, evaluator, *, clock
+        ):
+            mismatched = dict(request)
+            mismatched["trusted_evaluator_runtime_sha256"] = "0" * 64
+            return original(ledger, mismatched, evaluator, clock=clock)
+
+        with tempfile.TemporaryDirectory() as temporary, patch.object(
+            EvaluationLedger,
+            "evaluate_once",
+            new=evaluate_with_mismatched_binding,
+        ), patch(
+            "sle.algorithms.evolve.evaluate_candidate",
+            return_value={"combined_score": 0.1, "valid": 1.0},
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "trusted evaluator runtime binding differs"
+            ):
+                greedy_rewrite(
+                    spec, FakeLLM([]), budget=0, timeout_s=20,
+                    workdir=Path(temporary), log_fn=lambda _: None,
+                )
+
     def test_signed_decision_parser_is_strict(self):
         self.assertEqual(
             extract_signed_decision(
@@ -729,12 +754,9 @@ class GreedyRewriteTests(unittest.TestCase):
         calls = {"count": 0}
 
         def evaluate(_spec, _candidate, timeout_s, *, trusted_runtime):
-            del timeout_s
+            del timeout_s, trusted_runtime
             calls["count"] += 1
-            return {
-                "combined_score": 0.1, "valid": 1.0,
-                "trusted_evaluator_runtime_sha256": trusted_runtime.fingerprint_sha256,
-            }
+            return {"combined_score": 0.1, "valid": 1.0}
 
         with tempfile.TemporaryDirectory() as temporary:
             work = Path(temporary)
@@ -785,12 +807,9 @@ class GreedyRewriteTests(unittest.TestCase):
         calls = {"count": 0}
 
         def evaluate(_spec, _candidate, timeout_s, *, trusted_runtime):
-            del timeout_s
+            del timeout_s, trusted_runtime
             calls["count"] += 1
-            return {
-                "combined_score": 0.1, "valid": 1.0,
-                "trusted_evaluator_runtime_sha256": trusted_runtime.fingerprint_sha256,
-            }
+            return {"combined_score": 0.1, "valid": 1.0}
 
         real_append = __import__(
             "sle.algorithms.evolve", fromlist=["append_event"]
@@ -842,12 +861,11 @@ class GreedyRewriteTests(unittest.TestCase):
         calls = {"count": 0}
 
         def evaluate(_spec, _candidate, timeout_s, *, trusted_runtime):
-            del timeout_s
+            del timeout_s, trusted_runtime
             calls["count"] += 1
             return {
                 "combined_score": 0.1 if calls["count"] == 1 else 0.2,
                 "valid": 1.0,
-                "trusted_evaluator_runtime_sha256": trusted_runtime.fingerprint_sha256,
             }
 
         from sle.algorithms import evolve as evolve_module
@@ -916,12 +934,11 @@ class GreedyRewriteTests(unittest.TestCase):
         calls = {"count": 0}
 
         def evaluate(_spec, _candidate, timeout_s, *, trusted_runtime):
-            del timeout_s
+            del timeout_s, trusted_runtime
             calls["count"] += 1
             return {
                 "combined_score": 0.1 if calls["count"] == 1 else 0.2,
                 "valid": 1.0,
-                "trusted_evaluator_runtime_sha256": trusted_runtime.fingerprint_sha256,
             }
 
         evolve_module = __import__(

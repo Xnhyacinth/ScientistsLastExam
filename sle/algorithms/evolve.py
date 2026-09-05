@@ -442,6 +442,16 @@ def _greedy_rewrite_impl(
         run_manifest["trusted_evaluator_runtime"]["fingerprint_sha256"]
     )
 
+    def consume_evaluation_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
+        request = evaluation_ledger.require_request_id(receipt.get("request_id"))
+        if not (
+            request["request"].get("trusted_evaluator_runtime_sha256")
+            == frozen_trusted_runtime
+            and receipt.get("request_sha256") == request["request_sha256"]
+        ):
+            raise ValueError("trusted evaluator runtime binding differs")
+        return dict(receipt["metrics"])
+
     def validate_committed_evaluation_receipts(
         events: list[dict[str, Any]],
     ) -> None:
@@ -465,8 +475,7 @@ def _greedy_rewrite_impl(
                 == frozen_trusted_runtime
                 and request.get("step") == int(event["step"])
                 and request.get("candidate_sha256") == event["candidate_sha256"]
-                and receipt["metrics"].get("trusted_evaluator_runtime_sha256")
-                == frozen_trusted_runtime
+                and "trusted_evaluator_runtime_sha256" not in receipt["metrics"]
                 and receipt["metrics"] == (event.get("metrics") or {})
             ):
                 raise ValueError("trajectory evaluation receipt binding differs")
@@ -609,7 +618,7 @@ def _greedy_rewrite_impl(
             ),
             clock=time.monotonic,
         )
-        metrics = dict(baseline_receipt["metrics"])
+        metrics = consume_evaluation_receipt(baseline_receipt)
         if metrics.get("infrastructure_failure"):
             raise EvaluatorInfrastructureError(
                 "baseline trusted evaluator infrastructure failure: %s"
@@ -1020,7 +1029,7 @@ def _greedy_rewrite_impl(
                 ),
                 clock=time.monotonic,
             )
-            m = dict(evaluation_receipt["metrics"])
+            m = consume_evaluation_receipt(evaluation_receipt)
             if m.get("infrastructure_failure"):
                 raise EvaluatorInfrastructureError(
                     "candidate trusted evaluator infrastructure failure: %s"

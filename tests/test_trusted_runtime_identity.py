@@ -78,11 +78,7 @@ class TrustedRuntimeIdentityTests(unittest.TestCase):
 
         def evaluate_candidate(_spec, _candidate, timeout_s, *, trusted_runtime=None):
             calls.append((timeout_s, trusted_runtime))
-            return {
-                "combined_score": 0.1,
-                "valid": 1.0,
-                "trusted_evaluator_runtime_sha256": runtime.fingerprint_sha256,
-            }
+            return {"combined_score": 0.1, "valid": 1.0}
 
         spec = find_task("LennardJonesCluster")
         with tempfile.TemporaryDirectory() as temporary, patch(
@@ -98,11 +94,16 @@ class TrustedRuntimeIdentityTests(unittest.TestCase):
             manifest = json.loads((workdir / "run_manifest.json").read_text())
             request_path = next((workdir / "evaluation_ledger/requests").glob("*.json"))
             request = json.loads(request_path.read_text())["request"]
+            receipt_path = next((workdir / "evaluation_ledger/receipts").glob("*.json"))
+            receipt = json.loads(receipt_path.read_text())
+            trajectory = json.loads((workdir / "trajectory.jsonl").read_text())
 
         self.assertEqual(manifest["trusted_evaluator_runtime"], descriptor)
         self.assertEqual(
             request["trusted_evaluator_runtime_sha256"], runtime.fingerprint_sha256
         )
+        self.assertNotIn("trusted_evaluator_runtime_sha256", receipt["metrics"])
+        self.assertNotIn("trusted_evaluator_runtime_sha256", trajectory["metrics"])
         self.assertEqual(calls, [(20, runtime)])
 
     def test_task_runtime_identity_includes_declared_transitive_dependencies(self):
@@ -114,6 +115,37 @@ class TrustedRuntimeIdentityTests(unittest.TestCase):
             )
             names = task_runtime_distributions(task)
         self.assertEqual(names, ("numpy", "packaging", "qutip", "scipy"))
+
+    def test_pymatching_runtime_identity_includes_trusted_oracle_closure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = Path(temporary)
+            (task / "verification").mkdir()
+            (task / "verification/requirements.txt").write_text(
+                "pymatching==2.4.0\n", encoding="utf-8"
+            )
+            names = task_runtime_distributions(task)
+        self.assertEqual(names, (
+            "contourpy", "cycler", "fonttools", "importlib-resources",
+            "kiwisolver", "matplotlib", "networkx", "numpy", "packaging",
+            "pillow", "pymatching", "pyparsing", "python-dateutil", "scipy",
+            "six", "zipp",
+        ))
+
+    def test_nmrsim_runtime_identity_includes_trusted_oracle_closure(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            task = Path(temporary)
+            (task / "verification").mkdir()
+            (task / "verification/requirements.txt").write_text(
+                "nmrsim==0.6.0\n", encoding="utf-8"
+            )
+            names = task_runtime_distributions(task)
+        self.assertEqual(names, (
+            "contourpy", "cycler", "fonttools", "importlib-metadata",
+            "importlib-resources", "kiwisolver", "llvmlite", "matplotlib",
+            "nmrsim", "numba", "numpy", "numpy-groupies", "packaging",
+            "pillow", "pyparsing", "python-dateutil", "scipy", "six", "sparse",
+            "typing-extensions", "zipp",
+        ))
 
     def test_runtime_change_is_a_resume_binding_failure(self):
         first_descriptor = current_runtime_descriptor(())

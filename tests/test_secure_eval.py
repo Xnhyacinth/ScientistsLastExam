@@ -89,6 +89,13 @@ class SecureEvaluationTests(unittest.TestCase):
         self.assertEqual(metrics["combined_score"], INVALID_SCORE, metrics)
         self.assertEqual(metrics["valid"], 0.0, metrics)
 
+    def test_runtime_identity_envelope_does_not_change_science_metrics(self):
+        secure = self.evaluate_source(
+            "def design_cavity(n): return [0.25] * n\n"
+        )
+        direct = {"combined_score": 1.0, "valid": 1.0, "raw_score": 1.0}
+        self.assertEqual(secure, direct)
+
     def test_private_proc_probe_has_well_formed_bind_arguments(self):
         completed = type("Completed", (), {"returncode": 0})()
         library_args = (

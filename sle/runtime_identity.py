@@ -12,7 +12,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from .oracle_package_pins import TOOLKIT_DEPENDENCY_PINS
+from .oracle_package_pins import (
+    TOOLKIT_DEPENDENCY_PINS,
+    TRUSTED_TOOLKIT_DEPENDENCY_PINS,
+)
 
 
 @dataclass(frozen=True)
@@ -99,12 +102,14 @@ def task_runtime_distributions(task_dir: Path | None) -> tuple[str, ...]:
                 match = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)", line)
                 if match:
                     names.add(_distribution_name(match.group(1)))
-    dependency_map = {
-        _distribution_name(name): tuple(dependencies)
-        for name, dependencies in TOOLKIT_DEPENDENCY_PINS.items()
-    }
+    dependency_map = {}
+    for source in (TOOLKIT_DEPENDENCY_PINS, TRUSTED_TOOLKIT_DEPENDENCY_PINS):
+        for name, dependencies in source.items():
+            dependency_map.setdefault(_distribution_name(name), set()).update(
+                _distribution_name(value) for value in dependencies
+            )
     for name in tuple(names):
-        names.update(_distribution_name(value) for value in dependency_map.get(name, ()))
+        names.update(dependency_map.get(name, ()))
     return tuple(sorted(names))
 
 
