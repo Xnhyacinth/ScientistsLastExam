@@ -68,6 +68,7 @@ class RunIdentityTests(unittest.TestCase):
             write_run(root, "crossover", "b20_normal_s0", "Astro/LowThrust", "normal", 0, [0.1])
             with patch.object(MODULE, "verify_run", return_value={
                 "verified": True,
+                "budget": 1,
                 "trusted_evaluator_runtime_sha256": "trusted:default",
             }):
                 found = MODULE.collect(root)
@@ -87,6 +88,7 @@ class RunIdentityTests(unittest.TestCase):
                 manifest = json.loads((Path(path) / "run_manifest.json").read_text())
                 return {
                     "verified": True,
+                    "budget": 1,
                     "trusted_evaluator_runtime_sha256": manifest[
                         "trusted_evaluator_runtime"
                     ]["fingerprint_sha256"],
@@ -104,7 +106,7 @@ class RunIdentityTests(unittest.TestCase):
             self.assertFalse(identity[-1])
             self.assertFalse(MODULE._identity_is_recorded(
                 identity[3], identity[4], identity[5], identity[6], identity[7],
-                identity[8], identity[9],
+                identity[8], identity[-1],
             ))
 
     def test_a_run_without_a_manifest_is_skipped_rather_than_guessed(self):
@@ -139,6 +141,14 @@ class PoolingTests(unittest.TestCase):
             self.assertEqual(len(report["rows"]), 1)
             self.assertEqual(report["distinct_task_count"], 1)
 
+    def test_untrusted_paired_diagnostic_does_not_remove_next_pairing_candidate(self):
+        rows = [
+            {"task": "T/X", "trusted_evidence": True, "gap_by_budget": []},
+            {"task": "T/X", "trusted_evidence": False,
+             "gap_by_budget": [{"budget": 3}]},
+        ]
+        self.assertEqual(MODULE.paired_task_names(rows), set())
+
     @staticmethod
     def run_report(root: Path) -> dict:
         with TemporaryDirectory() as out:
@@ -148,8 +158,14 @@ class PoolingTests(unittest.TestCase):
 
             def verified(path, **_kwargs):
                 manifest = json.loads((Path(path) / "run_manifest.json").read_text())
+                steps = [
+                    json.loads(line)["step"]
+                    for line in (Path(path) / "trajectory.jsonl").read_text().splitlines()
+                    if line.strip()
+                ]
                 return {
                     "verified": True,
+                    "budget": max(steps),
                     "trusted_evaluator_runtime_sha256": (
                         manifest.get("trusted_evaluator_runtime") or {}
                     ).get("fingerprint_sha256"),

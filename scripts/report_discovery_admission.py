@@ -40,7 +40,12 @@ def role_index() -> dict[str, str]:
     return out
 
 
-def classify_discovery_row(row: dict, role: str, axes: dict | None = None) -> dict:
+def classify_discovery_row(
+    row: dict,
+    role: str,
+    axes: dict | None = None,
+    axis_evidence: list[dict] | None = None,
+) -> dict:
     """Rewrite one admission row. Optimization rows pass through."""
     public = str(row.get("verdict") or "unknown")
     out = dict(row)
@@ -62,6 +67,34 @@ def classify_discovery_row(row: dict, role: str, axes: dict | None = None) -> di
     else:
         out["verdict"] = public
         out["iteration_claim"] = "public_score_only"
+    if axis_evidence is not None:
+        out["axis_evidence"] = axis_evidence
+        if len(axis_evidence) == 1:
+            axes = axis_evidence[0].get("axes")
+        elif len(axis_evidence) > 1:
+            out.pop("axes", None)
+            out["missing_axes_by_run"] = [
+                {
+                    "run_manifest_sha256": entry["run_manifest_sha256"],
+                    "missing_axes": [
+                        name for name in ("mechanism", "fdr", "refusal")
+                        if (entry.get("axes") or {}).get(name) is None
+                    ],
+                }
+                for entry in axis_evidence
+            ]
+            out["count_without_denominator_by_run"] = [
+                {
+                    "run_manifest_sha256": entry["run_manifest_sha256"],
+                    "axes": [
+                        name for name, value in (entry.get("axes") or {}).items()
+                        if value is not None
+                        and value.get("status") == "count_without_denominator"
+                    ],
+                }
+                for entry in axis_evidence
+            ]
+            return out
     axes = axes or {name: None for name in ("mechanism", "fdr", "refusal")}
     out["axes"] = axes
     out["count_without_denominator"] = [
@@ -83,23 +116,45 @@ IDENTITY_FIELDS = (
     "runtime_source_sha256",
     "trusted_evaluator_runtime_sha256",
     "algorithm",
+    "feedback_mode",
+    "proposal_budget",
+    "seed",
+    "run_manifest_sha256",
+)
+
+RUN_IDENTITY_FIELDS = (
+    "feedback_mode", "proposal_budget", "seed", "run_manifest_sha256",
 )
 
 
-def triple_index(document: dict) -> dict[tuple[str, ...], dict]:
+def _complete_identity(entry: dict) -> bool:
+    integer_fields = {"proposal_budget", "seed"}
+    return bool(
+        all(
+            isinstance(entry.get(field), int)
+            and not isinstance(entry[field], bool)
+            and entry[field] >= 0
+            if field in integer_fields
+            else isinstance(entry.get(field), str) and bool(entry[field])
+            for field in IDENTITY_FIELDS
+        )
+    )
+
+
+def triple_index(document: dict) -> dict[tuple[object, ...], dict]:
     """Index only fully attributable, unambiguous triple rows."""
     grouped: dict[tuple[str, ...], list[dict]] = {}
     for entry in document.get("rows") or []:
         if (
             entry.get("status") != "ok"
             or entry.get("trusted_evidence") is not True
-            or any(not entry.get(field) for field in IDENTITY_FIELDS)
+            or not _complete_identity(entry)
         ):
             continue
-        key = tuple(str(entry[field]) for field in IDENTITY_FIELDS)
+        key = tuple(entry[field] for field in IDENTITY_FIELDS)
         grouped.setdefault(key, []).append(entry)
     return {
-        key: entries[0].get("axes")
+        key: entries[0]
         for key, entries in grouped.items()
         if len(entries) == 1
     }
@@ -127,9 +182,26 @@ def main(argv: list[str] | None = None) -> int:
     for row in rows_in:
         task = str(row.get("task") or "")
         role = roles.get(task) or roles.get(task.split("/")[-1]) or ""
-        identity = tuple(str(row.get(field) or "") for field in IDENTITY_FIELDS)
-        axes = triples.get(identity) if row.get("trusted_evidence") is True else None
-        rows.append(classify_discovery_row(row, role, axes))
+        axis_evidence = []
+        if row.get("trusted_evidence") is True:
+            evidence_runs = row.get("evidence_runs") or []
+            for run in evidence_runs:
+                identity = tuple(
+                    run.get(field) if field in RUN_IDENTITY_FIELDS else row.get(field)
+                    for field in IDENTITY_FIELDS
+                )
+                matched = triples.get(identity)
+                if matched is not None:
+                    axis_evidence.append({
+                        **{field: matched[field] for field in RUN_IDENTITY_FIELDS},
+                        "selected_candidate_sha256": matched.get(
+                            "selected_candidate_sha256"
+                        ),
+                        "axes": matched.get("axes"),
+                    })
+        rows.append(classify_discovery_row(
+            row, role, axis_evidence=axis_evidence,
+        ))
 
     discovery = [r for r in rows if r.get("scientific_role") == "discovery"]
     rewritten = sum(
@@ -137,7 +209,7 @@ def main(argv: list[str] | None = None) -> int:
         if r.get("verdict") != r.get("public_score_verdict")
     )
     report = {
-        "schema_version": 2,
+        "schema_version": 3,
         "source_admission": str(Path(args.admission)),
         "note": (
             "Discovery rows never inherit measures_iteration from combined_score. "
@@ -147,7 +219,12 @@ def main(argv: list[str] | None = None) -> int:
         "discovery_row_count": len(discovery),
         "discovery_verdicts_rewritten": rewritten,
         "discovery_rows_missing_axes": sum(
-            bool(row.get("missing_axes")) for row in discovery
+            bool(row.get("missing_axes"))
+            or any(
+                bool(run.get("missing_axes"))
+                for run in row.get("missing_axes_by_run") or []
+            )
+            for row in discovery
         ),
         "rows": rows,
     }

@@ -128,10 +128,11 @@ def read_runs(runs_root: Path) -> list[dict]:
             str((document.get("llm_condition") or {}).get("model") or "")
             or conditions.get(condition, "unrecorded")
         )
-        raw_budget = (document.get("config") or {}).get("budget")
+        verified_budget = None
         trusted_evidence = False
         try:
             verification = verify_run(workdir)
+            verified_budget = verification.get("budget")
             trusted_evidence = bool(
                 verification.get("verified") is True
                 and verification.get("trusted_evaluator_runtime_sha256")
@@ -145,8 +146,9 @@ def read_runs(runs_root: Path) -> list[dict]:
                 and trusted_runtime != "unrecorded"
                 and str(document.get("feedback_mode") or "")
                 and isinstance(document.get("seed"), int)
-                and isinstance(raw_budget, int)
-                and raw_budget > 0
+                and isinstance(verified_budget, int)
+                and not isinstance(verified_budget, bool)
+                and verified_budget >= 0
             )
         except (OSError, ValueError):
             pass
@@ -165,7 +167,7 @@ def read_runs(runs_root: Path) -> list[dict]:
             "runtime_source_sha256": runtime_source,
             "trusted_evaluator_runtime_sha256": trusted_runtime,
             "trusted_evidence": trusted_evidence,
-            "proposal_budget": int(raw_budget or 0),
+            "proposal_budget": verified_budget,
             # The equivalence class, not the raw hash: sixteen tasks record two hashes that are
             # the same task, and comparing on the hash discarded that evidence.
             "contract": version_class(str(document.get("task_id")),
@@ -278,14 +280,19 @@ def main(argv: list[str] | None = None) -> int:
         lambda: defaultdict(list)
     )
     tokens: dict[tuple[str, ...], list[tuple[int, int]]] = defaultdict(list)
-    validity: dict[tuple[tuple[str, ...], str, str, str], list[float]] = defaultdict(list)
+    validity: dict[
+        tuple[tuple[str, ...], str, str, str, int], list[float]
+    ] = defaultdict(list)
     for run in trusted_runs:
         identity = condition_identity(run)
         tokens[identity].append((run["input_tokens"], run["output_tokens"]))
         if run["mode"] in OPEN_LOOP_MODES:
             arm = identity + (run["mode"], run["proposal_budget"])
             scores[arm][run["task"]].append(run["best"])
-        validity[(identity, run["task"], run["contract"], run["mode"])].append(
+        validity[(
+            identity, run["task"], run["contract"], run["mode"],
+            run["proposal_budget"],
+        )].append(
             run["valid"] / run["proposals"] if run["proposals"] else 0.0)
 
     print("=== open-loop score, compared pairwise on shared task versions ===")
@@ -363,10 +370,20 @@ def main(argv: list[str] | None = None) -> int:
 
     print()
     print("=== proposal validity by model and arm ===")
-    for (identity, task, contract, mode), rates in sorted(validity.items()):
+    validity_rows = []
+    for (identity, task, contract, mode, budget), rates in sorted(validity.items()):
+        validity_rows.append({
+            **condition_document(identity),
+            "task": task,
+            "task_version": contract,
+            "feedback_mode": mode,
+            "proposal_budget": budget,
+            "run_count": len(rates),
+            "mean_valid_rate": st.mean(rates),
+        })
         print("  %-20s %-24s @%-8s %s %.2f" % (
             condition_label(identity)[:20], task.split("/")[-1][:24],
-            contract[:8], mode, st.mean(rates),
+            contract[:8], "%s/b%d" % (mode, budget), st.mean(rates),
         ))
 
     print()
@@ -389,7 +406,9 @@ def main(argv: list[str] | None = None) -> int:
     comparable: dict[str, dict[str, str]] = {}
     if args.admission and Path(args.admission).is_file():
         report = json.loads(Path(args.admission).read_text(encoding="utf-8"))
-        by_version: dict[tuple[str, str, str, str, str], dict[str, str]] = defaultdict(dict)
+        by_version: dict[
+            tuple[str, str, str, str, str, tuple[int, ...]], dict[str, str]
+        ] = defaultdict(dict)
         unknown_version = 0
         for row in report.get("rows", []):
             required = (
@@ -397,8 +416,20 @@ def main(argv: list[str] | None = None) -> int:
                 "runtime_source_sha256", "trusted_evaluator_runtime_sha256",
                 "algorithm",
             )
-            if row.get("model") == "unrecorded" or row.get("trusted_evidence") is not True or any(
-                not row.get(field) for field in required
+            raw_signature = row.get("paired_budget_signature")
+            valid_signature = bool(
+                isinstance(raw_signature, list)
+                and raw_signature
+                and all(
+                    isinstance(value, int) and not isinstance(value, bool) and value >= 0
+                    for value in raw_signature
+                )
+            )
+            if (
+                row.get("model") == "unrecorded"
+                or row.get("trusted_evidence") is not True
+                or any(not row.get(field) for field in required)
+                or not valid_signature
             ):
                 unknown_version += 1
                 continue
@@ -414,6 +445,7 @@ def main(argv: list[str] | None = None) -> int:
                 str(row["runtime_source_sha256"]),
                 str(row["trusted_evaluator_runtime_sha256"]),
                 str(row["algorithm"]),
+                tuple(raw_signature),
             )
             by_version[comparison][actor] = str(row["verdict"])
         # Grouped by task version, not filtered on global agreement across every model. An
@@ -421,16 +453,17 @@ def main(argv: list[str] | None = None) -> int:
         # whenever a third model had run a different one - discarding the claude/gpt-5.5
         # comparison on six tasks where those two had in fact run the same version.
         comparable = {
-            "%s @%s runtime=%s trusted=%s algorithm=%s" % (
+            "%s @%s runtime=%s trusted=%s algorithm=%s budgets=%s" % (
                 task, version, runtime[:12], trusted[:12], algorithm,
+                ",".join(str(value) for value in signature),
             ): actors
-            for (task, version, runtime, trusted, algorithm), actors
+            for (task, version, runtime, trusted, algorithm, signature), actors
             in by_version.items()
             if len({actor.split("@", 1)[0] for actor in actors}) > 1
         }
         contested = {k: v for k, v in comparable.items() if len(set(v.values())) > 1}
         agreed = {k: v for k, v in comparable.items() if len(set(v.values())) == 1}
-        split = sorted({task for task, _v, _r, _tr, _a in by_version
+        split = sorted({task for task, _v, _r, _tr, _a, _b in by_version
                         if len({v for t, v, *_rest in by_version if t == task}) > 1})
         print()
         print("=== verdict agreement, within a task version ===")
@@ -450,7 +483,7 @@ def main(argv: list[str] | None = None) -> int:
                                     "; ".join("%s=%s" % kv for kv in sorted(per_model.items()))))
 
     Path(args.output).write_text(json.dumps({
-        "schema_version": 2,
+        "schema_version": 3,
         "note": "score ranking and admission verdicts are reported separately; they can disagree",
         "models": models,
         "shared_tasks": shared,
@@ -463,6 +496,7 @@ def main(argv: list[str] | None = None) -> int:
             for identity, per_task in scores.items()
         },
         "cost": cost_rows,
+        "proposal_validity": validity_rows,
         "unattributable_run_count": len(runs) - len(trusted_runs),
         "verdicts": verdicts,
         "verdicts_same_version": comparable,

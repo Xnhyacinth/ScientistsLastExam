@@ -31,6 +31,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import itertools
 import json
 import math
@@ -160,7 +161,9 @@ _CONDITIONS: dict[str, str] | None = None
 
 def run_identity(
     workdir: Path,
-) -> tuple[str, str, int, str, str, str, str, str, str, bool] | None:
+) -> tuple[
+    str, str, int, str, str, str, str, str, str, int | None, bool
+] | None:
     """Read the full measurement identity and whether the run verifies.
 
     The directory name cannot be trusted for this. Budget-sweep cohorts are named for their
@@ -201,13 +204,18 @@ def run_identity(
         runtime_descriptor.get("fingerprint_sha256") or "unrecorded"
     )
     algorithm = str(document.get("algorithm") or "unrecorded")
+    verified_budget = None
     trusted_evidence = False
     try:
         verification = verify_run(workdir)
+        verified_budget = verification.get("budget")
         trusted_evidence = bool(
             verification.get("verified") is True
             and verification.get("trusted_evaluator_runtime_sha256")
             == trusted_runtime
+            and isinstance(verified_budget, int)
+            and not isinstance(verified_budget, bool)
+            and verified_budget >= 0
         )
     except (OSError, ValueError):
         # Legacy, incomplete and tampered runs remain visible as diagnostics, but are never
@@ -215,7 +223,7 @@ def run_identity(
         pass
     return (
         str(task), str(mode), int(seed), model, condition, contract, runtime,
-        trusted_runtime, algorithm, trusted_evidence,
+        trusted_runtime, algorithm, verified_budget, trusted_evidence,
     )
 
 
@@ -305,7 +313,7 @@ def collect(runs_root: Path) -> dict[tuple[str, str, str, str, str, str, str, st
             continue
         (
             task, mode, seed, model, condition, contract, runtime,
-            trusted_runtime, algorithm, trusted_evidence,
+            trusted_runtime, algorithm, _verified_budget, trusted_evidence,
         ) = identity
         if _protocol_incomplete(workdir):
             # A run with no valid proposal is not a measurement of the searcher; its flat zero
@@ -323,6 +331,44 @@ def collect(runs_root: Path) -> dict[tuple[str, str, str, str, str, str, str, st
         if existing is None or len(curve) > len(existing):
             found[key][mode][seed] = curve
     return found
+
+
+def collect_evidence_runs(runs_root: Path) -> dict[tuple[str, ...], list[dict]]:
+    """List verified run cells for exact downstream discovery-axis joins."""
+    grouped: dict[tuple[str, ...], list[dict]] = defaultdict(list)
+    for manifest in sorted(runs_root.rglob("run_manifest.json")):
+        identity = run_identity(manifest.parent)
+        if identity is None:
+            continue
+        (
+            task, mode, seed, model, condition, contract, runtime,
+            trusted_runtime, algorithm, budget, trusted_evidence,
+        ) = identity
+        if not trusted_evidence:
+            continue
+        key = (
+            task, model, condition, contract, runtime, trusted_runtime, algorithm,
+        )
+        grouped[key].append({
+            "feedback_mode": mode,
+            "proposal_budget": budget,
+            "seed": seed,
+            "run_manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+        })
+    return {
+        key: sorted(values, key=lambda value: (
+            value["feedback_mode"], value["proposal_budget"], value["seed"],
+            value["run_manifest_sha256"],
+        ))
+        for key, values in grouped.items()
+    }
+
+
+def paired_task_names(rows: list[dict]) -> set[str]:
+    return {
+        row["task"] for row in rows
+        if row.get("trusted_evidence") is True and row.get("gap_by_budget")
+    }
 
 
 def saturation(curves: dict[int, list[float]]) -> dict | None:
@@ -505,6 +551,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     found = collect(Path(args.runs))
+    evidence_runs = collect_evidence_runs(Path(args.runs))
     modes = score_modes()
 
     # Saturation is a one-armed measurement, so open-loop seeds pool across cohorts: a seed run
@@ -621,6 +668,13 @@ def main(argv: list[str] | None = None) -> int:
             "paired_cohorts": cohort_gaps,
             "saturation": sat,
             "gap_by_budget": best["gaps"] if best else [],
+            "paired_budget_signature": [
+                gap["budget"] for gap in (best["gaps"] if best else [])
+            ],
+            "evidence_runs": evidence_runs.get((
+                task, model, condition, contract, runtime, trusted_runtime,
+                algorithm,
+            ), []),
         })
 
     # Every verdict carries how many open-loop seeds stand behind it. Most of this inventory was
@@ -696,7 +750,9 @@ def main(argv: list[str] | None = None) -> int:
     # were not measuring the same thing, and reading their verdicts as a disagreement attributes
     # a task edit to the models: before this key was added, LowThrustTransfer was reported as a
     # three-way disagreement while only two of the three had run the same task.
-    by_version: dict[tuple[str, str, str, str, str], dict[str, str]] = defaultdict(dict)
+    by_version: dict[
+        tuple[str, str, str, str, str, tuple[int, ...]], dict[str, str]
+    ] = defaultdict(dict)
     for row in rows:
         if not _identity_is_recorded(
             row["model"], row["llm_condition_sha256"], row["task_version"],
@@ -711,23 +767,26 @@ def main(argv: list[str] | None = None) -> int:
         comparison_identity = (
             row["task"], row["task_version"], row["runtime_source_sha256"],
             row["trusted_evaluator_runtime_sha256"], row["algorithm"],
+            tuple(row["paired_budget_signature"]),
         )
         by_version[comparison_identity][model_condition] = row["verdict"]
     contested = {
-        "%s @%s runtime=%s trusted=%s algorithm=%s" % (
+        "%s @%s runtime=%s trusted=%s algorithm=%s budgets=%s" % (
             task, version, runtime[:12], trusted[:12], algorithm,
+            ",".join(str(value) for value in signature),
         ): verdicts
-        for (task, version, runtime, trusted, algorithm), verdicts in by_version.items()
+        for (task, version, runtime, trusted, algorithm, signature), verdicts in by_version.items()
                  if len(verdicts) > 1 and len(set(verdicts.values())) > 1}
     agreed = {
-        "%s @%s runtime=%s trusted=%s algorithm=%s" % (
+        "%s @%s runtime=%s trusted=%s algorithm=%s budgets=%s" % (
             task, version, runtime[:12], trusted[:12], algorithm,
+            ",".join(str(value) for value in signature),
         ): verdicts
-        for (task, version, runtime, trusted, algorithm), verdicts in by_version.items()
+        for (task, version, runtime, trusted, algorithm, signature), verdicts in by_version.items()
               if len(verdicts) > 1 and len(set(verdicts.values())) == 1}
     # Counted so that "the models disagree less now" cannot be mistaken for better agreement when
     # it is really less overlap.
-    split_by_version = sorted({task for task, _v, _r, _tr, _a in by_version
+    split_by_version = sorted({task for task, _v, _r, _tr, _a, _b in by_version
                                if len({v for t, v, *_rest in by_version if t == task}) > 1})
     # A run can abort mid-trajectory - an evaluator infrastructure failure ends one outright -
     # and a short curve then looks like a complete run at a smaller budget. Neither the gap nor
@@ -807,7 +866,7 @@ def main(argv: list[str] | None = None) -> int:
     # One entry per task, not per (task, cohort): saturation now pools across cohorts, so a task
     # present in four cohorts would otherwise be listed four identical times. A task that has
     # been paired anywhere is not a candidate, however its other cohorts happen to be labelled.
-    paired_tasks = {row["task"] for row in rows if row["gap_by_budget"]}
+    paired_tasks = paired_task_names(rows)
     best_by_task: dict[str, tuple] = {}
     for row in rows:
         if row["verdict"] != "exhausted_unpaired":
@@ -832,7 +891,7 @@ def main(argv: list[str] | None = None) -> int:
         print("    none: every task with an exhausted control has already been paired")
 
     Path(args.output).write_text(json.dumps({
-        "schema_version": 3,
+        "schema_version": 4,
         "note": "condition 1 (open-loop non-saturation) is necessary; condition 2 (a feedback "
                 "gap that does not close with budget) is what makes a task measure iteration",
         "budgets": list(BUDGETS),

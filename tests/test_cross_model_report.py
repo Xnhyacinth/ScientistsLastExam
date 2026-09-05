@@ -28,7 +28,8 @@ MODULE = load_module()
 
 def write_run(root, cohort, name, task, model, mode, seed, scores, usage=(0, 0),
               contract="c" * 64, condition=None, runtime="r" * 64,
-              trusted_runtime="t" * 64, algorithm="greedy_rewrite", budget=None):
+              trusted_runtime="t" * 64, algorithm="greedy_rewrite", budget=None,
+              manifest_budget=None):
     workdir = root / cohort / name
     workdir.mkdir(parents=True)
     (workdir / "run_manifest.json").write_text(json.dumps({
@@ -39,7 +40,8 @@ def write_run(root, cohort, name, task, model, mode, seed, scores, usage=(0, 0),
         "runtime_source_sha256": runtime,
         "trusted_evaluator_runtime": {"fingerprint_sha256": trusted_runtime},
         "algorithm": algorithm,
-        "config": {"budget": budget or len(scores)},
+        "config": {"budget": manifest_budget if manifest_budget is not None
+                   else (budget or len(scores))},
     }), encoding="utf-8")
     lines = []
     for index, score in enumerate(scores, start=1):
@@ -48,7 +50,7 @@ def write_run(root, cohort, name, task, model, mode, seed, scores, usage=(0, 0),
     (workdir / "trajectory.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def admission_row(model, verdict, contract="c" * 64):
+def admission_row(model, verdict, contract="c" * 64, budget_signature=(1, 3)):
     return {
         "task": "T/X",
         "model": model,
@@ -58,6 +60,7 @@ def admission_row(model, verdict, contract="c" * 64):
         "trusted_evaluator_runtime_sha256": "t" * 64,
         "algorithm": "greedy_rewrite",
         "trusted_evidence": True,
+        "paired_budget_signature": list(budget_signature),
         "verdict": verdict,
     }
 
@@ -90,8 +93,14 @@ class ReportTests(unittest.TestCase):
             buffer = io.StringIO()
             def verified(path, **_kwargs):
                 manifest = json.loads((Path(path) / "run_manifest.json").read_text())
+                steps = [
+                    json.loads(line)["step"]
+                    for line in (Path(path) / "trajectory.jsonl").read_text().splitlines()
+                    if line.strip()
+                ]
                 return {
                     "verified": True,
+                    "budget": max(steps),
                     "trusted_evaluator_runtime_sha256": manifest[
                         "trusted_evaluator_runtime"
                     ]["fingerprint_sha256"],
@@ -215,6 +224,32 @@ class ReportTests(unittest.TestCase):
                 [1, 1],
             )
 
+    def test_budget_comes_from_verified_summary_not_manifest_config(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_run(root, "g", "g", "T/X", "gpt-5.5", "selection_blind", 0,
+                      [0.1], budget=1, manifest_budget=99)
+            write_run(root, "c", "c", "T/X", "claude-opus-4-8",
+                      "selection_blind", 0, [0.2], budget=1, manifest_budget=99)
+            report, _ = self.run_report(root)
+            self.assertEqual(
+                [condition["proposal_budget"] for condition in report["pairwise"][0]["conditions"]],
+                [1, 1],
+            )
+
+    def test_proposal_validity_is_stratified_by_verified_budget(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_run(root, "g", "b1", "T/X", "gpt-5.5", "selection_blind", 0,
+                      [0.1], budget=1)
+            write_run(root, "g", "b3", "T/X", "gpt-5.5", "selection_blind", 1,
+                      [0.1, 0.2, 0.3], budget=3)
+            report, _ = self.run_report(root)
+            self.assertEqual(
+                {row["proposal_budget"] for row in report["proposal_validity"]},
+                {1, 3},
+            )
+
     def test_cost_is_blank_rather_than_guessed_for_an_unpriced_model(self):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -280,6 +315,21 @@ class ReportTests(unittest.TestCase):
             self.assertIn("disagree: 0", text)
             self.assertIn("more than one version", text)
             self.assertEqual(report["verdicts_same_version"], {})
+
+    def test_verdicts_with_different_paired_budget_signatures_do_not_agree(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write_run(root, "g", "w", "T/X", "gpt-5.5", "normal", 0, [0.5])
+            write_run(root, "c", "w", "T/X", "claude-opus-4-8", "normal", 0, [0.5])
+            admission = Path(tmp) / "adm.json"
+            admission.write_text(json.dumps({"rows": [
+                admission_row("gpt-5.5", "measures_iteration", budget_signature=(1, 3)),
+                admission_row("claude-opus-4-8", "measures_iteration",
+                              budget_signature=(1, 3, 5)),
+            ]}), encoding="utf-8")
+            report, text = self.run_report(root, admission=admission)
+            self.assertEqual(report["verdicts_same_version"], {})
+            self.assertIn("agree: 0", text)
 
     def test_a_third_model_on_another_version_does_not_hide_a_valid_pair(self):
         """Requiring every model to agree on a version discarded real comparisons."""

@@ -37,6 +37,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from sle.algorithms.common import task_package_sha256  # noqa: E402
 from sle.registry import list_tasks  # noqa: E402
 from sle.run_verification import verify_run  # noqa: E402
 from sle.task_versions import version_class  # noqa: E402
@@ -55,6 +56,25 @@ IDENTITY_FIELDS = (
     "proposal_budget",
     "seed",
 )
+
+_STRING_IDENTITY_FIELDS = tuple(
+    field for field in IDENTITY_FIELDS if field not in {"seed", "proposal_budget"}
+)
+
+
+def _identity_is_complete(identity: dict[str, Any]) -> bool:
+    """Validate identity values without treating the integer zero as missing."""
+    return bool(
+        all(
+            isinstance(identity.get(field), str) and identity[field]
+            for field in _STRING_IDENTITY_FIELDS
+        )
+        and isinstance(identity.get("seed"), int)
+        and not isinstance(identity["seed"], bool)
+        and isinstance(identity.get("proposal_budget"), int)
+        and not isinstance(identity["proposal_budget"], bool)
+        and identity["proposal_budget"] >= 0
+    )
 
 
 def spearman(a: list[float], b: list[float]) -> float | None:
@@ -89,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--output", required=True)
     args = ap.parse_args(argv)
 
-    sizes, baselines = {}, {}
+    sizes, baselines, current_packages = {}, {}, {}
     for spec in list_tasks(None):
         evaluator = spec.task_dir / "verification" / "evaluator.py"
         if evaluator.is_file():
@@ -97,8 +117,9 @@ def main(argv: list[str] | None = None) -> int:
         program = spec.initial_program_path
         if program.is_file():
             baselines[spec.task_id] = len(program.read_text(encoding="utf-8").splitlines())
+        current_packages[spec.task_id] = task_package_sha256(spec)
 
-    counts: dict[tuple[str, ...], dict[str, int]] = defaultdict(
+    counts: dict[tuple[Any, ...], dict[str, int]] = defaultdict(
         lambda: defaultdict(int)
     )
     # What went in, recorded beside what came out. This report's numbers are quoted in the README,
@@ -137,22 +158,31 @@ def main(argv: list[str] | None = None) -> int:
             "algorithm": document.get("algorithm"),
             "model": (document.get("llm_condition") or {}).get("model"),
             "llm_condition_sha256": document.get("llm_condition_sha256"),
-            "proposal_budget": (document.get("config") or {}).get("budget"),
+            "proposal_budget": None,
+            "current_task_package_sha256": current_packages[task],
         }
         try:
             verified = verify_run(manifest.parent)
+            identity["proposal_budget"] = verified.get("budget")
             identity["trusted_evidence"] = bool(
                 verified.get("verified") is True
                 and verified.get("trusted_evaluator_runtime_sha256")
                 == identity["trusted_evaluator_runtime_sha256"]
-                and all(identity.get(field) for field in IDENTITY_FIELDS)
+                and identity["task_package_sha256"] == current_packages[task]
+                and _identity_is_complete(identity)
+            )
+            identity["evidence_status"] = (
+                "trusted_current_task_package"
+                if identity["trusted_evidence"]
+                else "historical_or_incomplete_identity"
             )
         except (OSError, ValueError):
             identity["trusted_evidence"] = False
+            identity["evidence_status"] = "run_verification_failed"
         inputs.append(identity)
         if not identity["trusted_evidence"]:
             continue
-        identity_key = tuple(str(identity[field]) for field in IDENTITY_FIELDS)
+        identity_key = tuple(identity[field] for field in IDENTITY_FIELDS)
         for line in trajectory.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
