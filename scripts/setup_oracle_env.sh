@@ -18,8 +18,9 @@
 # sle/secure_eval.py.
 #
 # Usage:
-#     bash scripts/setup_oracle_env.sh            # install everything
-#     bash scripts/setup_oracle_env.sh --check    # report pins; exit nonzero on missing/drift
+#     ORACLE_PYTHON=/path/to/python3.8 bash scripts/setup_oracle_env.sh
+#     ORACLE_PYTHON=/path/to/python3.8 bash scripts/setup_oracle_env.sh --check
+# Full oracle setup is certified only for Python 3.8 and fails before resolution otherwise.
 set -euo pipefail
 
 ORACLE_PYTHON="${ORACLE_PYTHON:-/usr/bin/python3}"

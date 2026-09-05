@@ -280,9 +280,12 @@ CI 其余部分对 PR 一视同仁:审计、卡片校验、沙箱测试全部要
 | Linux 主机(bubblewrap + util-linux flock) | 以上全部;`refresh_global_evidence.py`;恢复审计;`rebind_measurement_health_spec.py` | 在脏树上生成证据 |
 | CI(GitHub Actions,ubuntu-22.04) | 全量测试 + 审计,合并前唯一算数的绿灯 | 生成证据(runner 不是可信来源) |
 
-原因写在沙箱里:候选代码在 bubblewrap 中由 `/usr/bin` 的解释器执行,只挂载 `/usr /lib /lib64`,
-所以依赖必须装进系统解释器(`sudo /usr/bin/python3 -m pip install numpy scipy pyyaml`),
-`actions/setup-python` 或 conda 里的包沙箱看不见。macOS 没有 bubblewrap,沙箱路径一律不可用。
+原因写在沙箱里:候选代码在 bubblewrap 中由启动测试的同一 CPython ABI 执行。沙箱只读挂载该
+解释器、标准库、显式允许的包入口和解析出的共享库闭包,不会整体暴露 `/usr /lib /lib64`。
+因此依赖必须安装到启动测试的解释器可见的位置;CI 使用 `/usr/bin/python3`,维护者的完整 oracle
+环境则必须显式设置 `ORACLE_PYTHON=/path/to/python3.8`。其他 Python 版本可运行其已固定的基础
+candidate 包组合,但完整 oracle 安装目前只认证 Python 3.8并会对其他版本提前 fail closed。
+macOS 没有 bubblewrap,沙箱路径一律不可用。
 
 证据文档(`experiments/*.json`、`.research/*_spec_*.json`)都带 `source_provenance`:git 修订、
 树是否干净、运行时源码哈希。脏树、笔记本产出、或运行时文件已变的文档会被标为不可信,测试直接拒收。
