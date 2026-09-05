@@ -42,7 +42,7 @@ class AdaptiveConservativePDEMethodTests(unittest.TestCase):
             TASK_DIR / "verification" / "reference_method.py",
         )
 
-    def test_metadata_records_measured_on_ramp_status(self) -> None:
+    def test_metadata_records_uncalibrated_on_ramp_status(self) -> None:
         metadata = yaml.safe_load(
             (TASK_DIR / "frontier_eval" / "metadata.yaml").read_text(encoding="utf-8")
         )
@@ -51,9 +51,9 @@ class AdaptiveConservativePDEMethodTests(unittest.TestCase):
         self.assertEqual(metadata["difficulty"], "on_ramp")
         self.assertEqual(
             card["lineage"]["calibration_evidence_status"],
-            "historical_only",
+            "missing",
         )
-        self.assertIn("hy3", card["lineage"]["calibrator_model_ids"])
+        self.assertEqual(card["lineage"]["calibrator_model_ids"], [])
 
     def test_baseline_and_reference_are_exact_score_anchors(self) -> None:
         panel = self.evaluator._load_panel()

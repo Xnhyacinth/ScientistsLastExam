@@ -156,12 +156,10 @@ the explicit system boundary instead of treating a programme page or standard as
 ## Rejected runnable prototype: RationalDiophantineTuple
 
 The exact verifier was sound, but the task geometry was not suitable for a hard iterative-search
-benchmark. In a pre-admission HY3 protocol smoke, `normal` and `selection_blind` each reproduced
-the same public Gibbs sextuple on their first proposal and scored `1.0`. The result is diagnostic,
-not population-performance evidence. That one-step saturation, the public witness, the absence of
-graded credit between sizes six and seven, and the unresolved existence of a septuple jointly
-reject this wave: evaluator feedback was neither available nor needed before the public reference
-was reached.
+benchmark. The public Gibbs sextuple already reaches the reference, there is no graded credit
+between sizes six and seven, and the existence of a septuple remains unresolved. Those facts
+jointly reject this wave: evaluator feedback is neither available nor needed before the public
+reference is reached. Earlier runtime-unbound model diagnostics are excluded from task evidence.
 
 Small scoring edits do not repair the problem. Hiding the sextuple would make difficulty depend on
 training-data obscurity. Moving the zero point to size six would leave no graded signal between a

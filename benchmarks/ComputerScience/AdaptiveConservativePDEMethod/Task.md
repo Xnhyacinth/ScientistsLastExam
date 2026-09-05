@@ -128,13 +128,13 @@ setting its dissipation multiplier to 1.5 scores `0.996005`. A 432-method nonada
 reached at most `0.988555`, below the reference. These figures show that every named reference capability
 affects this panel; they do not establish global optimality or model difficulty.
 
-A clean-revision, one-seed HY3 protocol smoke produced valid first-proposal scores of `0.996332`
-in normal mode and `0.980056` in selection-blind mode. This small diagnostic is not a performance
-estimate, but it shows that the nine-coordinate public search cell is nearly solved without
-iterative feedback. This wave is therefore an **on-ramp** for validating the task runner, frontier
-ledger and scientific-method interface. It must not be paired as a hard exam task. A hard successor
-would need a richer local method-policy language, independently frozen heterogeneous equations and
-resource envelopes, rather than hidden references or tighter score thresholds.
+The finite public 432-method grid and 48-point neighborhood searches show that this nine-coordinate
+search cell is directly enumerable. This wave is therefore an **on-ramp** for validating the task
+runner, frontier ledger and scientific-method interface. It must not be paired as a hard exam task,
+and no trusted HY3 calibration is attached yet. Earlier runtime-unbound model diagnostics are
+excluded from task evidence. A hard successor would need a richer local method-policy language,
+independently frozen heterogeneous equations and resource envelopes, rather than hidden references
+or tighter score thresholds.
 
 The evaluator also emits one canonical optimization record tied to the frozen method
 canonicalizer, evidence predicate and seven-world panel. Later immutable waves can add equation

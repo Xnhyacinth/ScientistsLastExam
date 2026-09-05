@@ -684,10 +684,9 @@ tasks:
       deterministic seven-world one-dimensional scalar conservation-law method-design prototype
       with exact discrete flux-balance accounting, smooth/shock/stability/work axes, an executable
       weak baseline and reference, held-out reporting, CandidateProxy isolation and a hash-bound
-      immutable frontier wave; a clean-revision one-seed HY3 protocol smoke reached 0.996332 in
-      normal mode and 0.980056 in selection-blind mode on the first proposal. This is negative
-      evidence for difficulty rather than population-performance evidence: retain the task only as
-      an on-ramp that must not be paired as hard. A hard successor requires a richer local
+      immutable frontier wave; finite public 432-method and 48-point neighborhood searches expose
+      the current search cell as an on-ramp that must not be paired as hard. No trusted HY3
+      calibration is yet attached. A hard successor requires a richer local
       method-policy language, heterogeneous frozen equations and resource envelopes, independent
       numerical-PDE review, convergence and entropy analysis, and application validation
     citation_ids:
