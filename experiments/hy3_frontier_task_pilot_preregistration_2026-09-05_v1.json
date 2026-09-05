@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "preregistration_id": "hy3-frontier-task-pilot-2026-09-05-v1",
+  "frozen_at_utc": "2026-09-05T15:08:03Z",
+  "purpose": "paired_multi_seed_budget_prefix_pilot_for_two_frontier_task_candidates",
+  "claim_limit": "three_local_replicate_identifiers_and_budget_prefixes_one_and_three_are_diagnostic_difficulty_evidence_not_population_performance_domain_certification_or_long_horizon_evidence",
+  "frozen_source": {
+    "parent_revision": "3b60091f76fde7badbe39eaff6c6c182a62b1cec",
+    "runtime_source_sha256": "278752357e1a6ba61fa20203fee82b26cb13b36d81915c20b0f7f63d97526a83",
+    "source_change_rule": "Any change after parent_revision under the runner source scope invalidates execution. The preregistration file itself is outside that scope."
+  },
+  "model_condition": {
+    "model": "hy3",
+    "llm_condition_sha256": "220f1550316c451529bc0afa95980d8bce21256ef4b141641bacd530bfa2c020",
+    "wire": "chat",
+    "max_output_tokens": 32768,
+    "temperature": 0.7,
+    "timeout_seconds": 300,
+    "server_side_seed_control": false,
+    "replicate_identifier_scope": "Seeds control local ordering only; equal identifiers do not pair provider-side draws."
+  },
+  "design": {
+    "primary_command": [
+      "/tmp/sle-oracle-py38/bin/python",
+      "scripts/batch_evolve.py",
+      "--all",
+      "--tasks",
+      "ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery,MaterialsScience/ProcessMicrostructurePropertyDesign",
+      "--algorithms",
+      "greedy_rewrite",
+      "--feedback-modes",
+      "normal,selection_blind",
+      "--condition-order-design",
+      "reverse_parity",
+      "--seeds",
+      "0,1,2",
+      "--budget",
+      "3",
+      "--timeout",
+      "300",
+      "--block-workers",
+      "4",
+      "--llm-config",
+      "runs/hy3_frontier_2026-09-04/llm.yaml",
+      "--run-role",
+      "calibration",
+      "--preregistration",
+      "experiments/hy3_frontier_task_pilot_preregistration_2026-09-05_v1.json",
+      "--workdir",
+      "runs/hy3_frontier_2026-09-05/pilot_b3_s012/work",
+      "--output",
+      "runs/hy3_frontier_2026-09-05/pilot_b3_s012/report.json"
+    ],
+    "tasks": [
+      {
+        "task": "ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery",
+        "task_contract_sha256": "121567824fb672a963ac1df238129306b8b775b404d2031ec17fb643f69a3c92",
+        "task_package_sha256": "360f6045be29c6d4c97b46e3e25a80c4bc84424e66c802cb00883ec0ceb31fed",
+        "task_card_sha256": "2efac21b8742af7b20ecbe68d7d6436eff6b50d85655e890ac275bf37ba93a57"
+      },
+      {
+        "task": "MaterialsScience/ProcessMicrostructurePropertyDesign",
+        "task_contract_sha256": "09f98afc15a60e1b3389c3fcfc451aa0b09e62162602520673665340c513fea7",
+        "task_package_sha256": "5a469805049d5d755d1dbc6601744b9e28de0dd19f3f03a22e7f6c3c3f055a6d",
+        "task_card_sha256": "567f6be03f7acc25bcd01a9f0a9f916c2138141d8051be9e68ad4d2379d1098f"
+      }
+    ],
+    "algorithm": "greedy_rewrite",
+    "feedback_modes": [
+      "normal",
+      "selection_blind"
+    ],
+    "condition_order_design": "reverse_parity",
+    "replicate_identifiers": [
+      0,
+      1,
+      2
+    ],
+    "maximum_proposal_budget": 3,
+    "predeclared_budget_prefixes": [
+      1,
+      3
+    ],
+    "block_workers": 4
+  },
+  "primary_outcomes": [
+    "valid_proposal_rate_by_task_mode_and_budget_prefix",
+    "best_combined_score_distribution_at_budget_prefixes_one_and_three",
+    "within_trajectory_best_score_gain_from_prefix_one_to_prefix_three",
+    "normal_minus_selection_blind_score_contrast_reported_as_descriptive_only",
+    "development_and_heldout_axes_reported_separately_when_available"
+  ],
+  "predeclared_decision_rules": {
+    "protocol_valid": "Every one of the twelve task-mode-replicate blocks completes all three proposals with trusted secure evaluation and no infrastructure failure.",
+    "hard_candidate_necessary_not_sufficient": "At least two of three valid replicates have prefix-one best score below 0.80, the median prefix-three best score remains below 0.98 in both modes, and the task retains positive prefix-one-to-prefix-three headroom in at least two normal-mode replicates.",
+    "one_step_on_ramp_signal": "The median prefix-one best score is at least 0.95 in either mode.",
+    "reject_wave": "A verifier shortcut, invalid scientific artifact accepted as valid, evaluator leakage, or deterministic score-contract failure is found. Difficulty failure alone downgrades or redesigns the task rather than invalidating its evaluator.",
+    "followup": "No 12-budget or long-horizon run is authorized by this pilot unless protocol_valid holds and the task passes the hard-candidate necessary conditions."
+  },
+  "prerequisites": [],
+  "excluded_evidence": {
+    "protocol_smoke_revision": "3b60091f76fde7badbe39eaff6c6c182a62b1cec",
+    "reason": "The clean one-seed budget-one smoke established interface executability and informed this preregistration, but is not pooled into the three-replicate pilot or represented as population performance."
+  }
+}
