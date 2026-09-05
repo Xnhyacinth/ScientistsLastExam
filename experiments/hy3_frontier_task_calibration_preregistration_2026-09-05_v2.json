@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "preregistration_id": "hy3-frontier-task-calibration-2026-09-05-v2",
+  "frozen_at_utc": "2026-09-05T18:44:50Z",
+  "supersedes": {
+    "path": "experiments/hy3_frontier_task_calibration_preregistration_2026-09-05_v1.json",
+    "sha256": "ef89794fccafe3887f4dba036102b992c591e2b676be0b9c9ad6842cfd7f1263",
+    "reason": "The shell variable is a complete chat-completions endpoint while the client accepts an API base. Version one therefore appended the route twice and all nine first requests returned HTTP 404 before any model content or scientific proposal was produced."
+  },
+  "failed_infrastructure_attempt": {
+    "local_ignored_report": "runs/hy3_frontier_2026-09-05/v1_b3_s012/report.json",
+    "sha256": "27c81b760e4881e4a41729f16af16b2996d390ca0c6b6ba245ad27002b39b177",
+    "attempted_run_count": 9,
+    "completed_model_calls": 0,
+    "scientific_proposals": 0,
+    "failure": "HTTP 404 before response content",
+    "evidence_use": "infrastructure diagnosis only; excluded from every task outcome"
+  },
+  "purpose": "multi_task_multi_replicate_budget_prefix_screen_for_three_frontier_task_candidates",
+  "claim_limit": "Three local replicate identifiers and budget prefixes one and three are operational difficulty evidence only. They do not estimate population model performance, provide provider-side paired randomness, certify a scientific discovery, establish external validity, or authorize a hard-task label by themselves.",
+  "frozen_source": {
+    "parent_revision": "966f936d31640bfc327f7dff443a374772e520da",
+    "runtime_source_sha256": "8ec0a15fdfacef46be0e7023ce12ab3d509af2c51465a21772c82d6e710e1724",
+    "source_change_rule": "Any post-freeze change under a task package or the runtime hash scope invalidates the corresponding run. This preregistration is outside both scopes."
+  },
+  "model_condition": {
+    "model": "hy3",
+    "llm_condition_sha256": "220f1550316c451529bc0afa95980d8bce21256ef4b141641bacd530bfa2c020",
+    "wire": "chat",
+    "max_output_tokens": 32768,
+    "temperature": 0.7,
+    "timeout_seconds": 600,
+    "stream": true,
+    "chat_reasoning_fallback": false,
+    "credential_source": "The API base is derived in memory by removing the trailing /chat/completions route from COPILOT_BASE_URL; COPILOT_API_KEY is used unchanged. Values are neither recorded nor committed.",
+    "server_side_seed_control": false,
+    "replicate_identifier_scope": "Seeds control local condition ordering and run identity only; equal identifiers do not pair provider-side draws."
+  },
+  "design": {
+    "primary_command": [
+      "/tmp/sle-oracle-py38/bin/python",
+      "scripts/batch_evolve.py",
+      "--all",
+      "--tasks",
+      "ScientificComputing/AdaptiveConservativePDEMethod,ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery,MaterialsScience/ProcessMicrostructurePropertyDesign",
+      "--algorithms",
+      "greedy_rewrite",
+      "--feedback-modes",
+      "normal,selection_blind",
+      "--condition-order-design",
+      "reverse_parity",
+      "--seeds",
+      "0,1,2",
+      "--budget",
+      "3",
+      "--timeout",
+      "300",
+      "--block-workers",
+      "4",
+      "--llm-config",
+      "sle/conf/llm/local.hy3.yaml",
+      "--run-role",
+      "calibration",
+      "--preregistration",
+      "experiments/hy3_frontier_task_calibration_preregistration_2026-09-05_v2.json",
+      "--workdir",
+      "runs/hy3_frontier_2026-09-05/v2_b3_s012/work",
+      "--output",
+      "runs/hy3_frontier_2026-09-05/v2_b3_s012/report.json"
+    ],
+    "tasks": [
+      {
+        "task": "ScientificComputing/AdaptiveConservativePDEMethod",
+        "task_contract_sha256": "98c902148edddcab24ae16dad23ccb38d021b4a62bce30495e633bfe6c49174e",
+        "task_package_sha256": "35199577c1cb07ac65dcb4fe46590b22c2284fc788a648da4d3b28279e0e7d69",
+        "task_card_sha256": "7dc5fcf93bbe11a2c84cc908776676cf04d2969c3da9af249938a28624819b68"
+      },
+      {
+        "task": "ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery",
+        "task_contract_sha256": "121567824fb672a963ac1df238129306b8b775b404d2031ec17fb643f69a3c92",
+        "task_package_sha256": "360f6045be29c6d4c97b46e3e25a80c4bc84424e66c802cb00883ec0ceb31fed",
+        "task_card_sha256": "2efac21b8742af7b20ecbe68d7d6436eff6b50d85655e890ac275bf37ba93a57"
+      },
+      {
+        "task": "MaterialsScience/ProcessMicrostructurePropertyDesign",
+        "task_contract_sha256": "09f98afc15a60e1b3389c3fcfc451aa0b09e62162602520673665340c513fea7",
+        "task_package_sha256": "5a469805049d5d755d1dbc6601744b9e28de0dd19f3f03a22e7f6c3c3f055a6d",
+        "task_card_sha256": "567f6be03f7acc25bcd01a9f0a9f916c2138141d8051be9e68ad4d2379d1098f"
+      }
+    ],
+    "algorithm": "greedy_rewrite",
+    "feedback_modes": ["normal", "selection_blind"],
+    "condition_order_design": "reverse_parity",
+    "replicate_identifiers": [0, 1, 2],
+    "maximum_proposal_budget": 3,
+    "predeclared_budget_prefixes": [1, 3],
+    "block_workers": 4
+  },
+  "primary_outcomes": [
+    "valid_proposal_rate_by_task_mode_and_budget_prefix",
+    "best_combined_score_distribution_at_budget_prefixes_one_and_three",
+    "within_trajectory_best_score_gain_from_prefix_one_to_prefix_three",
+    "normal_minus_selection_blind_score_contrast_reported_as_descriptive_independent_draws_only",
+    "development_heldout_shifted_feasibility_false_discovery_and_refusal_axes_reported_separately_when_available"
+  ],
+  "predeclared_decision_rules": {
+    "protocol_valid": "All eighteen task-mode-replicate runs complete all three charged proposals, pass run verification, and report no infrastructure failure.",
+    "hard_candidate_screen_necessary_not_sufficient": "For a task, at least two of three valid replicates have prefix-one best score below 0.80, the median prefix-three best score remains below 0.98 in both modes, and at least two normal trajectories retain positive prefix-one-to-prefix-three gain.",
+    "one_step_on_ramp_signal": "The median prefix-one best score is at least 0.95 in either mode.",
+    "feedback_claim_rule": "No causal feedback claim is permitted from normal-minus-selection-blind differences because provider-side draws are independent. Direction reversal between development and held-out axes is reported as failed transfer support.",
+    "reject_wave": "Reject the runnable wave if a verifier shortcut, invalid scientific artifact accepted as valid, evaluator leakage, deterministic score-contract failure, duplicate lifetime credit, or immutable-wave drift is found. Difficulty failure alone downgrades or redesigns the task.",
+    "conditional_budget_eight_followup": "A fresh budget-eight normal and selection-blind cohort with the same three identifiers may be run only for a task that passes protocol_valid and the hard-candidate screen. It remains diagnostic and must be separately hash-bound before execution.",
+    "promotion": "This pilot cannot promote a task to certified, externally reviewed, long-horizon healthy, or scientifically validated status."
+  },
+  "excluded_evidence": {
+    "scope": "All earlier HY3 smokes and reports from pre-rebase task or runtime revisions, plus the version-one HTTP-404 infrastructure attempt",
+    "reason": "Earlier runs do not match this source/runtime stack, and the version-one attempt received no model content. None is pooled into task outcomes."
+  },
+  "artifact_policy": {
+    "raw_runs": "Remain under ignored runs/ and are never committed.",
+    "committable_summary": "A small deidentified analysis may record hashes, counts, score axes, decision-rule outcomes, and limitations, but no endpoint, credential, prompt transcript, or raw model response."
+  }
+}
