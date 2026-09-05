@@ -641,26 +641,15 @@ tasks:
       deterministic seven-world one-dimensional scalar conservation-law method-design prototype
       with exact discrete flux-balance accounting, smooth/shock/stability/work axes, an executable
       weak baseline and reference, held-out reporting, CandidateProxy isolation and a hash-bound
-      immutable frontier wave; a hand-designed legal method reaches 1.197 above the reference, so
-      score headroom exists, but hard/T2 remains uncalibrated pending paired HY3 runs, independent
-      numerical-PDE review, convergence and entropy analysis, broader equations and application
-      validation
+      immutable frontier wave; a clean-revision one-seed HY3 protocol smoke reached 0.996332 in
+      normal mode and 0.980056 in selection-blind mode on the first proposal. This is negative
+      evidence for difficulty rather than population-performance evidence: retain the task only as
+      an on-ramp that must not be paired as hard. A hard successor requires a richer local
+      method-policy language, heterogeneous frozen equations and resource envelopes, independent
+      numerical-PDE review, convergence and entropy analysis, and application validation
     citation_ids:
       - doi:10.1016/0021-9991(79)90145-1
       - doi:10.1016/0021-9991(88)90177-5
-  Mathematics/RationalDiophantineTuple:
-    status: candidate
-    reason: >-
-      exact Fraction and integer-square verifier with canonical rational de-duplication, explicit
-      output budgets, an executable published sextuple reference and an uncapped immutable frontier
-      wave; matching size six is public-answer reconstruction and no septuple is currently known,
-      so the task is a high-risk open-problem candidate rather than evidence of guaranteed
-      long-horizon headroom or arbitrarily increasing scores, pending independent number-theory
-      review and paired HY3 calibration
-    citation_ids:
-      - arxiv:math/9902081
-      - arxiv:1507.00569
-      - url:https://epoch.ai/frontiermath/open-problems/diophantine-septuple
   ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery:
     status: candidate
     reason: >-

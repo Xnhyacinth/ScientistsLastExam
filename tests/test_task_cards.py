@@ -31,7 +31,6 @@ RECORDED_LINEAGE = {
     "Physics/ComplexBoseLaw",
     "MaterialsScience/QuinaryConvexHull",
     "ScientificComputing/AdaptiveConservativePDEMethod",
-    "Mathematics/RationalDiophantineTuple",
     "ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery",
     "MaterialsScience/ProcessMicrostructurePropertyDesign",
 }

@@ -11,6 +11,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import yaml
+
 from sle.evaluate import evaluate_candidate
 from sle.frontier import load_frozen_wave
 from sle.registry import find_task
@@ -39,6 +41,19 @@ class AdaptiveConservativePDEMethodTests(unittest.TestCase):
             "adaptive_conservative_pde_reference",
             TASK_DIR / "verification" / "reference_method.py",
         )
+
+    def test_metadata_records_measured_on_ramp_status(self) -> None:
+        metadata = yaml.safe_load(
+            (TASK_DIR / "frontier_eval" / "metadata.yaml").read_text(encoding="utf-8")
+        )
+        card = yaml.safe_load((TASK_DIR / "TASK_CARD.yaml").read_text(encoding="utf-8"))
+
+        self.assertEqual(metadata["difficulty"], "on_ramp")
+        self.assertEqual(
+            card["lineage"]["calibration_evidence_status"],
+            "historical_only",
+        )
+        self.assertIn("hy3", card["lineage"]["calibrator_model_ids"])
 
     def test_baseline_and_reference_are_exact_score_anchors(self) -> None:
         panel = self.evaluator._load_panel()

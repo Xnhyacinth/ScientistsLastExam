@@ -4,16 +4,16 @@
 
 | | |
 |---|---:|
-| 任务包 | 66 |
-| optimization | 32 |
+| 任务包 | 65 |
+| optimization | 31 |
 | discovery | 34 |
 | certified | 5 |
-| candidate | 61 |
-| 学科 | 7(Biology 7,Chemistry 15,ComputerScience 7,EarthScience 5,Engineering 11,Mathematics 10,Physics 11) |
+| candidate | 60 |
+| 学科 | 7(Biology 7,Chemistry 15,ComputerScience 7,EarthScience 5,Engineering 11,Mathematics 9,Physics 11) |
 
 认证描述的是证据质量,不是难度。标 on-ramp 的任务首个前沿模型提案已够到参考解,不用于配对 Δ 测量。
 
-## Optimization(32)
+## Optimization(31)
 
 ### 工程设计(engineering_design) — 16
 
@@ -36,7 +36,7 @@
 | [`DiffractionGratingDesign`](benchmarks/Physics/DiffractionGratingDesign/)<br>衍射光栅设计 | Physics | Optics | uncapped | fourier_modal_rcwa | candidate | polarization-tolerant multilayer relief design | 设计五层一维二元介质浮雕,把透射光导入 +1 衍射级,且对偏振与角度容差 | 开发集目标级效率;偏振/角度/波长与工艺偏移稳健性分列,无上限 |
 | [`MultilayerThinFilm`](benchmarks/Physics/MultilayerThinFilm/)<br>多层减反射膜 | Physics | Photonics | clipped | physical_sim | certified | design a broadband antireflection coating | 设计可见光全谱段的多层宽带减反射膜 | 宽带减反射质量;物理下界为零平均反射 |
 
-### 开放组合纪录(combinatorial,无上限) — 10
+### 开放组合纪录(combinatorial,无上限) — 9
 
 | 任务 | 学科 | 领域 | 打分 | oracle | 认证 | 说明 | 中文题意 | 中文评估方法 |
 |---|---|---|---|---|---|---|---|---|
@@ -47,7 +47,6 @@
 | [`CirclePacking`](benchmarks/Mathematics/CirclePacking/)<br>圆堆积 | Mathematics | Optimization | uncapped | analytical | certified | pack unit circles into the smallest square | 把 N 个单位圆装进边长最小的正方形 | 对最好已知装填的平均缺口闭合;无上限 |
 | [`KissingNumber`](benchmarks/Mathematics/KissingNumber/)<br>接触数构造 | Mathematics | Mathematics | uncapped | analytical | candidate | pack more unit spheres around one sphere | 在 9、10、12 维构造更多与中心球相切的单位球 | 固定容差下对最好已知接触数的平均进度;无上限 |
 | [`RamseyLowerBound`](benchmarks/Mathematics/RamseyLowerBound/)<br>Ramsey 下界染色 | Mathematics | Mathematics | uncapped | analytical | candidate | construct larger (s,t)-Ramsey colorings | 构造更大的 (s,t)-Ramsey 染色以提高下界 | 对最好已知染色阶数的平均进度;无上限 |
-| [`RationalDiophantineTuple`](benchmarks/Mathematics/RationalDiophantineTuple/)<br>有理丢番图数组构造 | Mathematics | Mathematics | uncapped | analytical | candidate | construct a larger exact rational tuple | 构造互异非零有理数集合,使任意两数之积加一都是有理平方 | 精确验证集合基数;公开六元组为 1,若发现七元组可超过 1,但是否存在仍是开放问题 |
 | [`Superpermutation`](benchmarks/Mathematics/Superpermutation/)<br>超排列最短串 | Mathematics | Mathematics | uncapped | analytical | candidate | shorter strings that contain every permutation | 构造更短的超排列字符串,使其包含全部排列作为连续子串 | 对最短已知长度的平均进度;无上限 |
 | [`QuantumErrorDecoder`](benchmarks/Physics/QuantumErrorDecoder/)<br>表面码解码器 | Physics | QuantumErrorCorrection | uncapped | stim_stabilizer_circuit_sampling | candidate | decode rotated surface-code memory below threshold | 为旋转表面码存储设计阈值以下的解码器 | 相对最小权完美匹配的逻辑错误率对数下降;无上限 |
 
@@ -65,7 +64,7 @@
 
 | 任务 | 学科 | 领域 | 打分 | oracle | 认证 | 说明 | 中文题意 | 中文评估方法 |
 |---|---|---|---|---|---|---|---|---|
-| [`AdaptiveConservativePDEMethod`](benchmarks/ComputerScience/AdaptiveConservativePDEMethod/)<br>自适应守恒 PDE 方法设计 | ComputerScience | ScientificComputing | uncapped | analytical_numerical_pde | candidate | Can one deterministic finite-volume method improve cell-average accuracy across a frozen panel of | 为多种光滑、激波与稳定性工况设计自适应守恒通量和时间推进方法 | 误差、守恒、激波、稳定性与计算量综合分;公开参考为 1,更强合法方法可继续超过 |
+| [`AdaptiveConservativePDEMethod`](benchmarks/ComputerScience/AdaptiveConservativePDEMethod/)<br>自适应守恒 PDE 方法设计 | ComputerScience | ScientificComputing | uncapped | analytical_numerical_pde | candidate | Can one deterministic finite-volume method improve cell-average accuracy across a frozen panel of · on-ramp,不配对 | 为多种光滑、激波与稳定性工况设计自适应守恒通量和时间推进方法 | 误差、守恒、激波、稳定性与计算量综合分;公开参考为 1,更强合法方法可继续超过 |
 
 ## Discovery(34)
 

@@ -153,6 +153,40 @@ and [ISO 14040](https://www.iso.org/standard/37456.html) are governance referenc
 specific inventory dataset versions and hashes, allocation rules, characterization factors and
 the explicit system boundary instead of treating a programme page or standard as data.
 
+## Rejected runnable prototype: RationalDiophantineTuple
+
+The exact verifier was sound, but the task geometry was not suitable for a hard iterative-search
+benchmark. In a pre-admission HY3 protocol smoke, `normal` and `selection_blind` each reproduced
+the same public Gibbs sextuple on their first proposal and scored `1.0`. The result is diagnostic,
+not population-performance evidence, but it is sufficient to reject this wave: evaluator feedback
+was neither available nor needed before the public reference was reached.
+
+Small scoring edits do not repair the problem. Hiding the sextuple would make difficulty depend on
+training-data obscurity. Moving the zero point to size six would leave no graded signal between a
+known sextuple and a still-open, possibly nonexistent septuple. Counting distinct sextuples would
+let a known infinite parametric family mint nominal discoveries without new mathematical content.
+The runnable package was therefore removed from the candidate inventory rather than relabelled as
+hard. Its exact witness checker remains a useful design lesson, not a positive task candidate.
+
+A possible successor is `Mathematics/RationalDiophantineExtensionSearch`. Each immutable cell
+would freeze a public rational Diophantine quadruple and reward distinct, exactly verified
+extensions, with canonical identity bound to the panel, quadruple and reduced extension. Coverage
+across independently selected quadruples and a separately reported height/complexity cost provide
+a graded frontier; permutations, equivalent fractions and repeat witnesses receive no credit.
+The cell selection must be frozen before model evaluation and independently reviewed by a number
+theorist. It must also distinguish reconstruction of published extensions from a genuinely new
+witness. This direction follows the connection between quadruple extension and rational points on
+genus-five curves ([Stoll 2017](https://arxiv.org/abs/1711.00500)) and the published extension
+catalogue maintained by [Dujella](https://web.math.pmf.unizg.hr/~duje/ratio.html). The open
+septuple question remains scientifically valid ([Dujella et al. 2024](https://arxiv.org/abs/2403.17959),
+[FrontierMath Open Problems](https://epoch.ai/frontiermath/open-problems/diophantine-septuple)),
+but validity as an open problem is not the same as useful iterative benchmark geometry.
+
+Admission requires an independently recomputed multi-cell reference, exact certificate tests,
+false-claim and attempted-discovery accounting, immutable panel/oracle hashes, and at least three
+paired HY3 seeds over the preregistered budget prefixes. If an open-loop proposal again reaches the
+reference immediately, the successor is rejected rather than rescued by hiding public evidence.
+
 ## Additional discovery candidates
 
 These remain design backlog and do not change the task inventory.

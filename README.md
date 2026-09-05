@@ -34,11 +34,12 @@ Scientists' Last Exam
 
 ## 两类任务
 
-当前 66 个任务包,横跨 7 个物理目录学科和更多逻辑 domain,5 个 certified、61 个 candidate。
+当前 65 个任务包,横跨 7 个物理目录学科和更多逻辑 domain,5 个 certified、60 个 candidate。
 
-optimization(32 个):在受约束的设计空间里把目标做得更好。分四类:
-工程设计 16 题、科学方法设计 1 题、开放组合纪录 10 题、分子与大分子设计 5 题。
-守恒 PDE 方法、过程-微结构-性质设计与精确有理 Diophantine tuple 都仍是未校准候选。
+optimization(31 个):在受约束的设计空间里把目标做得更好。分四类:
+工程设计 16 题、科学方法设计 1 题、开放组合纪录 9 题、分子与大分子设计 5 题。
+守恒 PDE 方法经单 seed HY3 协议冒烟测试后仅保留为不参与困难配对的 on-ramp；
+过程-微结构-性质设计仍是未校准候选。
 分数由做出来的东西有多好决定;公开纪录是 score = 1 的见证,不是封顶。
 
 discovery(34 个):从受预算约束的观测里恢复一个机制,或判断根本没有机制可恢复。
@@ -128,9 +129,8 @@ python scripts/report_admission_criterion.py --runs runs/<name> --output /tmp/ad
 
 详细的测量结果、判决与开放项见 [`.research/`](.research/)。
 
-本轮另加入四个同样保持 `candidate` 的原型:`AdaptiveConservativePDEMethod`、
-`RationalDiophantineTuple`、`OpenVocabularyReactionNetworkDiscovery` 和
-`ProcessMicrostructurePropertyDesign`。四题均已接入 immutable wave、hash-bound semantic
+本轮另加入三个同样保持 `candidate` 的原型:`AdaptiveConservativePDEMethod`、
+`OpenVocabularyReactionNetworkDiscovery` 和 `ProcessMicrostructurePropertyDesign`。三题均已接入 immutable wave、hash-bound semantic
 contract 与 canonical discovery/optimization record，但仍只处于可运行的候选阶段。
 固定 wave 有限且未做 HY3 标定,所以这里的 uncapped score 只表示不会隐藏超过 reference 的结果,
 不等于已经证明任务可无限提高或足够困难。两个更长期旗舰与额外学科候选的实现门禁见

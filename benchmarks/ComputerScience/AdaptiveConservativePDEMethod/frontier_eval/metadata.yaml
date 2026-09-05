@@ -1,7 +1,7 @@
 domain: ScientificComputing
 task: AdaptiveConservativePDEMethod
 scientific_role: optimization
-difficulty: uncalibrated_candidate
+difficulty: on_ramp
 tier: candidate
 oracle_type: analytical_numerical_pde
 score_mode: uncapped

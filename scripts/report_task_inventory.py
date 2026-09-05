@@ -66,7 +66,6 @@ CHINESE_NAMES = {
     "Mathematics/CapSetFrontier": "Cap Set 未证明维度",
     "Mathematics/KissingNumber": "接触数构造",
     "Mathematics/RamseyLowerBound": "Ramsey 下界染色",
-    "Mathematics/RationalDiophantineTuple": "有理丢番图数组构造",
     "Mathematics/SequenceLawRecovery": "整数序列递推恢复",
     "Mathematics/Superpermutation": "超排列最短串",
     "MedicinalChemistry/MolecularLeadOptimization": "分子先导组合优化",
@@ -203,9 +202,6 @@ CHINESE_BRIEFS = {
     "Mathematics/RamseyLowerBound": (
         "构造更大的 (s,t)-Ramsey 染色以提高下界",
         "对最好已知染色阶数的平均进度;无上限"),
-    "Mathematics/RationalDiophantineTuple": (
-        "构造互异非零有理数集合,使任意两数之积加一都是有理平方",
-        "精确验证集合基数;公开六元组为 1,若发现七元组可超过 1,但是否存在仍是开放问题"),
     "Mathematics/SequenceLawRecovery": (
         "给出整数序列前若干项,说出产生它的线性递推;项数不足以定唯一最小规则时拒答",
         "延续准确率;误发现率与不定性拒答分开报告"),

@@ -27,7 +27,7 @@ invariants:
 - inactive DSL coordinates are canonicalized away before artifact identity is assigned
 - evaluator-produced frontier_records bind the canonical method to the frozen evidence predicate and evaluation panel
 - later task-family expansion requires a new immutable wave rather than mutation of this panel
-known_shortcuts: A first 216-point audit of the original MUSCL task found that removing the sensor improved the score to 1.104486, so that oracle was rejected before freeze. After adding WENO3 with sensor-triggered fallback, a 432-method nonadaptive grid over reconstruction, limiter, flux, integrator, grid and CFL reached 0.988555, below the reference. A 48-point local CFL/sensor search around the formerly exposed reference found score 1.002071 and raw utility 0.9716657335; the exact reference was removed from agent-visible text and the found point is now the wave ledger incumbent, so its reconstruction earns no lifetime credit. The visible seven-world one-dimensional uniform-grid panel remains susceptible to direct deterministic search and omits convergence proofs, systems, multidimensional meshes, stiffness, general positivity, parallel cost and application validation. T2 and hard remain candidate labels pending external numerical-PDE review and HY3 calibration.
+known_shortcuts: A first 216-point audit of the original MUSCL task found that removing the sensor improved the score to 1.104486, so that oracle was rejected before freeze. After adding WENO3 with sensor-triggered fallback, a 432-method nonadaptive grid over reconstruction, limiter, flux, integrator, grid and CFL reached 0.988555, below the reference. A 48-point local CFL/sensor search around the formerly exposed reference found score 1.002071 and raw utility 0.9716657335; the exact reference was removed from agent-visible text and the found point is now the wave ledger incumbent, so its reconstruction earns no lifetime credit. A clean-revision HY3 one-step protocol smoke then scored 0.996332 in normal mode and 0.980056 in selection-blind mode. That single seed is not population-performance evidence, but both policies nearly reconstructed the reference without iterative feedback, so this wave is an on-ramp and must not be paired or advertised as hard. The visible seven-world one-dimensional uniform-grid panel remains susceptible to direct deterministic search and omits convergence proofs, systems, multidimensional meshes, stiffness, general positivity, parallel cost and application validation.
 review:
   domain: pending_external_numerical_pde_and_finite_volume_review
   evaluator_security: analytic-cell-average and independent adaptive-quadrature regressions, independent second finite-volume replay, ninety-point DSL-grid one-step balance checks over sixty-six canonical methods, and automated baseline/reference/headroom/schema/budget/determinism/session-reset/wave-hash/frontier-record tests
@@ -50,10 +50,11 @@ lineage:
   - openai:codex-gpt-5
   builder_scaffolds:
   - codex-cli
-  calibrator_model_ids: []
+  calibrator_model_ids:
+  - hy3
   calibration_runs: []
-  calibration_evidence_status: missing
-  edits_triggered_by_model: No model calibration was run. Independent code review exposed a harmful slope-suppression sensor, a 216-point nonadaptive shortcut, an exact-reference prompt leak, a 48-point local search gain, signed-zero and inactive-coordinate identity aliases, and quadrature-defined target averages; the task was rebuilt around WENO3 with sensor-triggered fallback, analytic targets and an independent second replay, the known local gain became the ledger incumbent, and the final package was checked with reproducible 48/432-point sweeps and six ablations.
+  calibration_evidence_status: historical_only
+  edits_triggered_by_model: Independent code review exposed a harmful slope-suppression sensor, a 216-point nonadaptive shortcut, an exact-reference prompt leak, a 48-point local search gain, signed-zero and inactive-coordinate identity aliases, and quadrature-defined target averages; the task was rebuilt around WENO3 with sensor-triggered fallback, analytic targets and an independent second replay, the known local gain became the ledger incumbent, and the final package was checked with reproducible 48/432-point sweeps and six ablations. A subsequent clean-revision HY3 protocol smoke at one proposal per policy produced valid normal and selection-blind scores of 0.996332 and 0.980056. Because this was one seed and the combined three-task smoke was incomplete, it is recorded only as sufficient negative evidence against a hard label, not as trusted calibration or population model performance.
   shortcut_discoverer: builder_self_audit
   frozen_before_eval: false
   freeze_timestamp: null
