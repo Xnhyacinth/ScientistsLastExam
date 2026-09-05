@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "preregistration_id": "hy3-process-saturation-2026-09-05-v1",
+  "frozen_at_utc": "2026-09-05T16:00:00Z",
+  "purpose": "process_microstructure_property_design_open_loop_saturation_and_feedback_value_followup",
+  "claim_limit": "three_local_replicate_identifiers_through_budget_eight_can_screen_task_search_geometry_but_cannot_establish_population_performance_domain_validity_or_long_horizon_value",
+  "frozen_source": {
+    "parent_revision": "1d98c6da42c07ff24801b03e24841f534c59624b",
+    "runtime_source_sha256": "278752357e1a6ba61fa20203fee82b26cb13b36d81915c20b0f7f63d97526a83",
+    "source_change_rule": "Any change after parent_revision under the runner source scope invalidates execution. Experiment evidence and preregistration files are outside that scope."
+  },
+  "model_condition": {
+    "model": "hy3",
+    "llm_condition_sha256": "220f1550316c451529bc0afa95980d8bce21256ef4b141641bacd530bfa2c020",
+    "wire": "chat",
+    "max_output_tokens": 32768,
+    "temperature": 0.7,
+    "timeout_seconds": 300,
+    "server_side_seed_control": false,
+    "replicate_identifier_scope": "Seeds control local ordering only; equal identifiers do not pair provider-side draws."
+  },
+  "design": {
+    "primary_command": [
+      "/tmp/sle-oracle-py38/bin/python",
+      "scripts/batch_evolve.py",
+      "--all",
+      "--tasks",
+      "MaterialsScience/ProcessMicrostructurePropertyDesign",
+      "--algorithms",
+      "greedy_rewrite",
+      "--feedback-modes",
+      "normal,selection_blind",
+      "--condition-order-design",
+      "reverse_parity",
+      "--seeds",
+      "0,1,2",
+      "--budget",
+      "8",
+      "--timeout",
+      "300",
+      "--block-workers",
+      "3",
+      "--llm-config",
+      "runs/hy3_frontier_2026-09-04/llm.yaml",
+      "--run-role",
+      "calibration",
+      "--preregistration",
+      "experiments/hy3_process_saturation_preregistration_2026-09-05_v1.json",
+      "--workdir",
+      "runs/hy3_frontier_2026-09-05/process_b8_s012/work",
+      "--output",
+      "runs/hy3_frontier_2026-09-05/process_b8_s012/report.json"
+    ],
+    "tasks": [
+      {
+        "task": "MaterialsScience/ProcessMicrostructurePropertyDesign",
+        "task_contract_sha256": "09f98afc15a60e1b3389c3fcfc451aa0b09e62162602520673665340c513fea7",
+        "task_package_sha256": "5a469805049d5d755d1dbc6601744b9e28de0dd19f3f03a22e7f6c3c3f055a6d",
+        "task_card_sha256": "567f6be03f7acc25bcd01a9f0a9f916c2138141d8051be9e68ad4d2379d1098f"
+      }
+    ],
+    "algorithm": "greedy_rewrite",
+    "feedback_modes": ["normal", "selection_blind"],
+    "condition_order_design": "reverse_parity",
+    "replicate_identifiers": [0, 1, 2],
+    "maximum_proposal_budget": 8,
+    "predeclared_budget_prefixes": [3, 5, 8],
+    "block_workers": 3
+  },
+  "primary_outcomes": [
+    "selection_blind_second_half_best_score_gain_and_saturation_class",
+    "normal_minus_selection_blind_gap_at_budget_prefixes_three_five_and_eight",
+    "leave_one_replicate_out_gap_robustness",
+    "proposal_validity_and_infrastructure_failure_counts",
+    "development_and_heldout_axes_reported_separately_when_available"
+  ],
+  "predeclared_decision_rules": {
+    "protocol_valid": "All six task-mode-replicate runs complete eight proposals with trusted secure evaluation, exact preregistration binding, and no infrastructure failure.",
+    "measures_iteration_candidate": "The repository report_admission_criterion analyzer finds the selection-blind control saturated away from floor and ceiling and a material positive normal-minus-selection-blind gap robust to leaving out one replicate.",
+    "sampling_dominated_or_unresolved": "The selection-blind control remains materially increasing, the feedback gap is non-positive or not leave-one-out robust, or the analyzer verdict remains unknown.",
+    "disposition": "Only a measures_iteration_candidate result can support retaining this wave as a hard iterative-search candidate. Otherwise keep it uncalibrated or redesign the search cell; do not rescue it by hiding public inputs or tightening score thresholds.",
+    "budget_twelve": "Do not launch budget twelve from this protocol. Make a new preregistration only if budget eight is technically complete but scientifically ambiguous for a reason named before inspecting additional model outputs."
+  },
+  "prerequisites": [
+    {
+      "path": "experiments/hy3_frontier_task_pilot_analysis_2026-09-05_v1.json",
+      "sha256": "4ceae6a710516483f3d401aca1f72a19b1061de50dc5194a150c2695bd559b48"
+    }
+  ]
+}
