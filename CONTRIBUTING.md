@@ -87,8 +87,8 @@ benchmarks/
 ```yaml
 domain: Chemistry                    # 稳定的逻辑 domain(不是顶层目录名)
 task: LennardJonesCluster            # 任务目录名
-difficulty: hard                     # hard | flagship
-tier: T2                             # T2(专家)| T3(flagship)
+difficulty: hard                     # on_ramp | uncalibrated_candidate | hard | flagship
+tier: T2                             # candidate | T2(专家) | T3(flagship)
 oracle_type: analytical              # analytical | physical_sim | dataset_oracle | neural_surrogate
 score_mode: clipped                  # clipped(压在 [0,1])| uncapped(相对 SoTA,>1 表示超越)
 gpu_required: false
@@ -143,13 +143,15 @@ normalized = (raw_mechanism - always_abstain) / (1.0 - always_abstain)
 | 模式 | 何时使用 | 分数范围 |
 |---|---|---|
 | `clipped` | hard 任务有一个可靠的已知参考值 | `[0, 1]` |
-| `uncapped` | 已知最优值是活跃的研究前沿(flagship 任务) | `[0, ∞)` —— 追平 SoTA 为 1.0,超越 > 1.0 |
+| `uncapped` | reference 是见证或当前纪录，超过它的结果必须保留 | 输出契约为 `[0, ∞)` 且不在 1 截断；固定任务的可达分数仍可能有界 |
 
 `uncapped` 任务还须提供 `references/known_best.md`,记录当前已知最优值、来源与日期。
 **不要在 `uncapped` 任务里保留上限** —— 那会让"追平参考解"与"超越它"无法区分,
 而这正是本基准要测的那个区别。`tests/test_uncapped_scoring.py` 会检查。
 
-`uncapped` 与 `lifetime_frontier_credit` 不是同一个概念。前者是一个冻结 release 内的模型分数;
+`uncapped` 不等于数学上“无上限”，也不自动证明任务足够困难。`uncapped` 与
+`lifetime_frontier_credit` 不是同一个概念。前者是一个冻结 release 内不在 reference=1
+截断的模型分数，其任务空间、资源包络与可达效用仍可能有界；
 后者是同一 task family 跨不可变 waves 的科学前沿账本。优化记录只累计超过 incumbent 与
 `minimum_delta` 的边际增益;发现记录只累计 trusted evaluator 产生的唯一 canonical claim。
 账本不能把候选提交次数、置信度、重复结构或新增容易 cell 当成进步。具体 manifest schema、

@@ -42,10 +42,27 @@ PROVENANCE_CLASSES = {
 }
 NOVELTY_RISK_LEVELS = {"low", "medium", "high", "unknown"}
 LINEAGE_STATUSES = {"complete", "incomplete_legacy", "unknown"}
+METADATA_DIFFICULTIES = {
+    "on_ramp", "uncalibrated_candidate", "hard", "flagship",
+}
+METADATA_TIERS = {"candidate", "T2", "T3"}
+SCORE_MODES = {"clipped", "uncapped"}
 
 
 def _nonempty_string(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip())
+
+
+def _metadata_issues(metadata: dict) -> list[str]:
+    issues = []
+    if metadata.get("difficulty") not in METADATA_DIFFICULTIES:
+        issues.append("metadata difficulty is invalid")
+    tier = metadata.get("tier")
+    if tier is not None and tier not in METADATA_TIERS:
+        issues.append("metadata tier is invalid")
+    if metadata.get("score_mode") not in SCORE_MODES:
+        issues.append("metadata score_mode is invalid")
+    return issues
 
 
 def _task_card_issues(path: Path) -> list[str]:
@@ -250,7 +267,7 @@ def audit() -> dict:
         missing_files = [p for p in REQUIRED_FILES if not (spec.task_dir / p).is_file()]
         missing_metadata = [k for k in REQUIRED_METADATA if k not in spec.metadata]
         citation_ids = rec.get("citation_ids", [])
-        issues = []
+        issues = _metadata_issues(spec.metadata)
         try:
             wave = load_frozen_wave(spec)
         except ValueError as exc:
