@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import math
+import random
 import re
 from pathlib import Path
 from typing import Any
 
 from .evaluation_ledger import EvaluationLedger, RunLease
+from .metric_visibility import score_only_metrics, search_visible_metrics
 from .protocol import load_trajectory, sha256_text, summarize_trajectory
 from .runtime_identity import validate_runtime_descriptor
 
@@ -208,7 +210,9 @@ def _verify_run_unlocked(
         incumbent_hash = None
         incumbent_step = None
         incumbent_score = INVALID_SCORE
+        incumbent_metrics: dict[str, Any] = {}
         candidate_history: list[dict[str, Any]] = []
+        shuffle_rng = random.Random(identity["seed"])
         horizon = (manifest.get("protocol") or {}).get("active_wall_horizon_s")
         baseline_receipt_score = None
         for event in events:
@@ -241,7 +245,24 @@ def _verify_run_unlocked(
                     expected_source = {
                         "candidate_sha256": incumbent_hash,
                         "step": incumbent_step,
+                        "metrics": incumbent_metrics,
                     }
+                if identity["feedback_mode"] == "none":
+                    expected_prompt_metrics: dict[str, Any] = {}
+                elif identity["feedback_mode"] == "score_only":
+                    expected_prompt_metrics = score_only_metrics(incumbent_metrics)
+                elif identity["feedback_mode"] == "shuffled":
+                    expected_prompt_metrics = shuffle_rng.choice([
+                        prior.get("metrics") or {} for prior in events[:step]
+                    ])
+                else:
+                    expected_prompt_metrics = expected_source["metrics"]
+                visible_prompt_metrics = search_visible_metrics(
+                    expected_prompt_metrics
+                )
+                rendered_prompt_metrics = json.dumps(
+                    visible_prompt_metrics, indent=2
+                )
                 if not (
                     event.get("parent_sha256")
                     == expected_source["candidate_sha256"]
@@ -253,6 +274,12 @@ def _verify_run_unlocked(
                     == expected_source["step"]
                     and metadata.get("feedback_released_through_step")
                     == expected_released_step
+                    and metadata.get("prompt_metrics_sha256")
+                    == sha256_text(rendered_prompt_metrics)
+                    and metadata.get("prompt_metrics_utf8_bytes")
+                    == len(rendered_prompt_metrics.encode("utf-8"))
+                    and metadata.get("prompt_metric_keys")
+                    == ",".join(sorted(visible_prompt_metrics))
                 ):
                     raise ValueError(
                         "trajectory feedback mode semantics differ from manifest"
@@ -336,6 +363,7 @@ def _verify_run_unlocked(
                     "candidate_sha256": str(event["candidate_sha256"]),
                     "score": expected_score,
                     "valid": expected_valid,
+                    "metrics": search_visible_metrics(event_metrics),
                 })
             if step == 0:
                 if not expected_valid:
@@ -344,6 +372,7 @@ def _verify_run_unlocked(
                 incumbent_hash = str(event["candidate_sha256"])
                 incumbent_step = 0
                 incumbent_score = expected_score
+                incumbent_metrics = search_visible_metrics(event_metrics)
                 baseline_receipt_score = expected_score
             else:
                 after_horizon = bool(
@@ -361,6 +390,7 @@ def _verify_run_unlocked(
                     incumbent_hash = str(event["candidate_sha256"])
                     incumbent_step = step
                     incumbent_score = expected_score
+                    incumbent_metrics = search_visible_metrics(event_metrics)
             if not (
                 bool(event.get("accepted")) == expected_accepted
                 and float(event.get("best_score")) == incumbent_score

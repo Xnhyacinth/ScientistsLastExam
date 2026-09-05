@@ -92,6 +92,11 @@ def write_verified_run(root: Path, *, budget: int = 10) -> None:
         candidate = "VALUE = %d\n" % step
         candidate_hash = sha256_text(candidate)
         prompt_hash = "%064x" % step
+        prompt_metrics = {
+            "combined_score": (step - 1) / 100.0,
+            "valid": 1.0,
+        }
+        prompt_metrics_rendered = json.dumps(prompt_metrics, indent=2)
         receipt = ledger.evaluate_once({
             "kind": "proposal",
             **identity,
@@ -118,6 +123,11 @@ def write_verified_run(root: Path, *, budget: int = 10) -> None:
                 "prompt_source_step": step - 1,
                 "feedback_released_through_step": step - 1,
                 "prompt_sha256": prompt_hash,
+                "prompt_metrics_sha256": sha256_text(prompt_metrics_rendered),
+                "prompt_metrics_utf8_bytes": len(
+                    prompt_metrics_rendered.encode("utf-8")
+                ),
+                "prompt_metric_keys": "combined_score,valid",
                 "completed_after_active_wall_horizon": False,
             },
         ))

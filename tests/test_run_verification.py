@@ -27,6 +27,14 @@ def _selection_policy(feedback_mode: str) -> str:
     return "online_incumbent"
 
 
+def _accepted_semantics(feedback_mode: str) -> str:
+    if feedback_mode == "selection_blind":
+        return "offline_best_update"
+    if feedback_mode == "delayed_replay":
+        return "observer_best_update_not_immediate_parent_release"
+    return "online_incumbent_update"
+
+
 class RunVerificationTests(unittest.TestCase):
     def _run(
         self,
@@ -104,11 +112,29 @@ class RunVerificationTests(unittest.TestCase):
         atomic_write_text(root / "best_program.py", program)
         return str(receipt["request_id"])
 
-    def _proposal(self, root: Path, *, score: float, accepted: bool) -> str:
+    def _proposal(
+        self,
+        root: Path,
+        *,
+        score: float,
+        accepted: bool,
+        recorded_feedback_mode: str | None = None,
+    ) -> str:
         parent = (root / "best_program.py").read_text(encoding="utf-8")
         program = "def solve():\n    return 2\n"
         candidate_hash = sha256_text(program)
         prompt_hash = "f" * 64
+        manifest = json.loads(
+            (root / "run_manifest.json").read_text(encoding="utf-8")
+        )
+        feedback_mode = manifest["feedback_mode"]
+        recorded_mode = recorded_feedback_mode or feedback_mode
+        prompt_metrics = {"combined_score": 0.25, "valid": 1.0}
+        if recorded_mode == "none":
+            prompt_metrics = {}
+        elif recorded_mode == "score_only":
+            prompt_metrics = {"combined_score": 0.25}
+        prompt_metrics_rendered = json.dumps(prompt_metrics, indent=2)
         receipt = EvaluationLedger(root).evaluate_once(
             {
                 "kind": "proposal",
@@ -117,16 +143,14 @@ class RunVerificationTests(unittest.TestCase):
                 "task_package_sha256": "b" * 64,
                 "runtime_source_sha256": "c" * 64,
                 "algorithm": "greedy_rewrite",
-                "feedback_mode": json.loads(
-                    (root / "run_manifest.json").read_text(encoding="utf-8")
-                )["feedback_mode"],
+                "feedback_mode": feedback_mode,
                 "seed": 0,
                 "proposal_budget": 1,
                 "llm_condition_sha256": "d" * 64,
                 "llm_condition": {"model": "test-model"},
-                "trusted_evaluator_runtime_sha256": json.loads(
-                    (root / "run_manifest.json").read_text(encoding="utf-8")
-                )["trusted_evaluator_runtime"]["fingerprint_sha256"],
+                "trusted_evaluator_runtime_sha256": manifest[
+                    "trusted_evaluator_runtime"
+                ]["fingerprint_sha256"],
                 "step": 1,
                 "candidate_sha256": candidate_hash,
                 "parent_sha256": sha256_text(parent),
@@ -157,12 +181,19 @@ class RunVerificationTests(unittest.TestCase):
                 metrics=receipt["metrics"],
                 algorithm_metadata={
                     "evaluation_request_id": receipt["request_id"],
-                    "selection_policy": "online_incumbent",
-                    "accepted_semantics": "online_incumbent_update",
+                    "selection_policy": _selection_policy(recorded_mode),
+                    "accepted_semantics": _accepted_semantics(recorded_mode),
                     "proposal_slot": 1,
                     "prompt_source_step": 0,
                     "feedback_released_through_step": 0,
                     "prompt_sha256": prompt_hash,
+                    "prompt_metrics_sha256": sha256_text(
+                        prompt_metrics_rendered
+                    ),
+                    "prompt_metrics_utf8_bytes": len(
+                        prompt_metrics_rendered.encode("utf-8")
+                    ),
+                    "prompt_metric_keys": ",".join(sorted(prompt_metrics)),
                     "completed_after_active_wall_horizon": False,
                 },
             ),
@@ -292,7 +323,10 @@ class RunVerificationTests(unittest.TestCase):
                 self._run(
                     root, proposal_budget=1, feedback_mode=feedback_mode
                 )
-                self._proposal(root, score=0.5, accepted=True)
+                self._proposal(
+                    root, score=0.5, accepted=True,
+                    recorded_feedback_mode="normal",
+                )
                 summary = json.loads((root / "summary.json").read_text())
                 summary["selection_policy"] = _selection_policy(feedback_mode)
                 atomic_write_text(
@@ -300,6 +334,34 @@ class RunVerificationTests(unittest.TestCase):
                 )
                 with self.assertRaisesRegex(ValueError, "feedback mode semantics"):
                     verify_run(root)
+
+    def test_verifies_prompt_metric_visibility_for_each_feedback_mode(self):
+        for feedback_mode in (
+            "normal", "none", "score_only", "shuffled",
+            "selection_blind", "delayed_replay",
+        ):
+            with self.subTest(feedback_mode=feedback_mode), \
+                 tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                self._run(
+                    root, proposal_budget=1, feedback_mode=feedback_mode
+                )
+                self._proposal(root, score=0.5, accepted=True)
+                self.assertTrue(verify_run(root)["verified"])
+
+    def test_rejects_prompt_metric_payload_mismatch(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._run(root, proposal_budget=1, feedback_mode="none")
+            self._proposal(root, score=0.5, accepted=True)
+            events = load_trajectory(root / "trajectory.jsonl")
+            events[1]["algorithm_metadata"]["prompt_metrics_sha256"] = "e" * 64
+            atomic_write_text(
+                root / "trajectory.jsonl",
+                "\n".join(json.dumps(event) for event in events) + "\n",
+            )
+            with self.assertRaisesRegex(ValueError, "feedback mode semantics"):
+                verify_run(root)
 
     def test_rejects_missing_required_manifest_hashes(self):
         for key in (
