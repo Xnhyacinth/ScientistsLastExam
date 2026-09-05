@@ -35,6 +35,7 @@ from sle.algorithms.common import task_contract_sha256  # noqa: E402
 from sle.algorithms.common import task_package_sha256  # noqa: E402
 from sle.config import load_llm_client  # noqa: E402
 from sle.certification import certification_status  # noqa: E402
+from sle.evaluate import resolve_trusted_runtime  # noqa: E402
 from sle.llm import LLMClient  # noqa: E402
 from sle.protocol import mean_confidence_interval  # noqa: E402
 from sle.protocol import compact_trajectory_snapshot  # noqa: E402
@@ -44,6 +45,8 @@ from sle.provenance import (  # noqa: E402
     source_provenance,
 )
 from sle.registry import find_task, list_tasks  # noqa: E402
+from sle.run_verification import verify_run  # noqa: E402
+from sle.runtime_identity import validate_runtime_descriptor  # noqa: E402
 
 
 def _csv(value: str) -> list[str]:
@@ -62,6 +65,20 @@ def _seeds(value: str) -> list[int]:
 
 def _run_key(task_id: str, algorithm: str, feedback_mode: str, seed: int) -> str:
     return "%s|%s|%s|%d" % (task_id, algorithm, feedback_mode, seed)
+
+
+def _trusted_runtime_records(specs: list[Any]) -> dict[str, dict[str, Any]]:
+    """Resolve each task's evaluator once without retaining executable paths."""
+
+    records = {}
+    for spec in specs:
+        runtime = resolve_trusted_runtime(spec.task_dir)
+        descriptor = validate_runtime_descriptor(runtime.descriptor)
+        records[spec.task_id] = {
+            "descriptor": descriptor,
+            "fingerprint_sha256": runtime.fingerprint_sha256,
+        }
+    return records
 
 
 def _condition_order(
@@ -167,6 +184,7 @@ def _preregistration_record(
     raw_argv: list[str] | None = None,
     specs: list[Any] | None = None,
     llm: LLMClient | None = None,
+    trusted_runtimes: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any] | None:
     """Bind and, when declared, enforce an execution preregistration.
 
@@ -216,7 +234,10 @@ def _preregistration_record(
         raise SystemExit(
             "execution preregistration must be tracked and match HEAD"
         )
-    if raw_argv is None or specs is None or llm is None:
+    if (
+        raw_argv is None or specs is None or llm is None
+        or trusted_runtimes is None
+    ):
         raise SystemExit("execution preregistration lacks runtime validation inputs")
     expected_argv = expected_command[2:]
     command_matches = raw_argv == expected_argv
@@ -261,6 +282,7 @@ def _preregistration_record(
         ] != [spec.task_id for spec in specs]:
             raise SystemExit("runtime task cohort differs from preregistration")
         for row, spec in zip(task_rows, specs):
+            runtime = trusted_runtimes[spec.task_id]
             actual = {
                 "task_contract_sha256": task_contract_sha256(spec),
                 "task_package_sha256": task_package_sha256(spec),
@@ -270,9 +292,18 @@ def _preregistration_record(
                     ).hexdigest()
                     if (spec.task_dir / "TASK_CARD.yaml").is_file() else None
                 ),
+                "trusted_evaluator_runtime": runtime["descriptor"],
+                "trusted_evaluator_runtime_sha256": runtime[
+                    "fingerprint_sha256"
+                ],
             }
             for field, value in actual.items():
                 if row.get(field) != value:
+                    if field.startswith("trusted_evaluator_runtime"):
+                        raise SystemExit(
+                            "trusted evaluator runtime differs from preregistration "
+                            "for %s" % spec.task_id
+                        )
                     raise SystemExit(
                         "%s differs from preregistration for %s"
                         % (field, spec.task_id)
@@ -318,6 +349,7 @@ def _preregistration_record(
             or current_provenance.get("source_tree_dirty") is False
         ),
         "task_count": len(specs),
+        "trusted_runtime_count": len(trusted_runtimes),
         "prerequisite_count": len(prerequisites),
         "source_cohort_matches": source_cohort is not None,
     })
@@ -458,6 +490,15 @@ def _execute_block(payload: dict[str, Any]) -> dict[str, Any]:
     seed = int(payload["seed"])
     spec = find_task(task_id, include_uncertified=True)
     algorithm = get_algorithm(algorithm_name)
+    runtime = resolve_trusted_runtime(spec.task_dir)
+    if not (
+        runtime.fingerprint_sha256
+        == payload.get("trusted_evaluator_runtime_sha256")
+        and runtime.descriptor == payload.get("trusted_evaluator_runtime")
+    ):
+        raise RuntimeError(
+            "trusted evaluator runtime changed before worker dispatch"
+        )
     # The parent hashes this exact config object before dispatch.  Do not
     # re-read a mutable git-ignored YAML file inside the worker.
     llm = LLMClient(payload["llm_config"])
@@ -556,6 +597,12 @@ def _execute_block(payload: dict[str, Any]) -> dict[str, Any]:
                 "error": "%s: %s" % (type(exc).__name__, exc),
                 "wall_seconds": time.monotonic() - started,
             }
+        entry["trusted_evaluator_runtime"] = payload[
+            "trusted_evaluator_runtime"
+        ]
+        entry["trusted_evaluator_runtime_sha256"] = payload[
+            "trusted_evaluator_runtime_sha256"
+        ]
         entry["execution_block_index"] = int(payload["block_index"])
         entry["within_block_position"] = position
         entries.append(entry)
@@ -585,7 +632,80 @@ def _latest_runs(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [latest[key] for key in sorted(latest)]
 
 
+def _verified_completed_keys(
+    runs: list[dict[str, Any]],
+    trusted_runtimes: dict[str, dict[str, Any]],
+    *,
+    expected_budget: int,
+) -> set[str]:
+    """Return only report cells whose underlying run verifies at this runtime."""
+
+    completed = set()
+    for run in _latest_runs(runs):
+        if run.get("error"):
+            continue
+        task_id = str(run.get("task") or "")
+        frozen = trusted_runtimes.get(task_id)
+        workdir = run.get("workdir")
+        if not frozen or not isinstance(workdir, str) or not workdir:
+            raise SystemExit("completed cell is unverifiable")
+        if not (
+            run.get("trusted_evaluator_runtime") == frozen["descriptor"]
+            and run.get("trusted_evaluator_runtime_sha256")
+            == frozen["fingerprint_sha256"]
+        ):
+            raise SystemExit("completed cell trusted evaluator runtime differs")
+        try:
+            verified = verify_run(
+                Path(workdir),
+                expected_budget=expected_budget,
+                expected_trusted_runtime_sha256=frozen["fingerprint_sha256"],
+            )
+        except (OSError, ValueError) as exc:
+            raise SystemExit("completed cell is unverifiable") from exc
+        if verified.get("trusted_evaluator_runtime_sha256") != frozen[
+            "fingerprint_sha256"
+        ]:
+            raise SystemExit("completed cell trusted evaluator runtime differs")
+        completed.add(_run_key(
+            task_id,
+            str(run["algorithm"]),
+            str(run["feedback_mode"]),
+            int(run["seed"]),
+        ))
+    return completed
+
+
 def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
+    runtime_by_task: dict[str, str] = {}
+    for run in runs:
+        task_id = str(run["task"])
+        fingerprint = run.get("trusted_evaluator_runtime_sha256")
+        if not (
+            isinstance(fingerprint, str)
+            and len(fingerprint) == 64
+            and all(char in "0123456789abcdef" for char in fingerprint)
+        ):
+            raise ValueError(
+                "run lacks trusted evaluator runtime identity for %s" % task_id
+            )
+        try:
+            descriptor = validate_runtime_descriptor(
+                run.get("trusted_evaluator_runtime")
+            )
+        except ValueError as exc:
+            raise ValueError(
+                "run lacks trusted evaluator runtime descriptor for %s" % task_id
+            ) from exc
+        if descriptor["fingerprint_sha256"] != fingerprint:
+            raise ValueError(
+                "run trusted evaluator runtime descriptor differs for %s" % task_id
+            )
+        previous = runtime_by_task.setdefault(task_id, fingerprint)
+        if previous != fingerprint:
+            raise ValueError(
+                "mixed trusted evaluator runtimes for %s" % task_id
+            )
     fields = {
         "best_score": lambda run: run["best"],
         "best_so_far_auc": lambda run: run["summary"]["best_so_far_auc"],
@@ -668,6 +788,9 @@ def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
         for name, getter in fields.items()
     } if successful else {}
     return {
+        "trusted_evaluator_runtime_sha256_by_task": dict(
+            sorted(runtime_by_task.items())
+        ),
         "attempt_count": len(runs),
         "superseded_attempts": len(runs) - len(current),
         "failed_attempts": failed_attempts,
@@ -835,6 +958,9 @@ def main(argv: list[str] | None = None) -> int:
         specs = list_tasks(None if args.all else "certified")
     if not specs:
         raise SystemExit("no tasks selected")
+    # Freeze task-specific evaluator identities before constructing any worker
+    # or permitting any provider call. Executable paths remain private.
+    trusted_runtimes = _trusted_runtime_records(specs)
     cohort_manifest = _cohort_manifest_record(
         args.cohort_manifest, specs, include_uncertified=include_uncertified
     )
@@ -869,11 +995,13 @@ def main(argv: list[str] | None = None) -> int:
             {"replicate_identifier": seed, "feedback_modes": order}
             for seed, order in zip(args.seeds, condition_schedule)
         ],
+        "trusted_evaluator_runtimes": trusted_runtimes,
         "preregistration": _preregistration_record(
             args.preregistration,
             raw_argv=raw_argv,
             specs=specs,
             llm=llm,
+            trusted_runtimes=trusted_runtimes,
         ),
         "cohort_manifest": cohort_manifest,
         "run_role": args.run_role,
@@ -976,14 +1104,12 @@ def main(argv: list[str] | None = None) -> int:
                 "Protocol/calibration run: validates configured artifacts and accounting; "
                 "do not treat it as population model performance."
             )
-    done = {
-        _run_key(run["task"], run["algorithm"], run["feedback_mode"], int(run["seed"]))
-        for run in _latest_runs(document.get("runs", []))
-        # A protocol-incomplete terminal attempt is a retained outcome, not a
-        # retryable infrastructure failure. Its config cannot be changed under
-        # --resume, so rerunning it would only duplicate the same stopped cell.
-        if not run.get("error")
-    }
+    # A report row is an index, never completion evidence on its own. Rebuild
+    # every terminal run before allowing --resume to skip a cell.
+    done = _verified_completed_keys(
+        document.get("runs", []), trusted_runtimes,
+        expected_budget=args.budget,
+    )
     total = len(specs) * len(algorithms) * len(feedback_modes) * len(args.seeds)
     blocks = _execution_blocks(
         [spec.task_id for spec in specs], algorithms, args.seeds,
@@ -1002,6 +1128,12 @@ def main(argv: list[str] | None = None) -> int:
             "signed_decision_policy": args.signed_decision_policy,
             "resume": args.resume,
             "skip_keys": sorted(done),
+            "trusted_evaluator_runtime": trusted_runtimes[block["task"]][
+                "descriptor"
+            ],
+            "trusted_evaluator_runtime_sha256": trusted_runtimes[
+                block["task"]
+            ]["fingerprint_sha256"],
         }
         for block in blocks
         if any(
@@ -1022,7 +1154,11 @@ def main(argv: list[str] | None = None) -> int:
     def retain_block(result: dict[str, Any]) -> None:
         for line in result.get("logs") or []:
             print("  " + line, flush=True)
-        document.setdefault("runs", []).extend(result.get("entries") or [])
+        entries = result.get("entries") or []
+        _verified_completed_keys(
+            entries, trusted_runtimes, expected_budget=args.budget
+        )
+        document.setdefault("runs", []).extend(entries)
         document["aggregate"] = aggregate_runs(document["runs"])
         atomic_write_text(
             output, json.dumps(document, indent=2, allow_nan=False) + "\n"

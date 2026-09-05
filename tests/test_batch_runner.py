@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from sle.llm import LLMConfig
+from sle.runtime_identity import current_runtime_descriptor
 from _sandbox_tools import skip_unless_sandbox  # noqa: E402
 
 
@@ -28,6 +29,15 @@ def _current_cohort_manifest() -> Path:
 
 
 class BatchAggregationTests(unittest.TestCase):
+    RUNTIME_DESCRIPTOR = current_runtime_descriptor(())
+    RUNTIME_SHA256 = RUNTIME_DESCRIPTOR["fingerprint_sha256"]
+
+    def runtime_fields(self):
+        return {
+            "trusted_evaluator_runtime": self.RUNTIME_DESCRIPTOR,
+            "trusted_evaluator_runtime_sha256": self.RUNTIME_SHA256,
+        }
+
     class Config:
         wire = "chat"; base_url = "https://example.invalid/v1"; model = "fixture"
         max_output_tokens = 10; temperature = 0; reasoning_effort = None
@@ -39,6 +49,7 @@ class BatchAggregationTests(unittest.TestCase):
             return {
                 "task": "T/X", "algorithm": "greedy_rewrite", "feedback_mode": "normal",
                 "seed": seed, "best": best,
+                **self.runtime_fields(),
                 "summary": {"best_so_far_auc": auc, "budget_units": 4,
                             "oracle_calls": 3 + seed, "wall_seconds": 2 + seed,
                             "llm": {"total_tokens": 10 + seed, "estimated_cost_usd": 0.1}},
@@ -51,6 +62,39 @@ class BatchAggregationTests(unittest.TestCase):
         self.assertEqual(condition["budget_units"]["mean"], 4)
         self.assertAlmostEqual(condition["oracle_calls"]["mean"], 3.5)
         self.assertIn("estimated_cost_usd", condition)
+
+    def test_aggregation_rejects_mixed_trusted_runtimes_for_one_task(self):
+        first = current_runtime_descriptor(())
+        second = current_runtime_descriptor(("missing-runtime-fixture",))
+
+        def run(seed: int, descriptor: dict):
+            return {
+                "task": "T/X", "algorithm": "greedy_rewrite",
+                "feedback_mode": "normal", "seed": seed, "best": 0.2,
+                "trusted_evaluator_runtime": descriptor,
+                "trusted_evaluator_runtime_sha256": descriptor[
+                    "fingerprint_sha256"
+                ],
+                "summary": {
+                    "best_so_far_auc": 0.1, "budget_units": 1,
+                    "oracle_calls": 1, "wall_seconds": 1,
+                    "llm": {"total_tokens": 0, "estimated_cost_usd": None},
+                },
+            }
+
+        with self.assertRaisesRegex(ValueError, "mixed trusted evaluator runtimes"):
+            MODULE.aggregate_runs([
+                run(0, first),
+                run(1, second),
+            ])
+
+    def test_aggregation_rejects_runs_without_trusted_runtime_identity(self):
+        run = {
+            "task": "T/X", "algorithm": "greedy_rewrite",
+            "feedback_mode": "normal", "seed": 0, "error": "offline",
+        }
+        with self.assertRaisesRegex(ValueError, "lacks trusted evaluator runtime"):
+            MODULE.aggregate_runs([run])
 
     def test_feedback_condition_order_is_counterbalanced_by_seed(self):
         modes = ["normal", "selection_blind"]
@@ -162,6 +206,104 @@ class BatchAggregationTests(unittest.TestCase):
             )
             self.assertEqual(set(block["feedback_modes"]), set(modes))
 
+    def test_worker_rejects_runtime_change_before_constructing_llm_client(self):
+        frozen = {"schema_version": 1, "fingerprint_sha256": "1" * 64}
+        current = type("Runtime", (), {
+            "descriptor": {"schema_version": 1, "fingerprint_sha256": "2" * 64},
+            "fingerprint_sha256": "2" * 64,
+        })()
+        payload = {
+            "block_index": 1,
+            "task": "Chemistry/LennardJonesCluster",
+            "algorithm": "greedy_rewrite",
+            "seed": 0,
+            "feedback_modes": ["normal"],
+            "llm_config": self.Config(),
+            "work_root": "/does/not/matter",
+            "budget": 1,
+            "timeout_s": 1.0,
+            "resume": False,
+            "skip_keys": [],
+            "trusted_evaluator_runtime": frozen,
+            "trusted_evaluator_runtime_sha256": "1" * 64,
+        }
+        with patch.object(
+            MODULE, "resolve_trusted_runtime", return_value=current,
+        ), patch.object(MODULE, "LLMClient") as llm_client:
+            with self.assertRaisesRegex(RuntimeError, "changed before worker dispatch"):
+                MODULE._execute_block(payload)
+        llm_client.assert_not_called()
+
+    def test_task_runtime_records_are_path_free_and_resolved_once(self):
+        specs = [
+            MODULE.find_task("Chemistry/LennardJonesCluster", include_uncertified=True),
+            MODULE.find_task("Optics/DiffractionGratingDesign", include_uncertified=True),
+        ]
+        descriptor = current_runtime_descriptor(())
+        runtime = type("Runtime", (), {
+            "descriptor": descriptor,
+            "fingerprint_sha256": descriptor["fingerprint_sha256"],
+            "executable": "/private/oracle/python",
+        })()
+        with patch.object(
+            MODULE, "resolve_trusted_runtime", return_value=runtime,
+        ) as resolve:
+            records = MODULE._trusted_runtime_records(specs)
+        self.assertEqual(resolve.call_count, 2)
+        self.assertNotIn("/private/oracle/python", json.dumps(records))
+        self.assertEqual(
+            set(records), {"Chemistry/LennardJonesCluster", "Optics/DiffractionGratingDesign"}
+        )
+
+    def test_completed_report_entry_requires_verified_underlying_run(self):
+        descriptor = current_runtime_descriptor(())
+        runtimes = {"T/X": {
+            "descriptor": descriptor,
+            "fingerprint_sha256": descriptor["fingerprint_sha256"],
+        }}
+        entry = {
+            "task": "T/X", "algorithm": "greedy_rewrite",
+            "feedback_mode": "normal", "seed": 0,
+            "workdir": "/missing/run",
+            "trusted_evaluator_runtime": descriptor,
+            "trusted_evaluator_runtime_sha256": descriptor["fingerprint_sha256"],
+        }
+        with patch.object(
+            MODULE, "verify_run", side_effect=ValueError("missing ledger"),
+        ) as verify:
+            with self.assertRaisesRegex(SystemExit, "completed cell is unverifiable"):
+                MODULE._verified_completed_keys([entry], runtimes, expected_budget=3)
+        verify.assert_called_once_with(
+            Path("/missing/run"), expected_budget=3,
+            expected_trusted_runtime_sha256=descriptor["fingerprint_sha256"],
+        )
+
+    def test_parent_freezes_task_runtimes_before_loading_model_client(self):
+        order = []
+        descriptor = current_runtime_descriptor(())
+
+        def freeze(specs):
+            order.append("runtime")
+            return {spec.task_id: {
+                "descriptor": descriptor,
+                "fingerprint_sha256": descriptor["fingerprint_sha256"],
+            } for spec in specs}
+
+        def load(_path):
+            order.append("llm")
+            raise RuntimeError("stop after ordering check")
+
+        with tempfile.TemporaryDirectory() as tmp, patch.object(
+            MODULE, "_trusted_runtime_records", side_effect=freeze,
+        ), patch.object(MODULE, "load_llm_client", side_effect=load):
+            with self.assertRaisesRegex(RuntimeError, "ordering check"):
+                MODULE.main([
+                    "--tasks", "LennardJonesCluster", "--budget", "0",
+                    "--output", str(Path(tmp) / "report.json"),
+                    "--workdir", str(Path(tmp) / "runs"),
+                ])
+        self.assertEqual(order, ["runtime", "llm"])
+
     @skip_unless_sandbox("bwrap")  # runs the baseline through the real harness
     def test_block_resume_retries_started_cell_then_runs_unstarted_cells(self):
         task = "Chemistry/LennardJonesCluster"
@@ -169,6 +311,8 @@ class BatchAggregationTests(unittest.TestCase):
         source = MODULE.find_task(
             task, include_uncertified=True
         ).initial_program_path.read_text(encoding="utf-8")
+        task_spec = MODULE.find_task(task, include_uncertified=True)
+        runtime = MODULE.resolve_trusted_runtime(task_spec.task_dir)
         fenced = "```python\n%s\n```" % source
         config = LLMConfig(
             wire="chat", base_url="https://example.invalid/v1",
@@ -189,6 +333,8 @@ class BatchAggregationTests(unittest.TestCase):
                 "timeout_s": 20.0,
                 "resume": False,
                 "skip_keys": [],
+                "trusted_evaluator_runtime": runtime.descriptor,
+                "trusted_evaluator_runtime_sha256": runtime.fingerprint_sha256,
             }
             failing = type("Failing", (), {
                 "config": config,
@@ -231,10 +377,12 @@ class BatchAggregationTests(unittest.TestCase):
 
     def test_aggregation_uses_latest_attempt_without_dropping_history(self):
         failed = {"task": "T/X", "algorithm": "greedy_rewrite",
-                  "feedback_mode": "normal", "seed": 0, "error": "offline"}
+                  "feedback_mode": "normal", "seed": 0, "error": "offline",
+                  **self.runtime_fields()}
         successful = {
             "task": "T/X", "algorithm": "greedy_rewrite", "feedback_mode": "normal",
             "seed": 0, "best": 0.3,
+            **self.runtime_fields(),
             "summary": {"best_so_far_auc": 0.2, "budget_units": 2, "oracle_calls": 2,
                         "wall_seconds": 1, "llm": {"total_tokens": None,
                                                    "estimated_cost_usd": None}},
@@ -263,7 +411,8 @@ class BatchAggregationTests(unittest.TestCase):
 
     def test_failed_condition_stays_visible_without_valid_quality_rows(self):
         failed = {"task": "T/X", "algorithm": "greedy_rewrite",
-                  "feedback_mode": "normal", "seed": 0, "error": "offline"}
+                  "feedback_mode": "normal", "seed": 0, "error": "offline",
+                  **self.runtime_fields()}
         got = MODULE.aggregate_runs([failed])
         condition = got["by_condition"]["T/X|greedy_rewrite|normal"]
         self.assertEqual(condition["n"], 0)
@@ -282,6 +431,7 @@ class BatchAggregationTests(unittest.TestCase):
             "feedback_mode": "normal",
             "seed": 0,
             "best": 0.8,
+            **self.runtime_fields(),
             "protocol_incomplete": (
                 "proposal_budget_exhausted_before_active_wall_horizon"
             ),
@@ -334,6 +484,22 @@ class BatchAggregationTests(unittest.TestCase):
             self.assertEqual(snapshot["events"][0]["schema_version"], 2)
             self.assertIn("wall_seconds", snapshot["events"][0])
             self.assertIn("cumulative_wall_seconds", snapshot["events"][0])
+            task_id = "Chemistry/LennardJonesCluster"
+            runtime = report["config"]["trusted_evaluator_runtimes"][task_id]
+            self.assertEqual(
+                report["runs"][0]["trusted_evaluator_runtime"],
+                runtime["descriptor"],
+            )
+            self.assertEqual(
+                report["runs"][0]["trusted_evaluator_runtime_sha256"],
+                runtime["fingerprint_sha256"],
+            )
+            self.assertEqual(
+                report["aggregate"][
+                    "trusted_evaluator_runtime_sha256_by_task"
+                ],
+                {task_id: runtime["fingerprint_sha256"]},
+            )
 
     def test_nonzero_protocol_smoke_cannot_be_labelled_model_performance(self):
         client = type("Client", (), {"config": self.Config()})()
@@ -397,6 +563,11 @@ class BatchAggregationTests(unittest.TestCase):
     def test_execution_preregistration_enforces_command_model_and_task_package(self):
         spec = MODULE.find_task("LennardJonesCluster", include_uncertified=True)
         client = type("Client", (), {"config": self.Config()})()
+        descriptor = current_runtime_descriptor(())
+        runtimes = {spec.task_id: {
+            "descriptor": descriptor,
+            "fingerprint_sha256": descriptor["fingerprint_sha256"],
+        }}
         with tempfile.TemporaryDirectory() as tmp, patch.object(
             MODULE, "_execution_preregistration_is_committed", return_value=True
         ):
@@ -424,6 +595,10 @@ class BatchAggregationTests(unittest.TestCase):
                         "task_card_sha256": MODULE.hashlib.sha256(
                             (spec.task_dir / "TASK_CARD.yaml").read_bytes()
                         ).hexdigest(),
+                        "trusted_evaluator_runtime": descriptor,
+                        "trusted_evaluator_runtime_sha256": descriptor[
+                            "fingerprint_sha256"
+                        ],
                     }],
                 },
                 "prerequisites": [],
@@ -434,6 +609,7 @@ class BatchAggregationTests(unittest.TestCase):
                 raw_argv=["--tasks", "LennardJonesCluster"],
                 specs=[spec],
                 llm=client,
+                trusted_runtimes=runtimes,
             )
             self.assertTrue(record["execution_contract_validated"])
             self.assertTrue(record["command_contract_matches"])
@@ -442,6 +618,7 @@ class BatchAggregationTests(unittest.TestCase):
                 raw_argv=["--tasks", "LennardJonesCluster", "--resume"],
                 specs=[spec],
                 llm=client,
+                trusted_runtimes=runtimes,
             )
             self.assertEqual(record, resumed)
 
@@ -451,6 +628,7 @@ class BatchAggregationTests(unittest.TestCase):
                     raw_argv=["--tasks", "LennardJonesCluster", "--budget", "1"],
                     specs=[spec],
                     llm=client,
+                    trusted_runtimes=runtimes,
                 )
 
             document["source_cohort"]["sha256"] = "0" * 64
@@ -461,6 +639,7 @@ class BatchAggregationTests(unittest.TestCase):
                     raw_argv=["--tasks", "LennardJonesCluster"],
                     specs=[spec],
                     llm=client,
+                    trusted_runtimes=runtimes,
                 )
             document["source_cohort"]["sha256"] = MODULE.hashlib.sha256(
                 cohort.read_bytes()
@@ -473,6 +652,25 @@ class BatchAggregationTests(unittest.TestCase):
                     raw_argv=["--tasks", "LennardJonesCluster"],
                     specs=[spec],
                     llm=client,
+                    trusted_runtimes=runtimes,
+                )
+
+            document["design"]["tasks"][0]["task_package_sha256"] = (
+                MODULE.task_package_sha256(spec)
+            )
+            document["design"]["tasks"][0][
+                "trusted_evaluator_runtime_sha256"
+            ] = "0" * 64
+            path.write_text(json.dumps(document), encoding="utf-8")
+            with self.assertRaisesRegex(
+                SystemExit, "trusted evaluator runtime differs"
+            ):
+                MODULE._preregistration_record(
+                    path,
+                    raw_argv=["--tasks", "LennardJonesCluster"],
+                    specs=[spec],
+                    llm=client,
+                    trusted_runtimes=runtimes,
                 )
 
     def test_execution_preregistration_rejects_uncommitted_file(self):
