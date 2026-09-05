@@ -91,20 +91,27 @@ class SecureEvaluationTests(unittest.TestCase):
 
     def test_private_proc_probe_has_well_formed_bind_arguments(self):
         completed = type("Completed", (), {"returncode": 0})()
+        library_args = (
+            "--dir", "/lib64",
+            "--ro-bind", "/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2",
+            "/lib64/ld-linux-x86-64.so.2",
+        )
         _proc_mount_args.cache_clear()
         try:
             with patch("sle.secure_eval.shutil.which", return_value="/usr/bin/bwrap"), \
-                    patch("sle.secure_eval.Path.exists", return_value=True), \
+                    patch(
+                        "sle.secure_eval._elf_dependency_mount_args",
+                        return_value=library_args,
+                    ), \
                     patch("sle.secure_eval.subprocess.run", return_value=completed) as run:
                 self.assertEqual(_proc_mount_args(), ("--proc", "/proc"))
             self.assertEqual(
                 run.call_args.args[0],
                 [
                     "/usr/bin/bwrap", "--unshare-all", "--die-with-parent",
+                    *library_args,
                     "--dir", "/runtime", "--dir", "/runtime/bin",
                     "--ro-bind", "/usr/bin/true", "/runtime/bin/true",
-                    "--ro-bind", "/lib", "/lib",
-                    "--ro-bind", "/lib64", "/lib64",
                     "--proc", "/proc", "--dev", "/dev", "--", "/runtime/bin/true",
                 ],
             )
@@ -143,6 +150,27 @@ class SecureEvaluationTests(unittest.TestCase):
         self.assertEqual(result["combined_score"], 0.0, result)
         self.assertEqual(result["valid"], 1.0, result)
 
+    def test_ensurepip_bundled_wheel_cannot_be_injected(self):
+        with patch.dict(os.environ, {"FRONTIER_SCIENCE_TRUSTED_PYTHON": sys.executable}):
+            result = self.evaluate_source("""
+                def design_cavity(n):
+                    import glob
+                    import sys
+
+                    wheels = glob.glob(
+                        "/runtime/lib/python%d.%d/ensurepip/_bundled/pip-*.whl"
+                        % sys.version_info[:2]
+                    )
+                    if wheels:
+                        sys.path.insert(0, wheels[0])
+                        import pip
+                        raise RuntimeError("bundled pip wheel is visible: " + pip.__file__)
+                    return [0.0] * n
+            """)
+        self.assertNotIn("infrastructure_failure", result, result)
+        self.assertEqual(result["combined_score"], 0.0, result)
+        self.assertEqual(result["valid"], 1.0, result)
+
     def test_system_site_packages_cannot_be_injected(self):
         result = self.evaluate_source("""
             def design_cavity(n):
@@ -155,6 +183,20 @@ class SecureEvaluationTests(unittest.TestCase):
                 ):
                     if os.path.isdir(package_root) and os.listdir(package_root):
                         raise RuntimeError("system package root is readable: " + package_root)
+                return [0.0] * n
+        """)
+        self.assertNotIn("infrastructure_failure", result, result)
+        self.assertEqual(result["combined_score"], 0.0, result)
+        self.assertEqual(result["valid"], 1.0, result)
+
+    def test_non_library_usr_merge_trees_are_not_visible(self):
+        result = self.evaluate_source("""
+            def design_cavity(n):
+                import os
+
+                for host_tree in ("/lib/git-core", "/lib/node_modules", "/lib/python3"):
+                    if os.path.isdir(host_tree) and os.listdir(host_tree):
+                        raise RuntimeError("non-library host tree is readable: " + host_tree)
                 return [0.0] * n
         """)
         self.assertNotIn("infrastructure_failure", result, result)
