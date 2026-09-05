@@ -19,6 +19,14 @@ from sle.run_verification import verify_run
 from sle.runtime_identity import current_runtime_descriptor
 
 
+def _selection_policy(feedback_mode: str) -> str:
+    if feedback_mode == "selection_blind":
+        return "offline_best_of_open_loop_batch"
+    if feedback_mode == "delayed_replay":
+        return "delayed_online_parent_offline_final_best"
+    return "online_incumbent"
+
+
 class RunVerificationTests(unittest.TestCase):
     def _run(
         self,
@@ -27,6 +35,7 @@ class RunVerificationTests(unittest.TestCase):
         frontier: dict[str, str] | None = None,
         extra_request_frontier: dict[str, str] | None = None,
         proposal_budget: int = 0,
+        feedback_mode: str = "normal",
     ) -> str:
         program = "def solve():\n    return 1\n"
         candidate_hash = sha256_text(program)
@@ -39,7 +48,7 @@ class RunVerificationTests(unittest.TestCase):
             "runtime_source_sha256": "c" * 64,
             "trusted_evaluator_runtime": current_runtime_descriptor(()),
             "seed": 0,
-            "feedback_mode": "normal",
+            "feedback_mode": feedback_mode,
             "llm_condition_sha256": "d" * 64,
             "llm_condition": {"model": "test-model"},
             **(frontier or {}),
@@ -85,7 +94,8 @@ class RunVerificationTests(unittest.TestCase):
             "algorithm": "greedy_rewrite",
             "task_id": manifest["task_id"],
             "seed": 0,
-            "feedback_mode": "normal",
+            "feedback_mode": feedback_mode,
+            "selection_policy": _selection_policy(feedback_mode),
             "budget": 0,
             "baseline_score": 0.25,
             "evaluation_ledger_snapshot": EvaluationLedger(root).snapshot(),
@@ -107,7 +117,9 @@ class RunVerificationTests(unittest.TestCase):
                 "task_package_sha256": "b" * 64,
                 "runtime_source_sha256": "c" * 64,
                 "algorithm": "greedy_rewrite",
-                "feedback_mode": "normal",
+                "feedback_mode": json.loads(
+                    (root / "run_manifest.json").read_text(encoding="utf-8")
+                )["feedback_mode"],
                 "seed": 0,
                 "proposal_budget": 1,
                 "llm_condition_sha256": "d" * 64,
@@ -145,6 +157,11 @@ class RunVerificationTests(unittest.TestCase):
                 metrics=receipt["metrics"],
                 algorithm_metadata={
                     "evaluation_request_id": receipt["request_id"],
+                    "selection_policy": "online_incumbent",
+                    "accepted_semantics": "online_incumbent_update",
+                    "proposal_slot": 1,
+                    "prompt_source_step": 0,
+                    "feedback_released_through_step": 0,
                     "prompt_sha256": prompt_hash,
                     "completed_after_active_wall_horizon": False,
                 },
@@ -266,6 +283,23 @@ class RunVerificationTests(unittest.TestCase):
                 ValueError, "request content binding|proposal_budget"
             ):
                 verify_run(root)
+
+    def test_blind_and_delayed_modes_reject_online_feedback_metadata(self):
+        for feedback_mode in ("selection_blind", "delayed_replay"):
+            with self.subTest(feedback_mode=feedback_mode), \
+                 tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                self._run(
+                    root, proposal_budget=1, feedback_mode=feedback_mode
+                )
+                self._proposal(root, score=0.5, accepted=True)
+                summary = json.loads((root / "summary.json").read_text())
+                summary["selection_policy"] = _selection_policy(feedback_mode)
+                atomic_write_text(
+                    root / "summary.json", json.dumps(summary) + "\n"
+                )
+                with self.assertRaisesRegex(ValueError, "feedback mode semantics"):
+                    verify_run(root)
 
     def test_rejects_missing_required_manifest_hashes(self):
         for key in (

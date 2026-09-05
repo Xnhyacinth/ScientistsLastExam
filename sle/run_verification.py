@@ -30,6 +30,17 @@ GREEDY_FEEDBACK_MODES = {
     "selection_blind",
 }
 
+_MODE_POLICIES = {
+    "selection_blind": (
+        "offline_best_of_open_loop_batch",
+        "offline_best_update",
+    ),
+    "delayed_replay": (
+        "delayed_online_parent_offline_final_best",
+        "observer_best_update_not_immediate_parent_release",
+    ),
+}
+
 
 IDENTITY_FIELDS = (
     "task_id",
@@ -195,16 +206,57 @@ def _verify_run_unlocked(
         verified_receipts = {}
         expected_oracle_calls = 0
         incumbent_hash = None
+        incumbent_step = None
         incumbent_score = INVALID_SCORE
+        candidate_history: list[dict[str, Any]] = []
         horizon = (manifest.get("protocol") or {}).get("active_wall_horizon_s")
         baseline_receipt_score = None
         for event in events:
+            step = int(event["step"])
             trajectory_metrics = event.get("metrics") or {}
             if "trusted_evaluator_runtime_sha256" in trajectory_metrics:
                 raise ValueError(
                     "science metrics contain internal trusted runtime fingerprint"
                 )
             metadata = event.get("algorithm_metadata") or {}
+            if step > 0:
+                expected_policy, expected_accepted_semantics = _MODE_POLICIES.get(
+                    identity["feedback_mode"],
+                    ("online_incumbent", "online_incumbent_update"),
+                )
+                if identity["feedback_mode"] == "selection_blind":
+                    expected_source = candidate_history[0]
+                    expected_released_step = 0
+                elif identity["feedback_mode"] == "delayed_replay":
+                    expected_released_step = max(0, step - 2)
+                    eligible = [
+                        row for row in candidate_history
+                        if row["step"] <= expected_released_step and row["valid"]
+                    ]
+                    expected_source = max(
+                        eligible, key=lambda row: (row["score"], -row["step"])
+                    )
+                else:
+                    expected_released_step = step - 1
+                    expected_source = {
+                        "candidate_sha256": incumbent_hash,
+                        "step": incumbent_step,
+                    }
+                if not (
+                    event.get("parent_sha256")
+                    == expected_source["candidate_sha256"]
+                    and metadata.get("selection_policy") == expected_policy
+                    and metadata.get("accepted_semantics")
+                    == expected_accepted_semantics
+                    and metadata.get("proposal_slot") == step
+                    and metadata.get("prompt_source_step")
+                    == expected_source["step"]
+                    and metadata.get("feedback_released_through_step")
+                    == expected_released_step
+                ):
+                    raise ValueError(
+                        "trajectory feedback mode semantics differ from manifest"
+                    )
             request_id = metadata.get("evaluation_request_id")
             if not event.get("candidate_sha256"):
                 if request_id is not None:
@@ -244,7 +296,7 @@ def _verify_run_unlocked(
                     raise ValueError(
                         "evaluation receipt frontier binding differs from manifest"
                     )
-                expected_kind = "baseline" if int(event["step"]) == 0 else "proposal"
+                expected_kind = "baseline" if step == 0 else "proposal"
                 event_metrics = receipt.get("metrics") or {}
                 if "trusted_evaluator_runtime_sha256" in event_metrics:
                     raise ValueError(
@@ -261,11 +313,11 @@ def _verify_run_unlocked(
                     expected_score, expected_valid = INVALID_SCORE, False
                 if not (
                     request.get("kind") == expected_kind
-                    and request.get("step") == int(event["step"])
+                    and request.get("step") == step
                     and request.get("candidate_sha256") == event["candidate_sha256"]
                     and request.get("parent_sha256") == event.get("parent_sha256")
                     and (
-                        int(event["step"]) == 0
+                        step == 0
                         or request.get("prompt_sha256") == metadata.get("prompt_sha256")
                     )
                     and event_metrics == (event.get("metrics") or {})
@@ -273,16 +325,24 @@ def _verify_run_unlocked(
                     raise ValueError("evaluation receipt differs from trajectory event")
             if not (
                 int(event.get("oracle_calls", -1)) == expected_oracle_calls
-                and int(event.get("budget_units", -1)) == int(event["step"]) + 1
+                and int(event.get("budget_units", -1)) == step + 1
                 and float(event.get("score")) == expected_score
                 and bool(event.get("valid")) == expected_valid
             ):
                 raise ValueError("trajectory accounting differs from evaluation receipts")
-            if int(event["step"]) == 0:
+            if event.get("candidate_sha256"):
+                candidate_history.append({
+                    "step": step,
+                    "candidate_sha256": str(event["candidate_sha256"]),
+                    "score": expected_score,
+                    "valid": expected_valid,
+                })
+            if step == 0:
                 if not expected_valid:
                     raise ValueError("completed run has an invalid baseline receipt")
                 expected_accepted = True
                 incumbent_hash = str(event["candidate_sha256"])
+                incumbent_step = 0
                 incumbent_score = expected_score
                 baseline_receipt_score = expected_score
             else:
@@ -299,6 +359,7 @@ def _verify_run_unlocked(
                 )
                 if expected_accepted:
                     incumbent_hash = str(event["candidate_sha256"])
+                    incumbent_step = step
                     incumbent_score = expected_score
             if not (
                 bool(event.get("accepted")) == expected_accepted
@@ -317,6 +378,11 @@ def _verify_run_unlocked(
             raise ValueError("evaluation ledger snapshot differs from summary")
         if float(summary.get("baseline_score")) != baseline_receipt_score:
             raise ValueError("summary baseline score differs from baseline receipt")
+        expected_summary_policy = _MODE_POLICIES.get(
+            identity["feedback_mode"], ("online_incumbent", None)
+        )[0]
+        if summary.get("selection_policy") != expected_summary_policy:
+            raise ValueError("run summary feedback mode semantics differ from manifest")
     else:
         verified_request_ids = []
         verified_receipts = {}

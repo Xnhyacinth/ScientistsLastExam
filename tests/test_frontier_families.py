@@ -399,6 +399,7 @@ cells:
             summary.update({
                 "algorithm": "greedy_rewrite", "task_id": spec.task_id,
                 "seed": 0, "feedback_mode": "normal", "budget": 0,
+                "selection_policy": "online_incumbent",
                 "baseline_score": 0.0,
                 "evaluation_ledger_snapshot": EvaluationLedger(run).snapshot(),
             })
