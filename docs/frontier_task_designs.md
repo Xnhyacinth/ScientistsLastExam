@@ -158,34 +158,45 @@ the explicit system boundary instead of treating a programme page or standard as
 The exact verifier was sound, but the task geometry was not suitable for a hard iterative-search
 benchmark. In a pre-admission HY3 protocol smoke, `normal` and `selection_blind` each reproduced
 the same public Gibbs sextuple on their first proposal and scored `1.0`. The result is diagnostic,
-not population-performance evidence, but it is sufficient to reject this wave: evaluator feedback
-was neither available nor needed before the public reference was reached.
+not population-performance evidence. That one-step saturation, the public witness, the absence of
+graded credit between sizes six and seven, and the unresolved existence of a septuple jointly
+reject this wave: evaluator feedback was neither available nor needed before the public reference
+was reached.
 
 Small scoring edits do not repair the problem. Hiding the sextuple would make difficulty depend on
 training-data obscurity. Moving the zero point to size six would leave no graded signal between a
-known sextuple and a still-open, possibly nonexistent septuple. Counting distinct sextuples would
-let a known infinite parametric family mint nominal discoveries without new mathematical content.
+known sextuple and a still-open, possibly nonexistent septuple. Counting distinct sextuples could
+reward repeated instances of a known infinite parametric family unless family-level equivalence is
+canonicalized ([Dujella et al. 2015](https://arxiv.org/abs/1507.00569)), without establishing new
+mathematical content.
 The runnable package was therefore removed from the candidate inventory rather than relabelled as
 hard. Its exact witness checker remains a useful design lesson, not a positive task candidate.
 
 A possible successor is `Mathematics/RationalDiophantineExtensionSearch`. Each immutable cell
 would freeze a public rational Diophantine quadruple and reward distinct, exactly verified
-extensions, with canonical identity bound to the panel, quadruple and reduced extension. Coverage
-across independently selected quadruples and a separately reported height/complexity cost provide
-a graded frontier; permutations, equivalent fractions and repeat witnesses receive no credit.
+extensions. The stable scientific `canonical_id` hashes only the canonical quadruple and reduced
+extension, so the same fact cannot earn lifetime credit again in a later panel or wave. Panel,
+wave, task and runtime hashes belong in the semantic contract and evaluation receipt. Coverage
+across independently selected quadruples and a separately reported height/complexity diagnostic
+provide a graded frontier; permutations, equivalent fractions and repeat witnesses receive no
+credit. Height is not folded into discovery credit unless a number-theory review establishes a
+scientific reason to do so.
 The cell selection must be frozen before model evaluation and independently reviewed by a number
 theorist. It must also distinguish reconstruction of published extensions from a genuinely new
 witness. This direction follows the connection between quadruple extension and rational points on
-genus-five curves ([Stoll 2017](https://arxiv.org/abs/1711.00500)) and the published extension
-catalogue maintained by [Dujella](https://web.math.pmf.unizg.hr/~duje/ratio.html). The open
+genus-five curves ([Stoll 2017](https://arxiv.org/abs/1711.00500)) and public extension examples
+catalogued on [Dujella's maintained survey page](https://web.math.pmf.unizg.hr/~duje/ratio.html).
+The open
 septuple question remains scientifically valid ([Dujella et al. 2024](https://arxiv.org/abs/2403.17959),
 [FrontierMath Open Problems](https://epoch.ai/frontiermath/open-problems/diophantine-septuple)),
 but validity as an open problem is not the same as useful iterative benchmark geometry.
 
 Admission requires an independently recomputed multi-cell reference, exact certificate tests,
 false-claim and attempted-discovery accounting, immutable panel/oracle hashes, and at least three
-paired HY3 seeds over the preregistered budget prefixes. If an open-loop proposal again reaches the
-reference immediately, the successor is rejected rather than rescued by hiding public evidence.
+matched-condition HY3 replicate identifiers over preregistered budget prefixes. Because HY3 does
+not expose provider-side seed control, normal and selection-blind draws are independent rather than
+strictly paired. Admission uses a preregistered cross-replicate open-loop saturation threshold; a
+single immediate hit is diagnostic but does not by itself reject the successor.
 
 ## Additional discovery candidates
 
