@@ -656,9 +656,12 @@ tasks:
       deterministic open-vocabulary analytic reaction-network prototype with seed-reachable
       species expansion, atom-map-invariant elementary edge checks, charged probes, candidate
       session reset, separate recovery/FDR/refusal/attempt axes and canonical discovery records;
-      its small public graph grammar is exhaustible and synthetic, so it is not yet hard, scalable
-      or real-chemistry discovery evidence pending paired HY3 calibration, server-held chemistry,
-      higher-fidelity confirmation and independent kinetics review
+      a trusted three-replicate HY3 budget-three pilot reached high visible-objective scores but was
+      too short to establish open-loop saturation, and the development-selected normal arm's
+      held-out mechanism score trailed selection-blind by 0.112376 on average. Its small public
+      graph grammar is exhaustible and synthetic, so it remains an uncalibrated operational
+      candidate rather than hard, scalable or real-chemistry discovery evidence pending redesigned
+      search geometry, server-held chemistry, higher-fidelity confirmation and independent review
     citation_ids:
       - doi:10.1021/acs.jctc.2c00193
   MaterialsScience/ProcessMicrostructurePropertyDesign:
@@ -666,10 +669,13 @@ tasks:
     reason: >-
       deterministic reduced-order process-to-microstructure-to-property Pareto-design prototype
       with quantized manufacturing identity, public-model and sealed-shift reporting, an immutable
-      optimization wave, a held-out/shifted frontier-promotion gate and executable anchors; the first draft admitted a dominating corner
-      policy and was reworked to create genuine constituent trade-offs, but hard/T2 and scientific
-      materiality remain unverified pending paired HY3 calibration, independent Pareto
-      recomputation, higher-fidelity phase-field/homogenization replication and external materials
-      and process review
+      optimization wave, a held-out/shifted frontier-promotion gate and executable anchors; after
+      interface repair, a trusted three-replicate HY3 budget-eight run found that selection-blind
+      best-of-N saturated, but the visible normal-minus-blind mean gap narrowed from 0.054348 at B3
+      to 0.030691 at B8, had two labelled wins and one loss, and was not leave-one-out robust. The
+      repository operational verdict is crossover_in_range, so the current wave does not establish
+      stable feedback-iteration value or hard/T2 difficulty. Retain only as an uncalibrated
+      scientific prototype pending redesigned search geometry, independent-arm confirmation,
+      higher-fidelity phase-field/homogenization replication and external materials/process review
     citation_ids:
       - doi:10.1146/annurev.matsci.32.112001.132041

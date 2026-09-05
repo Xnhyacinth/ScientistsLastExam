@@ -47,10 +47,12 @@ lineage:
   - openai:codex-gpt-5
   builder_scaffolds:
   - codex-cli
-  calibrator_model_ids: []
-  calibration_runs: []
-  calibration_evidence_status: missing
-  edits_triggered_by_model: No model calibration was run; deterministic review found that an 80-query exhaustive witness saturated the small grammar, a lexicographic atom-map tie-break changed graph-pair truth, and a 1024-ordering BFS sweep beat the first 24-query anchor. The budget, oracle semantics, and reference were revised before freeze.
+  calibrator_model_ids:
+  - hy3
+  calibration_runs:
+  - experiments/hy3_frontier_task_pilot_analysis_2026-09-05_v2.json
+  calibration_evidence_status: historical_only
+  edits_triggered_by_model: Deterministic review found that an 80-query exhaustive witness saturated the small grammar, a lexicographic atom-map tie-break changed graph-pair truth, and a 1024-ordering BFS sweep beat the first 24-query anchor. The budget, oracle semantics, and reference were revised before freeze. A later trusted three-replicate HY3 budget-three pilot found development B1 medians of 0.871525 normal and 0.933160 selection-blind, development B3 normal-minus-blind mean 0.045900, but a held-out mechanism-score gap of -0.112376 for the development-selected candidates. The wave therefore remains uncalibrated and is not hard or transfer-qualified.
   shortcut_discoverer: builder_self_audit
   shortcut_findings:
   - 80-query exhaustive grammar enumeration recovered the complete small-network oracle and exhausted meaningful score headroom.
@@ -58,6 +60,7 @@ lineage:
   - repeated C atoms allowed multiple bond-exchange channels whose barriers differed, while the original oracle selected one by lexicographic atom-map order.
   - a 1024-seed deterministic BFS neighbour-order sweep reached development raw score 0.946080715974333, above the first 24-query lexicographic BFS anchor.
   - a 1024-seed final-tie-order sweep around the first novelty-first reference reached raw 0.9730176503033645, exposing a coarse-surrogate tie-break weakness.
+  - a trusted HY3 budget-three pilot did not establish open-loop saturation and reversed the normal-minus-blind gap on held-out mechanism score
   remediation:
   - reduce the charged budget to 24 and resolve ambiguous graph-pair barriers as the minimum over all valid atom-map channels
   - replace node-local BFS with novelty-first active-frontier acquisition, a qualitative chemical barrier surrogate, and a public grammar-branching information-gain tie-break

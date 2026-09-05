@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "analysis_id": "hy3-frontier-task-pilot-analysis-2026-09-05-v2",
+  "supersedes": {
+    "path": "experiments/hy3_frontier_task_pilot_analysis_2026-09-05_v1.json",
+    "sha256": "4ceae6a710516483f3d401aca1f72a19b1061de50dc5194a150c2695bd559b48",
+    "reason": "Version one omitted preregistered held-out axes and named a per-run oracle-call count as though it were global."
+  },
+  "source_report": {
+    "local_ignored_path": "runs/hy3_frontier_2026-09-05/pilot_b3_s012/report.json",
+    "sha256": "d09d3caa897b3eff158268fc0eed1c7f24722ea7e26f8bd7ffcde0e1815ddb16",
+    "bytes": 203057,
+    "git_revision": "be0346128819cb8a442ec26272a4aa1fb634ed94"
+  },
+  "preregistration": {
+    "path": "experiments/hy3_frontier_task_pilot_preregistration_2026-09-05_v1.json",
+    "sha256": "fd437e1ec7ec1b92f33179870b9c097117d7c8547d870ad2573e789d99d5e030",
+    "execution_contract_validated": true
+  },
+  "evidence_scope": "MODEL_CALIBRATION_NOT_POPULATION_PERFORMANCE",
+  "trust_status": "TRUSTED_SECURE_EVAL",
+  "execution_passed": true,
+  "trusted_evidence": true,
+  "passed": true,
+  "protocol_accounting": {
+    "mode_run_count": 12,
+    "proposal_budget_per_run": 3,
+    "oracle_calls_per_run_including_baseline": 4,
+    "total_oracle_calls": 48,
+    "infrastructure_failure_count": 0
+  },
+  "task_results": {
+    "ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery": {
+      "development_best_at_budget_three": {
+        "normal": [0.9807821447839964, 0.995030320612207, 0.960770971576911],
+        "selection_blind": [0.9424615092121054, 0.9232623419531318, 0.9331596751582939],
+        "normal_minus_selection_blind_mean": 0.04589997021652777
+      },
+      "heldout_mechanism_score_of_development_selected_candidate_at_budget_three": {
+        "normal": [0.9501090870856665, 1.0, 0.6975832057076687],
+        "selection_blind": [0.9848200200139416, 1.0, 1.0],
+        "normal_mean": 0.8825640975977784,
+        "selection_blind_mean": 0.9949400066713139,
+        "normal_minus_selection_blind_mean": -0.11237590907353545
+      },
+      "heldout_feasibility_rate": 1.0,
+      "heldout_false_discovery_rate": 0.0,
+      "heldout_correct_refusal_rate": 1.0,
+      "repository_admission_verdict": "unknown_no_open_loop_run_long_enough_to_judge_saturation",
+      "preregistered_hard_gate": "failed",
+      "disposition": "retain_as_uncalibrated_operational_candidate_not_a_hardness_or_transfer_result"
+    },
+    "MaterialsScience/ProcessMicrostructurePropertyDesign": {
+      "development_best_at_budget_three": {
+        "normal": [0.10440598429294617, 0.3126254185046689, 0.33365864507641696],
+        "selection_blind": [0.3958239528920032, 0.49375057485006, 0.41755143708026865],
+        "normal_minus_selection_blind_mean": -0.1854786389827666
+      },
+      "heldout_hypervolume_score_of_development_selected_candidate_at_budget_three": {
+        "normal": [0.13740000184467552, 0.4172039090362571, 0.403595489363733],
+        "selection_blind": [0.5184859128185727, 0.5114647196663248, 0.38339654157104464],
+        "normal_mean": 0.3193998000815552,
+        "selection_blind_mean": 0.471115724685314,
+        "normal_minus_selection_blind_mean": -0.1517159246037588
+      },
+      "heldout_shifted_hypervolume_score_of_development_selected_candidate_at_budget_three": {
+        "normal": [0.18345265920360784, 0.44868133348817557, 0.4306330317773333],
+        "selection_blind": [0.5419268352786849, 0.525287272145517, 0.43309002074137104]
+      },
+      "heldout_feasibility_rate": 1.0,
+      "repository_admission_verdict": "unknown_no_open_loop_run_long_enough_to_judge_saturation",
+      "disposition": "budget_eight_followup_was_authorized_without_any_hardness_promotion"
+    }
+  },
+  "interpretation_limits": [
+    "Combined score is the development selection objective, not a held-out metric.",
+    "Replicate identifiers do not control provider-side model draws.",
+    "Normal versus selection-blind gaps are descriptive independent-draw comparisons.",
+    "Reaction reverses gap direction on held-out mechanism score and therefore has no positive transfer claim.",
+    "The ignored raw report remains locally hash-addressed and is intentionally excluded from the proposed PR."
+  ]
+}

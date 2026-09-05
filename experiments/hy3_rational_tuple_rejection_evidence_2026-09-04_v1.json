@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "evidence_id": "hy3-rational-tuple-rejection-2026-09-04-v1",
+  "purpose": "minimal_deidentified_evidence_for_rejecting_the_removed_runnable_prototype",
+  "source_report": {
+    "local_ignored_path": "runs/hy3_frontier_2026-09-04/smoke_v2/report.json",
+    "sha256": "b5a1d1290beec16d4cc6122cbcf186603ebb1a528d34f1def55601991a09a104",
+    "bytes": 24097,
+    "git_revision": "51b1308d79b61225e9469f8d398255312e051ec9",
+    "created_at": "2026-09-04T15:08:52.042317+00:00",
+    "completed_at": "2026-09-04T15:11:37.584411+00:00"
+  },
+  "evidence_scope": "PROTOCOL_SMOKE_ONLY_NOT_MODEL_PERFORMANCE",
+  "trust_status": "TRUSTED_SECURE_EVAL",
+  "execution_passed": true,
+  "trusted_evidence": true,
+  "passed": true,
+  "model_condition": {
+    "model": "hy3",
+    "llm_condition_sha256": "85598f70fd64ff5cb7a17a356975d37a304f9ebf3e092e759e0cba4d2ab2bb25",
+    "runtime_source_sha256": "278752357e1a6ba61fa20203fee82b26cb13b36d81915c20b0f7f63d97526a83"
+  },
+  "removed_task_binding": {
+    "task": "Mathematics/RationalDiophantineTuple",
+    "task_package_sha256": "350bd98e5e42f68c069bdef5a3b49c6e3f841dbab671fa2a317a64f506f3a611",
+    "task_contract_sha256": "3a0751719287c27b1170ab85b2319b1cce132345ba59e3040d423599287ac01a",
+    "wave_manifest_sha256": "d6cce68346d8f4ae48d1b7b98e7d111ae41e070094a12174756a162c2e703650"
+  },
+  "conditions": [
+    {
+      "feedback_mode": "normal",
+      "prompt_sha256": "d0791e26f44b7748e870d5c2299546581fc06aad71f2584afc531d695d21d1bf",
+      "candidate_sha256": "596b7fec8446ab8398b333120241fd21c3dae0a0607025785460d56d228528fe",
+      "tuple_canonical_id": "sha256:571c4396c5ad89638f910fcc78e35c1db7cc11c51dc7c70387541b84dbe94c61",
+      "tuple_size": 6,
+      "combined_score": 1.0
+    },
+    {
+      "feedback_mode": "selection_blind",
+      "prompt_sha256": "d0791e26f44b7748e870d5c2299546581fc06aad71f2584afc531d695d21d1bf",
+      "candidate_sha256": "fcc350a23bcb52c05f444df9ddc45ca2b8bd0e77d55b4b74ee8f447334c78f69",
+      "tuple_canonical_id": "sha256:571c4396c5ad89638f910fcc78e35c1db7cc11c51dc7c70387541b84dbe94c61",
+      "tuple_size": 6,
+      "combined_score": 1.0
+    }
+  ],
+  "decision": "The one-step reconstruction is diagnostic only. Together with the public witness, the absence of graded credit between sizes six and seven, and the unresolved existence of a septuple, it rejects this wave as an iterative-search task.",
+  "interpretation_limits": [
+    "One local replicate is not population-performance evidence.",
+    "The raw report and model text remain local; no credential, endpoint or generated source is committed.",
+    "The evidence does not reject rational Diophantine research as a scientific direction; it rejects this benchmark geometry."
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "analysis_id": "hy3-process-saturation-analysis-2026-09-05-v1",
+  "source_report": {
+    "local_ignored_path": "runs/hy3_frontier_2026-09-05/process_b8_s012/report.json",
+    "sha256": "b004a346d87738937d0cfbbac362fd995496490c2379506885295aa8611dfd37",
+    "bytes": 209920,
+    "git_revision": "c67da2b2091a5a2d3971b9c4068392739de8b50b",
+    "created_at": "2026-09-05T15:59:46.819606+00:00",
+    "completed_at": "2026-09-05T16:58:53.777982+00:00"
+  },
+  "preregistration": {
+    "path": "experiments/hy3_process_saturation_preregistration_2026-09-05_v1.json",
+    "sha256": "af89911675c0ad4f167aa0993f879368cb7815303b66b4b20ece06b1d5018cda",
+    "execution_contract_validated": true,
+    "prerequisite_count": 1
+  },
+  "analyzer": {
+    "path": "scripts/report_admission_criterion.py",
+    "sha256": "7017618f145aaf578e70a9149a7cc9587c896d7966b2c6436717eb810b5d8cda",
+    "input_root": "runs/hy3_frontier_2026-09-05/process_b8_s012/work",
+    "operational_verdict": "crossover_in_range",
+    "reason": "gap peaks then narrows, +0.0543 at 3 down to +0.0307 at 8; best-of-N is catching up",
+    "distinct_tasks_measuring_iteration": 0
+  },
+  "evidence_scope": "MODEL_CALIBRATION_NOT_POPULATION_PERFORMANCE",
+  "trust_status": "TRUSTED_SECURE_EVAL",
+  "execution_passed": true,
+  "trusted_evidence": true,
+  "passed": true,
+  "protocol_accounting": {
+    "mode_run_count": 6,
+    "proposal_budget_per_run": 8,
+    "oracle_calls_per_run_including_baseline": 9,
+    "total_oracle_calls": 54,
+    "valid_proposals": {
+      "normal": [7, 8, 7],
+      "selection_blind": [6, 8, 8]
+    },
+    "infrastructure_failure_count": 0
+  },
+  "selection_blind_saturation": {
+    "best_at_budget_three": [0.43854379743763566, 0.41803737699296556, 0.5826133432823036],
+    "best_at_budget_five": [0.43854379743763566, 0.654988662537425, 0.5826133432823036],
+    "best_at_budget_eight": [0.43854379743763566, 0.654988662537425, 0.5826133432823036],
+    "second_half_gain": [0.0, 0.0, 0.0],
+    "saturated": true,
+    "floor": false,
+    "ceiling": false
+  },
+  "normal_best_at_budget_eight": [
+    0.6235487625174009,
+    0.7089737582441471,
+    0.4356965158783289
+  ],
+  "descriptive_gap_by_budget": {
+    "3": {
+      "development_normal_minus_blind_mean": 0.05434772913692615,
+      "heldout_normal_minus_blind_mean": 0.04495861805149559,
+      "heldout_shifted_normal_minus_blind_mean": 0.05967391077837969
+    },
+    "5": {
+      "development_normal_minus_blind_mean": 0.02229271804535493,
+      "heldout_normal_minus_blind_mean": 0.021901704715113657,
+      "heldout_shifted_normal_minus_blind_mean": 0.03183658065482586
+    },
+    "8": {
+      "development_normal_minus_blind_mean": 0.030691077794170907,
+      "heldout_normal_minus_blind_mean": 0.03111821914341384,
+      "heldout_shifted_normal_minus_blind_mean": 0.04318730412738625,
+      "normal_wins_if_same_labels_are_aligned": 2,
+      "normal_losses_if_same_labels_are_aligned": 1,
+      "paired_leave_one_out_robust": false
+    }
+  },
+  "heldout_scores_of_development_selected_candidate_at_budget_eight": {
+    "normal_hypervolume": [0.6457915250744842, 0.7344529828730864, 0.40986603121462284],
+    "selection_blind_hypervolume": [0.4542308351444572, 0.6270718435345655, 0.6154532030529292],
+    "normal_shifted_hypervolume": [0.6687736937956938, 0.750236288069678, 0.4455599479132944],
+    "selection_blind_shifted_hypervolume": [0.46269721974642697, 0.6247157085384549, 0.6475950891116257],
+    "feasibility_rate": 1.0
+  },
+  "decision": {
+    "measures_iteration_candidate": false,
+    "hard_promotion": false,
+    "budget_twelve_authorized": false,
+    "disposition": "retain_only_as_uncalibrated_scientific_prototype_or_redesign_search_geometry_before_new_calibration"
+  },
+  "interpretation_limits": [
+    "The repository analyzer verdict is an operational screen because provider-side draws are not seed-paired.",
+    "With three independent draws per arm, the small positive mean gap is not a formal inferential result.",
+    "Open-loop saturation is supported within this budget-eight cohort, but the feedback gap narrows and is not robust to one labelled replicate.",
+    "The result does not establish domain validity, higher-fidelity material behavior, population model performance or long-horizon value.",
+    "The ignored raw report remains locally hash-addressed and is intentionally excluded from the proposed PR."
+  ]
+}
