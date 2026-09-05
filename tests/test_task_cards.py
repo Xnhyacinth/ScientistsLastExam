@@ -31,6 +31,9 @@ RECORDED_LINEAGE = {
     "Gravitation/PTAHellingsDowns",
     "Physics/ComplexBoseLaw",
     "MaterialsScience/QuinaryConvexHull",
+    "ScientificComputing/AdaptiveConservativePDEMethod",
+    "ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery",
+    "MaterialsScience/ProcessMicrostructurePropertyDesign",
 }
 
 

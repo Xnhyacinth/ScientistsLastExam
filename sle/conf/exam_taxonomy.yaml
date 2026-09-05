@@ -19,6 +19,7 @@ out_of_scope:
 
 optimization_analogue:
   engineering_design: engineering design under a frozen simulator (same form as Frontier-Eng; no task is shared with it)
+  scientific_method: scientific algorithm or numerical-method design under a frozen validation panel
   combinatorial: open-record construction with an executable mathematical verifier
   molecular_design: molecular or macromolecular design under a frozen scientific oracle
 discovery_kind:
@@ -45,6 +46,8 @@ tasks:
   SignalProcessing/SparseRecovery: {form: optimization, analogue: engineering_design}
   Electrochemistry/ElectrolyteConductivityDesign: {form: optimization, analogue: engineering_design}
   MaterialsScience/AlloyHardnessOptimization: {form: optimization, analogue: engineering_design}
+  MaterialsScience/ProcessMicrostructurePropertyDesign: {form: optimization, analogue: engineering_design}
+  ScientificComputing/AdaptiveConservativePDEMethod: {form: optimization, analogue: scientific_method, note: on_ramp_do_not_pair}
   # --- optimization / combinatorial (open records: Ramsey, kissing, tensors, caps) ---
   Optimization/CirclePacking: {form: optimization, analogue: combinatorial}
   Mathematics/CapSet: {form: optimization, analogue: combinatorial}
@@ -73,6 +76,7 @@ tasks:
   CausalDiscovery/SurvivorshipConfoundedDesign: {form: discovery, kind: structure, note: selection_not_clone_of_interventional_scm}
   Algorithm/GraphFromDistances: {form: discovery, kind: structure}
   SystemsBiology/GeneNetworkIntervention: {form: discovery, kind: structure}
+  ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery: {form: discovery, kind: structure, note: finite_analytic_grammar_candidate_not_real_reaction_discovery}
   # --- discovery / evidence ---------------------------------------------------
   ParticlePhysics/DiscrepantMeasurements: {form: discovery, kind: evidence, note: on_ramp_do_not_pair}
   ParticlePhysics/LookElsewhereAnomaly: {form: discovery, kind: evidence, note: trials_factor_not_clone_of_discrepant_measurements}
