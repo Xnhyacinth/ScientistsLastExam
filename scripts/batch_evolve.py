@@ -800,6 +800,7 @@ def _verified_completed_keys(
     task_bindings: dict[str, dict[str, Any]],
     *,
     expected_budget: int,
+    expected_work_root: Path,
 ) -> set[str]:
     """Return only report cells whose underlying run verifies at this runtime."""
 
@@ -827,6 +828,18 @@ def _verified_completed_keys(
         run_path = Path(workdir).expanduser()
         if not run_path.is_absolute() or str(run_path.resolve()) != workdir:
             raise SystemExit("completed cell workdir is not a canonical local path")
+        try:
+            expected_run_path = _safe_batch_cell_paths(
+                expected_work_root,
+                task_id,
+                run["algorithm"],
+                [run["feedback_mode"]],
+                run["seed"],
+            )[0]
+        except RuntimeError as exc:
+            raise SystemExit("completed cell frozen work root is invalid") from exc
+        if run_path != expected_run_path:
+            raise SystemExit("completed cell workdir differs from frozen work root")
         if not (
             run.get("trusted_evaluator_runtime")
             == frozen["trusted_evaluator_runtime"]
@@ -1321,6 +1334,7 @@ def main(argv: list[str] | None = None) -> int:
     done = _verified_completed_keys(
         document.get("runs", []), task_bindings,
         expected_budget=args.budget,
+        expected_work_root=work_root,
     )
     total = len(specs) * len(algorithms) * len(feedback_modes) * len(args.seeds)
     blocks = _execution_blocks(
@@ -1364,7 +1378,8 @@ def main(argv: list[str] | None = None) -> int:
             print("  " + line, flush=True)
         entries = result.get("entries") or []
         _verified_completed_keys(
-            entries, task_bindings, expected_budget=args.budget
+            entries, task_bindings, expected_budget=args.budget,
+            expected_work_root=work_root,
         )
         document.setdefault("runs", []).extend(entries)
         document["aggregate"] = aggregate_runs(document["runs"])

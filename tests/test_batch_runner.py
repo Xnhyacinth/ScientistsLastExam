@@ -563,6 +563,12 @@ class BatchAggregationTests(unittest.TestCase):
             self.assertEqual(binding["trusted_evaluator_runtime"], descriptor)
 
     def test_completed_report_entry_requires_verified_underlying_run(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        work_root = Path(temporary.name)
+        run_path = (
+            work_root / "T__X" / "greedy_rewrite" / "normal" / "seed_0"
+        )
         descriptor = current_runtime_descriptor(())
         bindings = {"T/X": {
             "trusted_evaluator_runtime": descriptor,
@@ -571,7 +577,7 @@ class BatchAggregationTests(unittest.TestCase):
         entry = {
             "task": "T/X", "algorithm": "greedy_rewrite",
             "feedback_mode": "normal", "seed": 0, "budget": 3,
-            "workdir": "/missing/run",
+            "workdir": str(run_path),
             "workdir_scope": "local_only_not_portable_evidence_identity",
             "trusted_evaluator_runtime": descriptor,
             "trusted_evaluator_runtime_sha256": descriptor["fingerprint_sha256"],
@@ -580,13 +586,19 @@ class BatchAggregationTests(unittest.TestCase):
             MODULE, "verify_run", side_effect=ValueError("missing ledger"),
         ) as verify:
             with self.assertRaisesRegex(SystemExit, "completed cell is unverifiable"):
-                MODULE._verified_completed_keys([entry], bindings, expected_budget=3)
+                MODULE._verified_completed_keys(
+                    [entry], bindings, expected_budget=3,
+                    expected_work_root=work_root,
+                )
         verify.assert_called_once_with(
-            Path("/missing/run"), expected_budget=3,
+            run_path, expected_budget=3,
             expected_trusted_runtime_sha256=descriptor["fingerprint_sha256"],
         )
 
     def test_completed_report_entry_cannot_claim_a_different_seed(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        work_root = Path(temporary.name)
         descriptor = current_runtime_descriptor(())
         bindings = {"T/X": {
             "trusted_evaluator_runtime": descriptor,
@@ -595,7 +607,9 @@ class BatchAggregationTests(unittest.TestCase):
         entry = {
             "task": "T/X", "algorithm": "greedy_rewrite",
             "feedback_mode": "normal", "seed": 999, "budget": 3,
-            "workdir": "/verified/run",
+            "workdir": str(
+                work_root / "T__X" / "greedy_rewrite" / "normal" / "seed_999"
+            ),
             "workdir_scope": "local_only_not_portable_evidence_identity",
             "trusted_evaluator_runtime": descriptor,
             "trusted_evaluator_runtime_sha256": descriptor["fingerprint_sha256"],
@@ -609,7 +623,50 @@ class BatchAggregationTests(unittest.TestCase):
         }
         with patch.object(MODULE, "verify_run", return_value=verified):
             with self.assertRaisesRegex(SystemExit, "identity differs"):
-                MODULE._verified_completed_keys([entry], bindings, expected_budget=3)
+                MODULE._verified_completed_keys(
+                    [entry], bindings, expected_budget=3,
+                    expected_work_root=work_root,
+                )
+
+    def test_completed_report_cannot_reuse_run_from_another_work_root(self):
+        descriptor = current_runtime_descriptor(())
+        bindings = {"T/X": {
+            "trusted_evaluator_runtime": descriptor,
+            "trusted_evaluator_runtime_sha256": descriptor["fingerprint_sha256"],
+        }}
+        verified = {
+            "verified": True,
+            "task_id": "T/X", "algorithm": "greedy_rewrite",
+            "feedback_mode": "normal", "seed": 0, "budget": 3,
+            "trusted_evaluator_runtime": descriptor,
+            "trusted_evaluator_runtime_sha256": descriptor["fingerprint_sha256"],
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            work_root = root / "current-runs"
+            other_root = root / "other-runs"
+            work_root.mkdir()
+            other_root.mkdir()
+            external_run = (
+                other_root / "T__X" / "greedy_rewrite" / "normal" / "seed_0"
+            )
+            entry = {
+                "task": "T/X", "algorithm": "greedy_rewrite",
+                "feedback_mode": "normal", "seed": 0, "budget": 3,
+                "workdir": str(external_run),
+                "workdir_scope": "local_only_not_portable_evidence_identity",
+                "trusted_evaluator_runtime": descriptor,
+                "trusted_evaluator_runtime_sha256": descriptor[
+                    "fingerprint_sha256"
+                ],
+            }
+            with patch.object(MODULE, "verify_run", return_value=verified) as verify:
+                with self.assertRaisesRegex(SystemExit, "frozen work root"):
+                    MODULE._verified_completed_keys(
+                        [entry], bindings, expected_budget=3,
+                        expected_work_root=work_root,
+                    )
+            verify.assert_not_called()
 
     def test_parent_freezes_task_runtimes_before_loading_model_client(self):
         order = []
