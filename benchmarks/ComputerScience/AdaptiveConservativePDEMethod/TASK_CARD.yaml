@@ -55,8 +55,8 @@ lineage:
   calibration_evidence_status: missing
   edits_triggered_by_model: Independent code review exposed a harmful slope-suppression sensor, a 216-point nonadaptive shortcut, an exact-reference prompt leak, a 48-point local search gain, signed-zero and inactive-coordinate identity aliases, and quadrature-defined target averages; the task was rebuilt around WENO3 with sensor-triggered fallback, analytic targets and an independent second replay, the known local gain became the ledger incumbent, and the final package was checked with reproducible 48/432-point sweeps and six ablations. Earlier runtime-unbound model diagnostics are excluded from task evidence; no trusted calibration run is attached.
   shortcut_discoverer: builder_self_audit
-  frozen_before_eval: false
-  freeze_timestamp: null
+  frozen_before_eval: true
+  freeze_timestamp: '2026-09-05T22:15:00Z'
 long_horizon:
   status: not_tested
   measurement_health_passed: false

@@ -50,7 +50,7 @@ lineage:
   calibrator_model_ids: []
   calibration_runs: []
   calibration_evidence_status: missing
-  edits_triggered_by_model: No model calibration was run; deterministic review found that an 80-query exhaustive witness saturated the small grammar, a lexicographic atom-map tie-break changed graph-pair truth, and a 1024-ordering BFS sweep beat the first 24-query anchor. The budget, oracle semantics, and reference were revised before freeze.
+  edits_triggered_by_model: No trusted model calibration was attached at freeze; deterministic review found that an 80-query exhaustive witness saturated the small grammar, a lexicographic atom-map tie-break changed graph-pair truth, and a 1024-ordering BFS sweep beat the first 24-query anchor. The budget, oracle semantics, and reference were revised before freeze.
   shortcut_discoverer: builder_self_audit
   shortcut_findings:
   - 80-query exhaustive grammar enumeration recovered the complete small-network oracle and exhausted meaningful score headroom.
@@ -63,8 +63,8 @@ lineage:
   - replace node-local BFS with novelty-first active-frontier acquisition, a qualitative chemical barrier surrogate, and a public grammar-branching information-gain tie-break
   - normalize to that incomplete independent witness without an upper clip, leaving complete recovery above one
   - ship a legal confidently wrong edge while retaining blanket abstention as an independent zero-score control
-  frozen_before_eval: false
-  freeze_timestamp: null
+  frozen_before_eval: true
+  freeze_timestamp: '2026-09-05T22:15:00Z'
 long_horizon:
   status: not_tested
   measurement_health_passed: false

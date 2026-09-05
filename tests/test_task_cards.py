@@ -49,6 +49,12 @@ RECORDED_LINEAGE = {
     "MaterialsScience/ProcessMicrostructurePropertyDesign",
 }
 
+FROZEN_LINEAGE = {
+    "ScientificComputing/AdaptiveConservativePDEMethod",
+    "ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery",
+    "MaterialsScience/ProcessMicrostructurePropertyDesign",
+}
+
 
 class TaskCardAuditTests(unittest.TestCase):
     def test_metadata_enums_fail_closed(self):
@@ -127,8 +133,15 @@ class TaskCardAuditTests(unittest.TestCase):
                 self.assertEqual(card["lineage"]["status"], "incomplete_legacy", spec.task_id)
                 self.assertEqual(
                     card["construction_audit"]["status"], "incomplete_legacy", spec.task_id)
-            self.assertFalse(card["lineage"]["frozen_before_eval"])
-            self.assertIsNone(card["lineage"]["freeze_timestamp"])
+            if spec.task_id in FROZEN_LINEAGE:
+                self.assertTrue(card["lineage"]["frozen_before_eval"])
+                self.assertEqual(
+                    card["lineage"]["freeze_timestamp"],
+                    "2026-09-05T22:15:00Z",
+                )
+            else:
+                self.assertFalse(card["lineage"]["frozen_before_eval"])
+                self.assertIsNone(card["lineage"]["freeze_timestamp"])
             self.assertFalse(card["long_horizon"]["measurement_health_passed"])
             self.assertFalse(card["long_horizon"]["material_headroom_after_2h"])
 

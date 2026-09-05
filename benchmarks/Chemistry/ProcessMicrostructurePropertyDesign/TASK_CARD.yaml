@@ -57,7 +57,7 @@ lineage:
   calibrator_model_ids: []
   calibration_runs: []
   calibration_evidence_status: missing
-  edits_triggered_by_model: No model calibration was run. Deterministic review found a high-B corner, a 441-point two-coordinate shortcut, three stronger 343-point subspace shortcuts, instantaneous-style crystallinity, loose energy scaling, hidden-oracle reference construction, and scalar pool-size improvement over the first public witness; these triggered the mobility-limited completion law, explicit draw tradeoff, kinetic and energy scaling repair, candidate-equivalent public reference search with coordinate exchange, ablations and uncapped headroom probes.
+  edits_triggered_by_model: No trusted model calibration was attached at freeze. Deterministic review found a high-B corner, a 441-point two-coordinate shortcut, three stronger 343-point subspace shortcuts, instantaneous-style crystallinity, loose energy scaling, hidden-oracle reference construction, and scalar pool-size improvement over the first public witness; these triggered the mobility-limited completion law, explicit draw tradeoff, kinetic and energy scaling repair, candidate-equivalent public reference search with coordinate exchange, ablations and reference-unclipped headroom probes.
   shortcut_discoverer: builder_self_audit
   shortcut_findings:
   - a high-B low-energy corner exploited objectives that did not initially express the intended transport conflict
@@ -70,8 +70,8 @@ lineage:
   - increase reduced Arrhenius selectivity to Ec 7 and k 700, cooling sensitivity to 0.30, and align the energy normalization with the reachable 7.5 envelope
   - test no-draw, short-time, fast-cooling and single-low-temperature ablations with a 0.90 ceiling
   - anchor to a deterministic 1024-point public proxy search followed by two 11-point-per-axis coordinate-exchange passes while retaining uncapped score and sealed transfer gates
-  frozen_before_eval: false
-  freeze_timestamp: null
+  frozen_before_eval: true
+  freeze_timestamp: '2026-09-05T22:15:00Z'
 long_horizon:
   status: not_tested
   measurement_health_passed: false
