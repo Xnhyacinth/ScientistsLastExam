@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "analysis_id": "hy3-frontier-task-pilot-analysis-2026-09-05-v1",
+  "source_report": {
+    "local_ignored_path": "runs/hy3_frontier_2026-09-05/pilot_b3_s012/report.json",
+    "sha256": "d09d3caa897b3eff158268fc0eed1c7f24722ea7e26f8bd7ffcde0e1815ddb16",
+    "bytes": 203057,
+    "git_revision": "be0346128819cb8a442ec26272a4aa1fb634ed94",
+    "created_at": "2026-09-05T15:09:03.578197+00:00",
+    "completed_at": "2026-09-05T15:56:00.128486+00:00"
+  },
+  "preregistration": {
+    "path": "experiments/hy3_frontier_task_pilot_preregistration_2026-09-05_v1.json",
+    "sha256": "fd437e1ec7ec1b92f33179870b9c097117d7c8547d870ad2573e789d99d5e030",
+    "execution_contract_validated": true
+  },
+  "evidence_scope": "MODEL_CALIBRATION_NOT_POPULATION_PERFORMANCE",
+  "trust_status": "TRUSTED_SECURE_EVAL",
+  "execution_passed": true,
+  "trusted_evidence": true,
+  "passed": true,
+  "model_condition": {
+    "model": "hy3",
+    "llm_condition_sha256": "220f1550316c451529bc0afa95980d8bce21256ef4b141641bacd530bfa2c020",
+    "runtime_source_sha256": "278752357e1a6ba61fa20203fee82b26cb13b36d81915c20b0f7f63d97526a83",
+    "server_side_seed_control": false
+  },
+  "design": {
+    "replicate_identifiers": [0, 1, 2],
+    "feedback_modes": ["normal", "selection_blind"],
+    "maximum_proposal_budget": 3,
+    "reported_budget_prefixes": [1, 3],
+    "mode_run_count": 12,
+    "all_mode_runs_complete": true,
+    "all_oracle_calls": 4,
+    "infrastructure_failure_count": 0
+  },
+  "task_results": {
+    "ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery": {
+      "task_package_sha256": "360f6045be29c6d4c97b46e3e25a80c4bc84424e66c802cb00883ec0ceb31fed",
+      "normal": {
+        "budget_one_best": [0.8715252516985533, 0.9667455167129767, 0.5627824634567604],
+        "budget_three_best": [0.9807821447839964, 0.995030320612207, 0.960770971576911],
+        "valid_proposals": 9,
+        "total_proposals": 9,
+        "median_budget_one": 0.8715252516985533,
+        "median_budget_three": 0.9807821447839964,
+        "median_gain": 0.1092568930854431
+      },
+      "selection_blind": {
+        "budget_one_best": [0.9424615092121054, 0.0, 0.9331596751582939],
+        "budget_three_best": [0.9424615092121054, 0.9232623419531318, 0.9331596751582939],
+        "valid_proposals": 6,
+        "total_proposals": 9,
+        "median_budget_one": 0.9331596751582939,
+        "median_budget_three": 0.9331596751582939,
+        "median_gain": 0.0
+      },
+      "paired_budget_three_gap": {
+        "normal_minus_selection_blind_mean": 0.04589997021652777,
+        "standard_error": 0.013298344281184503,
+        "normal_wins": 3,
+        "normal_losses": 0
+      },
+      "repository_admission_verdict": "unknown_no_open_loop_run_long_enough_to_judge_saturation",
+      "preregistered_pilot_decision": "fails_hard_candidate_necessary_conditions",
+      "disposition": "retain_as_positive_medium_difficulty_candidate_do_not_claim_hard_or_long_horizon"
+    },
+    "MaterialsScience/ProcessMicrostructurePropertyDesign": {
+      "task_package_sha256": "5a469805049d5d755d1dbc6601744b9e28de0dd19f3f03a22e7f6c3c3f055a6d",
+      "normal": {
+        "budget_one_best": [0.0, 0.17368883596648838, 0.18977089879909823],
+        "budget_three_best": [0.10440598429294617, 0.3126254185046689, 0.33365864507641696],
+        "valid_proposals": 7,
+        "total_proposals": 9,
+        "median_budget_one": 0.17368883596648838,
+        "median_budget_three": 0.3126254185046689,
+        "median_gain": 0.13893658253818053
+      },
+      "selection_blind": {
+        "budget_one_best": [0.2450704668978776, 0.22834265644283583, 0.0],
+        "budget_three_best": [0.3958239528920032, 0.49375057485006, 0.41755143708026865],
+        "valid_proposals": 7,
+        "total_proposals": 9,
+        "median_budget_one": 0.22834265644283583,
+        "median_budget_three": 0.41755143708026865,
+        "median_gain": 0.26540791840722416
+      },
+      "paired_budget_three_gap": {
+        "normal_minus_selection_blind_mean": -0.1854786389827666,
+        "standard_error": 0.05994689132480303,
+        "normal_wins": 0,
+        "normal_losses": 3
+      },
+      "repository_admission_verdict": "unknown_no_open_loop_run_long_enough_to_judge_saturation",
+      "preregistered_pilot_decision": "passes_local_hard_candidate_necessary_conditions_not_sufficient",
+      "disposition": "authorize_process_only_budget_eight_saturation_followup_do_not_claim_hard_or_iterative_value_yet"
+    }
+  },
+  "interpretation_limits": [
+    "Replicate identifiers do not control provider-side model draws.",
+    "Normal versus selection-blind gaps are descriptive, not strictly paired causal effects.",
+    "Budget three cannot establish open-loop saturation under the repository admission criterion.",
+    "Invalid model proposals are retained in validity rates and are not infrastructure failures.",
+    "The ignored raw report remains locally hash-addressed and is intentionally excluded from the proposed PR."
+  ]
+}
