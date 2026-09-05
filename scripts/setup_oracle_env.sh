@@ -34,7 +34,9 @@ PACKAGES=(
   "ViennaRNA==2.7.2"      # RNAEnsembleDesign
   "nmrsim==0.6.0"         # SpinSystemInference
   "networkx==3.1"         # GraphFromDistances
+  "sympy==1.13.3"         # SequenceLawRecovery
   "qutip==4.7.6"          # physics discovery tasks; 5.x needs a toolchain this host lacks
+  "astropy==5.2.2"        # RadialVelocityPlanets Lomb--Scargle scoring platform
 )
 
 # import name -> pip name, since several differ
@@ -45,15 +47,59 @@ declare -A IMPORT_NAME=(
   ["ViennaRNA==2.7.2"]="RNA"
   ["nmrsim==0.6.0"]="nmrsim"
   ["networkx==3.1"]="networkx"
+  ["sympy==1.13.3"]="sympy"
   ["qutip==4.7.6"]="qutip"
+  ["astropy==5.2.2"]="astropy"
+)
+
+# Canonical distribution versions. RDKit's import version retains a leading zero,
+# while its distribution metadata uses the normalized spelling below.
+declare -A EXPECTED_VERSION=(
+  ["stim==1.13.0"]="1.13.0"
+  ["pymatching==2.4.0"]="2.4.0"
+  ["rdkit==2024.03.5"]="2024.3.5"
+  ["ViennaRNA==2.7.2"]="2.7.2"
+  ["nmrsim==0.6.0"]="0.6.0"
+  ["networkx==3.1"]="3.1"
+  ["sympy==1.13.3"]="1.13.3"
+  ["qutip==4.7.6"]="4.7.6"
+  ["astropy==5.2.2"]="5.2.2"
+)
+
+declare -A DISTRIBUTION_NAME=(
+  ["stim==1.13.0"]="stim"
+  ["pymatching==2.4.0"]="pymatching"
+  ["rdkit==2024.03.5"]="rdkit"
+  ["ViennaRNA==2.7.2"]="ViennaRNA"
+  ["nmrsim==0.6.0"]="nmrsim"
+  ["networkx==3.1"]="networkx"
+  ["sympy==1.13.3"]="sympy"
+  ["qutip==4.7.6"]="qutip"
+  ["astropy==5.2.2"]="astropy"
 )
 
 site_dir() {
-  # The user site-packages, not a system one. A first version preferred any path containing
-  # "local" and picked /usr/local/lib/python3.8/dist-packages, which needs root and is not where
-  # the existing toolkits live - a fresh host would have installed to a second location and the
-  # two would have drifted.
-  "$ORACLE_PYTHON" -c "import site; print(site.getusersitepackages())"
+  # A configured virtualenv must own its packages; its user site is disabled and installing
+  # there creates a plausible-looking environment that the interpreter never imports.
+  # Preserve the historical user-site target only for a system interpreter.
+  "$ORACLE_PYTHON" -c \
+    "import site, sys, sysconfig; print(sysconfig.get_path('purelib') if sys.prefix != sys.base_prefix else site.getusersitepackages())"
+}
+
+installed_version() {
+  local distribution="$1"
+  "$ORACLE_PYTHON" -c \
+    "import importlib.metadata, sys; print(importlib.metadata.version(sys.argv[1]))" \
+    "$distribution" 2>/dev/null
+}
+
+package_matches() {
+  local spec="$1"
+  local mod="${IMPORT_NAME[$spec]}"
+  local actual
+  "$ORACLE_PYTHON" -c "import $mod" >/dev/null 2>&1 || return 1
+  actual="$(installed_version "${DISTRIBUTION_NAME[$spec]}")" || return 1
+  [[ "$actual" == "${EXPECTED_VERSION[$spec]}" ]]
 }
 
 report() {
@@ -62,8 +108,14 @@ report() {
   local missing=0
   for spec in "${PACKAGES[@]}"; do
     local mod="${IMPORT_NAME[$spec]}"
-    if version=$("$ORACLE_PYTHON" -c "import $mod, sys; print(getattr($mod, '__version__', '?'))" 2>/dev/null); then
+    local version
+    version="$(installed_version "${DISTRIBUTION_NAME[$spec]}")" 2>/dev/null || true
+    if package_matches "$spec"; then
       printf '  %-22s present  %s\n' "$mod" "$version"
+    elif [[ -n "$version" ]]; then
+      printf '  %-22s MISMATCH %s (expected %s)\n' \
+        "$mod" "$version" "${EXPECTED_VERSION[$spec]}"
+      missing=$((missing + 1))
     else
       printf '  %-22s MISSING  (%s)\n' "$mod" "$spec"
       missing=$((missing + 1))
@@ -88,12 +140,12 @@ TARGET="$(site_dir)"
 echo "installing into $TARGET"
 for spec in "${PACKAGES[@]}"; do
   mod="${IMPORT_NAME[$spec]}"
-  if "$ORACLE_PYTHON" -c "import $mod" >/dev/null 2>&1; then
-    echo "  $mod already present, skipping"
+  if package_matches "$spec"; then
+    echo "  $mod ${EXPECTED_VERSION[$spec]} already present, skipping"
     continue
   fi
   echo "  installing $spec"
-  "$BOOTSTRAP_VENV/bin/pip" install --quiet --target "$TARGET" "$spec"
+  "$BOOTSTRAP_VENV/bin/pip" install --quiet --upgrade --target "$TARGET" "$spec"
 done
 
 echo
