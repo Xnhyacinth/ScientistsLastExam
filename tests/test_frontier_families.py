@@ -18,6 +18,11 @@ from sle.frontier import (
     validate_family_waves,
 )
 from sle.protocol import TrajectoryEvent, append_event, sha256_text, summarize_trajectory
+from sle.runtime_identity import TrustedRuntime, current_runtime_descriptor
+
+
+TRUSTED_RUNTIME = current_runtime_descriptor(())
+TRUSTED_RUNTIME_SHA256 = TRUSTED_RUNTIME["fingerprint_sha256"]
 
 
 def _wave(
@@ -91,15 +96,20 @@ def _record(
     artifact: str,
     records: list[dict],
     valid: float = 1.0,
+    contract_hash: str = "a" * 64,
+    package_hash: str = "b" * 64,
+    runtime_hash: str = "c" * 64,
+    trusted_runtime_hash: str = TRUSTED_RUNTIME_SHA256,
 ):
     receipt = evidence.evaluate_once(
         {
             "kind": "proposal",
             "task_id": wave.task_family_id,
             **wave.binding(),
-            "task_contract_sha256": "a" * 64,
-            "task_package_sha256": "b" * 64,
-            "runtime_source_sha256": "c" * 64,
+            "task_contract_sha256": contract_hash,
+            "task_package_sha256": package_hash,
+            "runtime_source_sha256": runtime_hash,
+            "trusted_evaluator_runtime_sha256": trusted_runtime_hash,
             "candidate_sha256": artifact,
         },
         lambda: {
@@ -108,8 +118,19 @@ def _record(
             "frontier_records": records,
         },
     )
-    return ledger.record(
-        wave, evaluation_ledger=evidence, request_id=receipt["request_id"]
+    verified = {
+        "verified": True,
+        "verified_request_ids": [receipt["request_id"]],
+        "verified_receipt_metrics_sha256": {
+            receipt["request_id"]: receipt["metrics_sha256"]
+        },
+        "trusted_evaluator_runtime_sha256": trusted_runtime_hash,
+    }
+    return ledger._record_verified(
+        wave,
+        evaluation_ledger=evidence,
+        request_id=receipt["request_id"],
+        verified_run=verified,
     )
 
 
@@ -198,7 +219,7 @@ cells:
             with self.assertRaisesRegex(ValueError, "artifact hash differs"):
                 load_frozen_wave(spec)
 
-    def test_semantic_contract_binds_full_evaluator_oracle(self):
+    def test_semantic_contract_binds_declared_evaluator_entrypoint(self):
         with tempfile.TemporaryDirectory() as temporary:
             spec = self._spec(Path(temporary))
             (spec.task_dir / "verification/evaluator.py").write_text(
@@ -286,20 +307,27 @@ cells:
                 "task_contract_sha256": "a" * 64,
                 "task_package_sha256": "b" * 64,
                 "runtime_source_sha256": "c" * 64,
+                "trusted_evaluator_runtime": TRUSTED_RUNTIME,
                 **wave.binding(),
             }
             (run / "run_manifest.json").write_text(
                 json.dumps(frozen) + "\n", encoding="utf-8"
             )
             receipt = EvaluationLedger(run).evaluate_once(
-                {**frozen, "kind": "proposal", "candidate_sha256": "d" * 64},
+                {
+                    **frozen,
+                    "trusted_evaluator_runtime_sha256": TRUSTED_RUNTIME_SHA256,
+                    "kind": "proposal",
+                    "candidate_sha256": "d" * 64,
+                },
                 lambda: {"combined_score": 0.0, "valid": 1.0,
                          "frontier_records": []},
             )
             with patch.object(common, "task_contract_sha256", return_value="a" * 64), \
                  patch.object(common, "task_package_sha256", return_value="b" * 64), \
                  patch.object(common, "runtime_source_sha256", return_value="c" * 64), \
-                 self.assertRaisesRegex(ValueError, "run lacks a valid"):
+                 patch("sle.evaluate.resolve_trusted_runtime", return_value=TrustedRuntime("python", TRUSTED_RUNTIME)), \
+                 self.assertRaisesRegex(ValueError, "trusted run verification"):
                 promote_frontier_receipt(
                     spec,
                     run_workdir=run,
@@ -323,6 +351,7 @@ cells:
                 "task_contract_sha256": "a" * 64,
                 "task_package_sha256": "b" * 64,
                 "runtime_source_sha256": "c" * 64,
+                "trusted_evaluator_runtime": TRUSTED_RUNTIME,
                 "seed": 0,
                 "feedback_mode": "normal",
                 **wave.binding(),
@@ -338,6 +367,7 @@ cells:
                         "wave_manifest_sha256",
                     )},
                     "kind": "baseline",
+                    "trusted_evaluator_runtime_sha256": TRUSTED_RUNTIME_SHA256,
                     "step": 0,
                     "candidate_sha256": candidate_hash,
                 },
@@ -367,7 +397,8 @@ cells:
             (run / "best_program.py").write_text(program, encoding="utf-8")
             with patch.object(common, "task_contract_sha256", return_value="a" * 64), \
                  patch.object(common, "task_package_sha256", return_value="b" * 64), \
-                 patch.object(common, "runtime_source_sha256", return_value="c" * 64):
+                 patch.object(common, "runtime_source_sha256", return_value="c" * 64), \
+                 patch("sle.evaluate.resolve_trusted_runtime", return_value=TrustedRuntime("python", TRUSTED_RUNTIME)):
                 decision = promote_frontier_receipt(
                     spec, run_workdir=run, ledger_root=root / "canonical",
                     request_id=receipt["request_id"],
@@ -376,6 +407,15 @@ cells:
 
 
 class FrontierLedgerTests(unittest.TestCase):
+    def test_public_record_cannot_bypass_run_verification(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            ledger = FrontierLedger(Path(temporary))
+            evidence = EvaluationLedger(Path(temporary) / "unverified")
+            with self.assertRaisesRegex(ValueError, "promote_frontier_receipt"):
+                ledger.record(
+                    _wave(), evaluation_ledger=evidence, request_id="d" * 64
+                )
+
     def test_optimization_credits_only_verified_marginal_frontier_gain(self):
         with tempfile.TemporaryDirectory() as temporary:
             ledger = FrontierLedger(Path(temporary))
@@ -442,6 +482,54 @@ class FrontierLedgerTests(unittest.TestCase):
             )
             self.assertEqual(ledger.snapshot()["wave_count"], 2)
 
+    def test_same_wave_freezes_all_task_and_runtime_evidence_bindings(self):
+        changes = {
+            "task contract": {"contract_hash": "9" * 64},
+            "task package": {"package_hash": "9" * 64},
+            "runtime source": {"runtime_hash": "9" * 64},
+            "trusted runtime": {"trusted_runtime_hash": "9" * 64},
+        }
+        for label, changed in changes.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                ledger = FrontierLedger(root)
+                evidence = EvaluationLedger(root / "verified")
+                _record(ledger, evidence, _wave(), artifact="d" * 64, records=[])
+                with self.assertRaisesRegex(ValueError, "immutable wave evidence"):
+                    _record(
+                        ledger,
+                        evidence,
+                        _wave(),
+                        artifact="e" * 64,
+                        records=[],
+                        **changed,
+                    )
+
+    def test_legacy_event_schema_is_read_only_and_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            ledger = FrontierLedger(root)
+            evidence = EvaluationLedger(root / "verified")
+            _record(ledger, evidence, _wave(), artifact="d" * 64, records=[])
+            path = root / "frontier_ledger" / "events" / "00000000.json"
+            event = json.loads(path.read_text(encoding="utf-8"))
+            event["schema_version"] = 1
+            payload = {key: value for key, value in event.items() if key != "event_sha256"}
+            event["event_sha256"] = hashlib.sha256(
+                (
+                    json.dumps(
+                        payload,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        allow_nan=False,
+                    )
+                    + "\n"
+                ).encode("utf-8")
+            ).hexdigest()
+            path.write_text(json.dumps(event) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "event schema"):
+                ledger.snapshot()
+
     def test_tampered_append_only_event_is_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -494,6 +582,7 @@ class FrontierLedgerTests(unittest.TestCase):
                     "task_contract_sha256": "a" * 64,
                     "task_package_sha256": "b" * 64,
                     "runtime_source_sha256": "c" * 64,
+                    "trusted_evaluator_runtime_sha256": TRUSTED_RUNTIME_SHA256,
                     "candidate_sha256": "d" * 64,
                 },
                 lambda: {
@@ -504,11 +593,21 @@ class FrontierLedgerTests(unittest.TestCase):
                     ],
                 },
             )
-            first = ledger.record(
-                wave, evaluation_ledger=evidence, request_id=receipt["request_id"]
+            verified = {
+                "verified": True,
+                "verified_request_ids": [receipt["request_id"]],
+                "verified_receipt_metrics_sha256": {
+                    receipt["request_id"]: receipt["metrics_sha256"]
+                },
+                "trusted_evaluator_runtime_sha256": TRUSTED_RUNTIME_SHA256,
+            }
+            first = ledger._record_verified(
+                wave, evaluation_ledger=evidence, request_id=receipt["request_id"],
+                verified_run=verified,
             )
-            repeated = ledger.record(
-                wave, evaluation_ledger=evidence, request_id=receipt["request_id"]
+            repeated = ledger._record_verified(
+                wave, evaluation_ledger=evidence, request_id=receipt["request_id"],
+                verified_run=verified,
             )
             self.assertFalse(first["receipt_reused"])
             self.assertTrue(repeated["receipt_reused"])
@@ -523,6 +622,7 @@ class FrontierLedgerTests(unittest.TestCase):
                     "task_contract_sha256": "a" * 64,
                     "task_package_sha256": "b" * 64,
                     "runtime_source_sha256": "c" * 64,
+                    "trusted_evaluator_runtime_sha256": TRUSTED_RUNTIME_SHA256,
                     "candidate_sha256": "d" * 64,
                 },
                 lambda: {
@@ -533,11 +633,12 @@ class FrontierLedgerTests(unittest.TestCase):
                     ],
                 },
             )
-            with self.assertRaisesRegex(ValueError, "different metrics"):
-                ledger.record(
+            with self.assertRaisesRegex(ValueError, "differs from verified run"):
+                ledger._record_verified(
                     wave,
                     evaluation_ledger=conflicting,
                     request_id=receipt["request_id"],
+                    verified_run=verified,
                 )
 
     def test_same_artifact_cannot_change_its_canonical_record_set(self):
@@ -559,6 +660,7 @@ class FrontierLedgerTests(unittest.TestCase):
                     "task_contract_sha256": "a" * 64,
                     "task_package_sha256": "b" * 64,
                     "runtime_source_sha256": "c" * 64,
+                    "trusted_evaluator_runtime_sha256": TRUSTED_RUNTIME_SHA256,
                     "candidate_sha256": "d" * 64,
                     "step": 2,
                 },
@@ -570,9 +672,18 @@ class FrontierLedgerTests(unittest.TestCase):
                     ],
                 },
             )
+            verified = {
+                "verified": True,
+                "verified_request_ids": [receipt["request_id"]],
+                "verified_receipt_metrics_sha256": {
+                    receipt["request_id"]: receipt["metrics_sha256"]
+                },
+                "trusted_evaluator_runtime_sha256": TRUSTED_RUNTIME_SHA256,
+            }
             with self.assertRaisesRegex(ValueError, "artifact changed"):
-                ledger.record(
-                    wave, evaluation_ledger=second, request_id=receipt["request_id"]
+                ledger._record_verified(
+                    wave, evaluation_ledger=second, request_id=receipt["request_id"],
+                    verified_run=verified,
                 )
 
 

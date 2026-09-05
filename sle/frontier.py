@@ -27,7 +27,9 @@ except ImportError:  # pragma: no cover - SLE runners target POSIX
     fcntl = None
 
 
-SCHEMA_VERSION = 1
+WAVE_SCHEMA_VERSION = 1
+EVALUATION_RECEIPT_SCHEMA_VERSION = 1
+FRONTIER_EVENT_SCHEMA_VERSION = 2
 _HASH = re.compile(r"^[0-9a-f]{64}$")
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
 
@@ -267,7 +269,7 @@ def load_frozen_wave(spec: Any) -> FrozenWave | None:
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except (OSError, yaml.YAMLError) as exc:
         raise ValueError("wave manifest is not valid YAML") from exc
-    if not isinstance(raw, Mapping) or raw.get("schema_version") != SCHEMA_VERSION:
+    if not isinstance(raw, Mapping) or raw.get("schema_version") != WAVE_SCHEMA_VERSION:
         raise ValueError("wave manifest schema_version must be 1")
     family = _identifier(raw.get("task_family_id"), "task_family_id")
     wave_id = _identifier(raw.get("wave_id"), "wave_id")
@@ -291,7 +293,7 @@ def load_frozen_wave(spec: Any) -> FrozenWave | None:
             raise ValueError("wave cell kind differs from task scientific_role")
         cells[cell["id"]] = cell
     semantic = {
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": WAVE_SCHEMA_VERSION,
         "task_family_id": family,
         "wave_id": wave_id,
         "predecessor_wave_sha256": predecessor,
@@ -418,7 +420,7 @@ def _validated_wave(wave: FrozenWave) -> FrozenWave:
         cells=cells,
     )
     semantic = {
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": WAVE_SCHEMA_VERSION,
         "task_family_id": normalized.task_family_id,
         "wave_id": normalized.wave_id,
         "predecessor_wave_sha256": normalized.predecessor_wave_sha256,
@@ -441,6 +443,7 @@ class FrontierLedger:
     def _empty_state() -> dict[str, Any]:
         return {
             "waves": {},
+            "wave_evidence_bindings": {},
             "cell_definitions": {},
             "novelty_cells": {},
             "optimization_frontiers": {},
@@ -453,7 +456,25 @@ class FrontierLedger:
         }
 
     @staticmethod
-    def _register_wave(state: dict[str, Any], wave: FrozenWave) -> None:
+    def _register_wave(
+        state: dict[str, Any], wave: FrozenWave, evidence_binding: Mapping[str, str]
+    ) -> None:
+        expected_fields = {
+            "task_contract_sha256",
+            "task_package_sha256",
+            "runtime_source_sha256",
+            "trusted_evaluator_runtime_sha256",
+        }
+        if set(evidence_binding) != expected_fields:
+            raise ValueError("wave evidence binding fields differ from schema")
+        normalized_binding = {
+            key: _hash(evidence_binding.get(key), key) for key in sorted(expected_fields)
+        }
+        wave_key = "%s|%s" % (wave.task_family_id, wave.wave_id)
+        prior_binding = state["wave_evidence_bindings"].get(wave_key)
+        if prior_binding is not None and prior_binding != normalized_binding:
+            raise ValueError("immutable wave evidence binding changed")
+        state["wave_evidence_bindings"][wave_key] = normalized_binding
         family_waves = state["waves"].setdefault(wave.task_family_id, [])
         existing = next((row for row in family_waves if row["wave_id"] == wave.wave_id), None)
         if existing is not None:
@@ -622,7 +643,10 @@ class FrontierLedger:
                 event = json.loads(path.read_text(encoding="utf-8"))
             except json.JSONDecodeError as exc:
                 raise ValueError("frontier ledger event is corrupt: %s" % path.name) from exc
-            if not isinstance(event, dict) or event.get("schema_version") != SCHEMA_VERSION:
+            if (
+                not isinstance(event, dict)
+                or event.get("schema_version") != FRONTIER_EVENT_SCHEMA_VERSION
+            ):
                 raise ValueError("frontier ledger event schema is invalid")
             actual_hash = event.get("event_sha256")
             payload = {key: value for key, value in event.items() if key != "event_sha256"}
@@ -676,6 +700,10 @@ class FrontierLedger:
             _hash(event.get("task_contract_sha256"), "task_contract_sha256")
             _hash(event.get("task_package_sha256"), "task_package_sha256")
             _hash(event.get("runtime_source_sha256"), "runtime_source_sha256")
+            trusted_runtime_hash = _hash(
+                event.get("trusted_evaluator_runtime_sha256"),
+                "trusted_evaluator_runtime_sha256",
+            )
             _identifier(event.get("task_id"), "task_id")
             artifact_hash = _hash(event.get("artifact_sha256"), "artifact_sha256")
             embedded_request = event.get("evaluation_request")
@@ -690,7 +718,8 @@ class FrontierLedger:
             if not isinstance(embedded_metrics, Mapping):
                 raise ValueError("embedded evaluation receipt lacks metrics")
             if not (
-                embedded_receipt.get("schema_version") == SCHEMA_VERSION
+                embedded_receipt.get("schema_version")
+                == EVALUATION_RECEIPT_SCHEMA_VERSION
                 and embedded_receipt.get("request_id") == request_id
                 and embedded_receipt.get("request_sha256") == request_id
                 and embedded_receipt.get("metrics_sha256") == metrics_hash
@@ -715,6 +744,8 @@ class FrontierLedger:
                 == event.get("task_package_sha256")
                 and embedded_request.get("runtime_source_sha256")
                 == event.get("runtime_source_sha256")
+                and embedded_request.get("trusted_evaluator_runtime_sha256")
+                == trusted_runtime_hash
                 and embedded_request.get("candidate_sha256") == artifact_hash
             ):
                 raise ValueError("embedded evaluation source binding differs")
@@ -728,7 +759,16 @@ class FrontierLedger:
             records_hash = _sha256(records)
             if event.get("records_sha256") != records_hash:
                 raise ValueError("frontier ledger record-set hash differs")
-            self._register_wave(state, wave)
+            self._register_wave(
+                state,
+                wave,
+                {
+                    "task_contract_sha256": event["task_contract_sha256"],
+                    "task_package_sha256": event["task_package_sha256"],
+                    "runtime_source_sha256": event["runtime_source_sha256"],
+                    "trusted_evaluator_runtime_sha256": trusted_runtime_hash,
+                },
+            )
             self._bind_evidence(
                 state,
                 wave,
@@ -752,7 +792,22 @@ class FrontierLedger:
         evaluation_ledger: EvaluationLedger,
         request_id: str,
     ) -> dict[str, Any]:
-        """Credit records from one durable, content-bound evaluator receipt."""
+        """Reject unverified direct credit; use :func:`promote_frontier_receipt`."""
+
+        del wave, evaluation_ledger, request_id
+        raise ValueError(
+            "frontier credit requires promote_frontier_receipt from a verified run"
+        )
+
+    def _record_verified(
+        self,
+        wave: FrozenWave,
+        *,
+        evaluation_ledger: EvaluationLedger,
+        request_id: str,
+        verified_run: Mapping[str, Any],
+    ) -> dict[str, Any]:
+        """Append one receipt already proven by ``verify_run``."""
 
         if fcntl is None:
             raise RuntimeError("frontier ledger requires POSIX advisory locks")
@@ -760,6 +815,10 @@ class FrontierLedger:
         if not isinstance(evaluation_ledger, EvaluationLedger):
             raise ValueError("frontier credit requires an EvaluationLedger")
         request_hash = _hash(request_id, "evaluation request_id")
+        if not isinstance(verified_run, Mapping) or not verified_run.get("verified"):
+            raise ValueError("frontier credit requires a verified run result")
+        if request_hash not in verified_run.get("verified_request_ids", []):
+            raise ValueError("frontier receipt is not a verified trajectory event")
         bound = evaluation_ledger.require_bound_record(request_hash)
         request = bound.get("request")
         receipt = bound.get("receipt")
@@ -778,6 +837,14 @@ class FrontierLedger:
         runtime_hash = _hash(
             request.get("runtime_source_sha256"), "runtime_source_sha256"
         )
+        trusted_runtime_hash = _hash(
+            request.get("trusted_evaluator_runtime_sha256"),
+            "trusted_evaluator_runtime_sha256",
+        )
+        if trusted_runtime_hash != verified_run.get(
+            "trusted_evaluator_runtime_sha256"
+        ):
+            raise ValueError("evaluation request trusted runtime differs from verified run")
         artifact_hash = _hash(request.get("candidate_sha256"), "candidate_sha256")
         metrics = receipt.get("metrics")
         if not isinstance(metrics, Mapping) or metrics.get("infrastructure_failure"):
@@ -793,6 +860,10 @@ class FrontierLedger:
         metrics_hash = _hash(
             receipt.get("metrics_sha256"), "evaluation metrics_sha256"
         )
+        if metrics_hash != (verified_run.get("verified_receipt_metrics_sha256") or {}).get(
+            request_hash
+        ):
+            raise ValueError("evaluation receipt differs from verified run")
         self.root.mkdir(parents=True, exist_ok=True)
         with self.lock_path.open("a+b") as lock_handle:
             fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
@@ -817,6 +888,8 @@ class FrontierLedger:
                         and repeated.get("task_contract_sha256") == contract_hash
                         and repeated.get("task_package_sha256") == package_hash
                         and repeated.get("runtime_source_sha256") == runtime_hash
+                        and repeated.get("trusted_evaluator_runtime_sha256")
+                        == trusted_runtime_hash
                         and repeated.get("artifact_sha256") == artifact_hash
                         and repeated.get("records_sha256") == records_hash
                         and repeated.get("records") == records
@@ -831,7 +904,16 @@ class FrontierLedger:
                         "decisions": repeated["decisions"],
                         "receipt_reused": True,
                     }
-                self._register_wave(state, wave)
+                self._register_wave(
+                    state,
+                    wave,
+                    {
+                        "task_contract_sha256": contract_hash,
+                        "task_package_sha256": package_hash,
+                        "runtime_source_sha256": runtime_hash,
+                        "trusted_evaluator_runtime_sha256": trusted_runtime_hash,
+                    },
+                )
                 self._bind_evidence(
                     state,
                     wave,
@@ -843,7 +925,7 @@ class FrontierLedger:
                 )
                 decisions, credit = self._apply_records(state, wave, records)
                 event = {
-                    "schema_version": SCHEMA_VERSION,
+                    "schema_version": FRONTIER_EVENT_SCHEMA_VERSION,
                     "event_index": len(events),
                     "previous_event_sha256": (
                         events[-1]["event_sha256"] if events else None
@@ -857,6 +939,7 @@ class FrontierLedger:
                     "task_contract_sha256": contract_hash,
                     "task_package_sha256": package_hash,
                     "runtime_source_sha256": runtime_hash,
+                    "trusted_evaluator_runtime_sha256": trusted_runtime_hash,
                     "artifact_sha256": artifact_hash,
                     "records_sha256": records_hash,
                     "records": records,
@@ -883,7 +966,7 @@ class FrontierLedger:
         state = self._replay(events)
         waves = sum(len(rows) for rows in state["waves"].values())
         return {
-            "schema_version": SCHEMA_VERSION,
+            "schema_version": FRONTIER_EVENT_SCHEMA_VERSION,
             "event_count": len(events),
             "event_head_sha256": events[-1]["event_sha256"] if events else None,
             "family_count": len(state["waves"]),
@@ -909,6 +992,7 @@ def promote_frontier_receipt(
         task_contract_sha256,
         task_package_sha256,
     )
+    from .evaluate import resolve_trusted_runtime
     from .run_verification import verify_run
 
     wave = load_frozen_wave(spec)
@@ -918,8 +1002,15 @@ def promote_frontier_receipt(
     ledger_path = Path(ledger_root).resolve()
     if ledger_path == run_root or run_root in ledger_path.parents:
         raise ValueError("canonical frontier ledger must live outside the model run")
+    current_trusted_runtime = resolve_trusted_runtime(spec.task_dir)
     with RunLease(run_root):
-        verified = verify_run(run_root, acquire_lease=False)
+        verified = verify_run(
+            run_root,
+            acquire_lease=False,
+            expected_trusted_runtime_sha256=(
+                current_trusted_runtime.fingerprint_sha256
+            ),
+        )
         if request_id not in verified["verified_request_ids"]:
             raise ValueError("frontier receipt is not a verified trajectory event")
         manifest_path = run_root / "run_manifest.json"
@@ -932,6 +1023,7 @@ def promote_frontier_receipt(
             "task_contract_sha256": task_contract_sha256(spec),
             "task_package_sha256": task_package_sha256(spec),
             "runtime_source_sha256": runtime_source_sha256(),
+            "trusted_evaluator_runtime": current_trusted_runtime.descriptor,
             **wave.binding(),
         }
         if any(manifest.get(key) != value for key, value in current.items()):
@@ -940,15 +1032,23 @@ def promote_frontier_receipt(
         bound = evidence.require_bound_record(request_id)
         request = bound["request"]
         receipt = bound["receipt"]
-        if any(request.get(key) != value for key, value in current.items()):
+        request_current = {
+            key: value for key, value in current.items()
+            if key != "trusted_evaluator_runtime"
+        }
+        request_current["trusted_evaluator_runtime_sha256"] = (
+            current_trusted_runtime.fingerprint_sha256
+        )
+        if any(request.get(key) != value for key, value in request_current.items()):
             raise ValueError(
                 "evaluation request differs from current frozen task/runtime binding"
             )
         expected_metrics_hash = verified["verified_receipt_metrics_sha256"][request_id]
         if receipt.get("metrics_sha256") != expected_metrics_hash:
             raise ValueError("evaluation receipt changed after run verification")
-        return FrontierLedger(ledger_path).record(
+        return FrontierLedger(ledger_path)._record_verified(
             wave,
             evaluation_ledger=evidence,
             request_id=request_id,
+            verified_run=verified,
         )

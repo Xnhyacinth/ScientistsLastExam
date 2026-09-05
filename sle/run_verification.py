@@ -9,6 +9,7 @@ from typing import Any
 
 from .evaluation_ledger import EvaluationLedger, RunLease
 from .protocol import load_trajectory, sha256_text, summarize_trajectory
+from .runtime_identity import validate_runtime_descriptor
 
 INVALID_SCORE = -1.0e18
 
@@ -35,9 +36,30 @@ def _document(path: Path, label: str) -> dict[str, Any]:
 
 
 def _verify_run_unlocked(
-    root: Path, *, expected_budget: int | None = None
+    root: Path,
+    *,
+    expected_budget: int | None = None,
+    expected_trusted_runtime_sha256: str | None = None,
 ) -> dict[str, Any]:
     manifest = _document(root / "run_manifest.json", "run_manifest.json")
+    trusted_runtime = validate_runtime_descriptor(
+        manifest.get("trusted_evaluator_runtime")
+    )
+    trusted_runtime_sha256 = str(trusted_runtime["fingerprint_sha256"])
+    if expected_trusted_runtime_sha256 is not None:
+        if (
+            not isinstance(expected_trusted_runtime_sha256, str)
+            or len(expected_trusted_runtime_sha256) != 64
+            or expected_trusted_runtime_sha256 != trusted_runtime_sha256
+        ):
+            raise ValueError(
+                "run trusted runtime differs from the externally expected trusted runtime"
+            )
+    if manifest.get("algorithm") != "greedy_rewrite":
+        raise ValueError(
+            "trusted run verification requires greedy_rewrite durable "
+            "per-evaluation receipts"
+        )
     summary = _document(root / "summary.json", "summary.json")
     try:
         events = load_trajectory(root / "trajectory.jsonl")
@@ -75,6 +97,11 @@ def _verify_run_unlocked(
         horizon = (manifest.get("protocol") or {}).get("active_wall_horizon_s")
         baseline_receipt_score = None
         for event in events:
+            trajectory_metrics = event.get("metrics") or {}
+            if "trusted_evaluator_runtime_sha256" in trajectory_metrics:
+                raise ValueError(
+                    "science metrics contain internal trusted runtime fingerprint"
+                )
             metadata = event.get("algorithm_metadata") or {}
             request_id = metadata.get("evaluation_request_id")
             if not event.get("candidate_sha256"):
@@ -85,6 +112,13 @@ def _verify_run_unlocked(
                 bound = ledger.require_bound_record(request_id)
                 request = bound["request"]
                 receipt = bound["receipt"]
+                if (
+                    request.get("trusted_evaluator_runtime_sha256")
+                    != trusted_runtime_sha256
+                ):
+                    raise ValueError(
+                        "evaluation request trusted runtime differs from manifest"
+                    )
                 expected_oracle_calls += 1
                 verified_request_ids.append(str(request_id))
                 verified_receipts[str(request_id)] = str(receipt["metrics_sha256"])
@@ -93,6 +127,10 @@ def _verify_run_unlocked(
                         raise ValueError("evaluation receipt %s differs from manifest" % key)
                 expected_kind = "baseline" if int(event["step"]) == 0 else "proposal"
                 event_metrics = receipt.get("metrics") or {}
+                if "trusted_evaluator_runtime_sha256" in event_metrics:
+                    raise ValueError(
+                        "science metrics contain internal trusted runtime fingerprint"
+                    )
                 try:
                     expected_score = float(
                         event_metrics.get("combined_score", INVALID_SCORE)
@@ -188,6 +226,8 @@ def _verify_run_unlocked(
         "best_program_sha256": best_hash,
         "verified_request_ids": sorted(verified_request_ids),
         "verified_receipt_metrics_sha256": dict(sorted(verified_receipts.items())),
+        "trusted_evaluator_runtime": trusted_runtime,
+        "trusted_evaluator_runtime_sha256": trusted_runtime_sha256,
     }
 
 
@@ -196,11 +236,20 @@ def verify_run(
     *,
     acquire_lease: bool = True,
     expected_budget: int | None = None,
+    expected_trusted_runtime_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Rebuild a run and verify summary, receipt, counter, and incumbent state."""
 
     root = Path(workdir).resolve()
     if not acquire_lease:
-        return _verify_run_unlocked(root, expected_budget=expected_budget)
+        return _verify_run_unlocked(
+            root,
+            expected_budget=expected_budget,
+            expected_trusted_runtime_sha256=expected_trusted_runtime_sha256,
+        )
     with RunLease(root):
-        return _verify_run_unlocked(root, expected_budget=expected_budget)
+        return _verify_run_unlocked(
+            root,
+            expected_budget=expected_budget,
+            expected_trusted_runtime_sha256=expected_trusted_runtime_sha256,
+        )

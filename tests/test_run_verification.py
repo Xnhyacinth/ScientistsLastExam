@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 import unittest
@@ -15,6 +16,7 @@ from sle.protocol import (
     summarize_trajectory,
 )
 from sle.run_verification import verify_run
+from sle.runtime_identity import current_runtime_descriptor
 
 
 class RunVerificationTests(unittest.TestCase):
@@ -28,6 +30,7 @@ class RunVerificationTests(unittest.TestCase):
             "task_contract_sha256": "a" * 64,
             "task_package_sha256": "b" * 64,
             "runtime_source_sha256": "c" * 64,
+            "trusted_evaluator_runtime": current_runtime_descriptor(()),
             "seed": 0,
             "feedback_mode": "normal",
         }
@@ -39,6 +42,9 @@ class RunVerificationTests(unittest.TestCase):
                     "task_id", "task_contract_sha256", "task_package_sha256",
                     "runtime_source_sha256",
                 )},
+                "trusted_evaluator_runtime_sha256": manifest[
+                    "trusted_evaluator_runtime"
+                ]["fingerprint_sha256"],
                 "step": 0,
                 "candidate_sha256": candidate_hash,
             },
@@ -86,6 +92,9 @@ class RunVerificationTests(unittest.TestCase):
                 "task_contract_sha256": "a" * 64,
                 "task_package_sha256": "b" * 64,
                 "runtime_source_sha256": "c" * 64,
+                "trusted_evaluator_runtime_sha256": json.loads(
+                    (root / "run_manifest.json").read_text(encoding="utf-8")
+                )["trusted_evaluator_runtime"]["fingerprint_sha256"],
                 "step": 1,
                 "candidate_sha256": candidate_hash,
                 "parent_sha256": sha256_text(parent),
@@ -136,7 +145,84 @@ class RunVerificationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             self._run(root)
-            self.assertTrue(verify_run(root)["verified"])
+            verified = verify_run(root)
+            self.assertTrue(verified["verified"])
+            self.assertEqual(
+                verified["trusted_evaluator_runtime_sha256"],
+                verified["trusted_evaluator_runtime"]["fingerprint_sha256"],
+            )
+
+    def test_rejects_legacy_run_without_trusted_runtime_binding(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._run(root)
+            manifest = json.loads((root / "run_manifest.json").read_text())
+            manifest.pop("trusted_evaluator_runtime")
+            atomic_write_text(root / "run_manifest.json", json.dumps(manifest) + "\n")
+            with self.assertRaisesRegex(ValueError, "trusted runtime descriptor"):
+                verify_run(root)
+
+    def test_rejects_request_with_different_trusted_runtime(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            request_id = self._run(root)
+            request_path = root / "evaluation_ledger" / "requests" / (request_id + ".json")
+            document = json.loads(request_path.read_text(encoding="utf-8"))
+            document["request"]["trusted_evaluator_runtime_sha256"] = "d" * 64
+            atomic_write_text(request_path, json.dumps(document) + "\n")
+            with self.assertRaisesRegex(ValueError, "request content binding|trusted runtime"):
+                verify_run(root)
+
+    def test_rejects_runtime_fingerprint_inside_science_metrics(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            request_id = self._run(root)
+            receipt_path = root / "evaluation_ledger" / "receipts" / (request_id + ".json")
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            receipt["metrics"]["trusted_evaluator_runtime_sha256"] = "d" * 64
+            receipt["metrics_sha256"] = hashlib.sha256(
+                (
+                    json.dumps(
+                        receipt["metrics"],
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        allow_nan=False,
+                    )
+                    + "\n"
+                ).encode("utf-8")
+            ).hexdigest()
+            atomic_write_text(receipt_path, json.dumps(receipt) + "\n")
+            events = load_trajectory(root / "trajectory.jsonl")
+            events[0]["metrics"] = receipt["metrics"]
+            atomic_write_text(
+                root / "trajectory.jsonl",
+                "\n".join(json.dumps(event) for event in events) + "\n",
+            )
+            summary = json.loads((root / "summary.json").read_text())
+            summary.update(summarize_trajectory(events, budget=1))
+            atomic_write_text(root / "summary.json", json.dumps(summary) + "\n")
+            with self.assertRaisesRegex(ValueError, "science metrics"):
+                verify_run(root)
+
+    def test_expected_trusted_runtime_must_match_manifest(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._run(root)
+            with self.assertRaisesRegex(ValueError, "externally expected trusted runtime"):
+                verify_run(root, expected_trusted_runtime_sha256="d" * 64)
+
+    def test_non_greedy_run_cannot_be_trusted_without_durable_receipts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._run(root)
+            manifest = json.loads((root / "run_manifest.json").read_text())
+            manifest["algorithm"] = "abmcts"
+            atomic_write_text(root / "run_manifest.json", json.dumps(manifest) + "\n")
+            summary = json.loads((root / "summary.json").read_text())
+            summary["algorithm"] = "abmcts"
+            atomic_write_text(root / "summary.json", json.dumps(summary) + "\n")
+            with self.assertRaisesRegex(ValueError, "durable per-evaluation receipts"):
+                verify_run(root)
 
     def test_rejects_hand_edited_summary(self):
         with tempfile.TemporaryDirectory() as temporary:

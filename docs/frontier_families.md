@@ -49,15 +49,15 @@ cells:
       evaluation_panel_path: frontier_eval/contracts/pde_panel_v1.json
       evaluation_panel_sha256: <sha256-of-frozen-cell-panel>
       oracle_path: verification/evaluator.py
-      oracle_sha256: <sha256-of-complete-evaluator-oracle>
+      oracle_sha256: <sha256-of-declared-evaluator-entrypoint>
 ```
 
 For a discovery cell use `kind: discovery`, replace the objective fields with a positive
 `credit_per_claim`, and add a stable `novelty_namespace`. The semantic contract binds the
-versioned canonicalizer, confirmation predicate, frozen evaluation panel, and complete evaluator
-oracle; paths must stay in the task package and their bytes must match the declared hashes. The
-oracle binding prevents scoring, feasibility, and numerical semantics outside the smaller contract
-artifacts from changing silently. The loader derives
+versioned canonicalizer, confirmation predicate, frozen evaluation panel, and declared evaluator
+entrypoint; paths must stay in the task package and their bytes must match the declared hashes.
+`task_package_sha256`, rather than `oracle_sha256` alone, binds the complete task package including
+the evaluator's imported helpers and data. The loader derives
 `definition_sha256` from the
 normalized cell semantics.
 Authors may include that hash explicitly; a mismatch is rejected. A cell ID cannot later be
@@ -67,15 +67,18 @@ The first wave has a null predecessor. A later wave names the semantic manifest 
 previous wave. Every historical wave must remain repository-visible: the repository audit rejects
 missing predecessors, multiple genesis waves, forks, repeated wave IDs, and changed cell
 definitions. Run manifests and evaluation requests also bind the current family ID, wave ID, wave
-manifest hash, task package hash, and runtime source hash.
+manifest hash, task package hash, runtime source hash, and trusted evaluator runtime condition.
+The trusted runtime fingerprint identifies the Python ABI and audited distribution versions. It is
+not a claim that every installed runtime byte is bit-identical.
 
 ## Trusted record contract
 
-`FrontierLedger.record()` accepts an `EvaluationLedger` and committed request ID, never raw records
-or caller-supplied hashes. It verifies `valid == 1`, extracts `frontier_records` from the durable
-receipt, and binds the request, metrics, candidate, package, runtime, and wave hashes into the
-event. A candidate program must never choose its own canonical ID, scientific cell, weight,
-reference, or minimum delta.
+`FrontierLedger.record()` deliberately rejects direct callers. The only public credit path is
+`promote_frontier_receipt()`: it first verifies the committed greedy trajectory and all durable
+evaluation receipts, then extracts `frontier_records` and binds the request, metrics, candidate,
+complete task package, runtime source, trusted runtime condition, and wave hashes into the event.
+A candidate program must never choose its own canonical ID, scientific cell, weight, reference,
+or minimum delta.
 
 Model runs only produce receipts. A trusted operator promotes a receipt into one explicitly chosen,
 cross-run canonical evidence root with `python -m sle frontier-promote --task ... --run-workdir ...
@@ -86,6 +89,11 @@ create an isolated ledger and is not a valid campaign-wide lifetime total.
 `python -m sle verify-run --workdir ...` checks internal content consistency under the budget
 declared by that run. Release/cohort evidence must additionally pass `--expected-budget N`; the
 cohort runner supplies this external campaign contract automatically.
+
+The first credited event for a wave freezes its task contract, complete task package, runtime
+source, and trusted evaluator runtime condition. Later events in that wave must match all four.
+Frontier events use their own schema version independently of wave manifests and evaluation
+receipts. A ledger written under an older event schema fails closed and is not silently rewritten.
 
 An optimization record contains:
 
