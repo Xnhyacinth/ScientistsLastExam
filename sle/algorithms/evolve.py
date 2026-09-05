@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from ..evaluate import evaluate_candidate, INVALID_SCORE
+from ..evaluate import evaluate_candidate, INVALID_SCORE, resolve_trusted_runtime
 from ..evaluation_ledger import EvaluationLedger, RunLease
 from ..llm import LLMClient
 from ..metric_visibility import score_only_metrics, search_visible_metrics
@@ -402,7 +402,8 @@ def _greedy_rewrite_impl(
         resume and manifest_path.is_file()
         and not checkpoint_path.exists() and trajectory_path.is_file()
     )
-    ensure_run_manifest(
+    trusted_runtime = resolve_trusted_runtime(spec.task_dir)
+    run_manifest = ensure_run_manifest(
         workdir, spec=spec, llm=llm, algorithm="greedy_rewrite", seed=seed,
         feedback_mode=feedback_mode, resume=resume,
         protocol={
@@ -420,6 +421,7 @@ def _greedy_rewrite_impl(
                 "signed_decision_policy": signed_decision_policy,
             } if active_wall_horizon_s is not None else {}),
         },
+        trusted_runtime=trusted_runtime,
     )
     if resume and not (full_resume or baseline_retry or baseline_commit_recovery):
         raise FileNotFoundError("--resume requires checkpoint.json and trajectory.jsonl")
@@ -436,6 +438,9 @@ def _greedy_rewrite_impl(
     frozen_task_contract = task_contract_sha256(spec)
     frozen_task_package = task_package_sha256(spec)
     frozen_runtime_source = runtime_source_sha256()
+    frozen_trusted_runtime = str(
+        run_manifest["trusted_evaluator_runtime"]["fingerprint_sha256"]
+    )
 
     def validate_committed_evaluation_receipts(
         events: list[dict[str, Any]],
@@ -456,8 +461,12 @@ def _greedy_rewrite_impl(
                 and request.get("task_contract_sha256") == frozen_task_contract
                 and request.get("task_package_sha256") == frozen_task_package
                 and request.get("runtime_source_sha256") == frozen_runtime_source
+                and request.get("trusted_evaluator_runtime_sha256")
+                == frozen_trusted_runtime
                 and request.get("step") == int(event["step"])
                 and request.get("candidate_sha256") == event["candidate_sha256"]
+                and receipt["metrics"].get("trusted_evaluator_runtime_sha256")
+                == frozen_trusted_runtime
                 and receipt["metrics"] == (event.get("metrics") or {})
             ):
                 raise ValueError("trajectory evaluation receipt binding differs")
@@ -589,11 +598,15 @@ def _greedy_rewrite_impl(
                 "task_contract_sha256": frozen_task_contract,
                 "task_package_sha256": frozen_task_package,
                 "runtime_source_sha256": frozen_runtime_source,
+                "trusted_evaluator_runtime_sha256": frozen_trusted_runtime,
                 "step": 0,
                 "candidate_sha256": sha256_text(baseline_src),
                 "evaluator_timeout_seconds": float(timeout_s),
             },
-            lambda: evaluate_candidate(spec, cand_path, timeout_s=timeout_s),
+            lambda: evaluate_candidate(
+                spec, cand_path, timeout_s=timeout_s,
+                trusted_runtime=trusted_runtime,
+            ),
             clock=time.monotonic,
         )
         metrics = dict(baseline_receipt["metrics"])
@@ -994,13 +1007,17 @@ def _greedy_rewrite_impl(
                     "task_contract_sha256": frozen_task_contract,
                     "task_package_sha256": frozen_task_package,
                     "runtime_source_sha256": frozen_runtime_source,
+                    "trusted_evaluator_runtime_sha256": frozen_trusted_runtime,
                     "step": int(it),
                     "candidate_sha256": sha256_text(code),
                     "parent_sha256": parent_sha,
                     "prompt_sha256": sha256_text(prompt),
                     "evaluator_timeout_seconds": float(timeout_s),
                 },
-                lambda: evaluate_candidate(spec, cand_path, timeout_s=timeout_s),
+                lambda: evaluate_candidate(
+                    spec, cand_path, timeout_s=timeout_s,
+                    trusted_runtime=trusted_runtime,
+                ),
                 clock=time.monotonic,
             )
             m = dict(evaluation_receipt["metrics"])

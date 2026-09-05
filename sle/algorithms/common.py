@@ -7,8 +7,6 @@ import hashlib
 import importlib.metadata
 import math
 import os
-import platform
-import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -25,6 +23,7 @@ from ..protocol import (
     sha256_text,
     summarize_trajectory,
 )
+from ..runtime_identity import TrustedRuntime, current_runtime_descriptor
 
 from ..metric_visibility import METRIC_VISIBILITY_SCOPE
 
@@ -275,7 +274,12 @@ def ensure_run_manifest(
     resume: bool,
     upstream: Optional[dict[str, Any]] = None,
     protocol: Optional[dict[str, Any]] = None,
+    trusted_runtime: TrustedRuntime | None = None,
 ) -> dict[str, Any]:
+    if trusted_runtime is None:
+        from ..evaluate import resolve_trusted_runtime
+
+        trusted_runtime = resolve_trusted_runtime(getattr(spec, "task_dir", None))
     expected = {
         "schema_version": 1,
         "algorithm": algorithm,
@@ -283,11 +287,8 @@ def ensure_run_manifest(
         "task_contract_sha256": task_contract_sha256(spec),
         "task_package_sha256": task_package_sha256(spec),
         "runtime_source_sha256": runtime_source_sha256(),
-        "runtime_environment": {
-            "python": sys.version,
-            "executable": str(Path(sys.executable).resolve()),
-            "platform": platform.platform(),
-        },
+        "runtime_environment": current_runtime_descriptor(()),
+        "trusted_evaluator_runtime": trusted_runtime.descriptor,
         "seed": int(seed),
         "feedback_mode": feedback_mode,
         "feedback_scope": feedback_scope(feedback_mode),

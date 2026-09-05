@@ -51,6 +51,20 @@ class FakeLLM:
         return value
 
 
+def runtime_bound_evaluator(rows):
+    """Build a fake evaluator that obeys the trusted-runtime receipt contract."""
+    remaining = iter(rows)
+
+    def evaluate(_spec, _candidate, timeout_s, *, trusted_runtime):
+        del timeout_s
+        return {
+            **next(remaining),
+            "trusted_evaluator_runtime_sha256": trusted_runtime.fingerprint_sha256,
+        }
+
+    return evaluate
+
+
 class ProtocolMetricTests(unittest.TestCase):
     def events(self):
         return [
@@ -673,7 +687,7 @@ class GreedyRewriteTests(unittest.TestCase):
             work = Path(tmp)
             with patch(
                 "sle.algorithms.evolve.evaluate_candidate",
-                side_effect=[baseline_metrics, infrastructure],
+                side_effect=runtime_bound_evaluator([baseline_metrics, infrastructure]),
             ):
                 with self.assertRaisesRegex(
                     RuntimeError, "candidate trusted evaluator"
@@ -695,7 +709,9 @@ class GreedyRewriteTests(unittest.TestCase):
             )
             with patch(
                 "sle.algorithms.evolve.evaluate_candidate",
-                return_value={"combined_score": 0.2, "valid": 1.0},
+                side_effect=runtime_bound_evaluator([
+                    {"combined_score": 0.2, "valid": 1.0},
+                ]),
             ):
                 resumed = greedy_rewrite(
                     spec, FakeLLM([]), budget=1, timeout_s=20,
@@ -712,9 +728,13 @@ class GreedyRewriteTests(unittest.TestCase):
         spec = find_task("LennardJonesCluster")
         calls = {"count": 0}
 
-        def evaluate(_spec, _candidate, timeout_s):
+        def evaluate(_spec, _candidate, timeout_s, *, trusted_runtime):
+            del timeout_s
             calls["count"] += 1
-            return {"combined_score": 0.1, "valid": 1.0}
+            return {
+                "combined_score": 0.1, "valid": 1.0,
+                "trusted_evaluator_runtime_sha256": trusted_runtime.fingerprint_sha256,
+            }
 
         with tempfile.TemporaryDirectory() as temporary:
             work = Path(temporary)
@@ -764,9 +784,13 @@ class GreedyRewriteTests(unittest.TestCase):
         spec = find_task("LennardJonesCluster")
         calls = {"count": 0}
 
-        def evaluate(_spec, _candidate, timeout_s):
+        def evaluate(_spec, _candidate, timeout_s, *, trusted_runtime):
+            del timeout_s
             calls["count"] += 1
-            return {"combined_score": 0.1, "valid": 1.0}
+            return {
+                "combined_score": 0.1, "valid": 1.0,
+                "trusted_evaluator_runtime_sha256": trusted_runtime.fingerprint_sha256,
+            }
 
         real_append = __import__(
             "sle.algorithms.evolve", fromlist=["append_event"]
@@ -817,11 +841,13 @@ class GreedyRewriteTests(unittest.TestCase):
         fenced = "```python\n" + baseline + "\n```"
         calls = {"count": 0}
 
-        def evaluate(_spec, _candidate, timeout_s):
+        def evaluate(_spec, _candidate, timeout_s, *, trusted_runtime):
+            del timeout_s
             calls["count"] += 1
             return {
                 "combined_score": 0.1 if calls["count"] == 1 else 0.2,
                 "valid": 1.0,
+                "trusted_evaluator_runtime_sha256": trusted_runtime.fingerprint_sha256,
             }
 
         from sle.algorithms import evolve as evolve_module
@@ -889,11 +915,13 @@ class GreedyRewriteTests(unittest.TestCase):
         fenced = "```python\n" + proposal + "\n```"
         calls = {"count": 0}
 
-        def evaluate(_spec, _candidate, timeout_s):
+        def evaluate(_spec, _candidate, timeout_s, *, trusted_runtime):
+            del timeout_s
             calls["count"] += 1
             return {
                 "combined_score": 0.1 if calls["count"] == 1 else 0.2,
                 "valid": 1.0,
+                "trusted_evaluator_runtime_sha256": trusted_runtime.fingerprint_sha256,
             }
 
         evolve_module = __import__(
@@ -1157,11 +1185,11 @@ class GreedyRewriteTests(unittest.TestCase):
             work = Path(tmp)
             with patch(
                 "sle.algorithms.evolve.evaluate_candidate",
-                side_effect=[
+                side_effect=runtime_bound_evaluator([
                     {"combined_score": 0.0, "valid": 1.0},
                     {"combined_score": 0.8, "valid": 1.0},
                     {"combined_score": 0.7, "valid": 1.0},
-                ],
+                ]),
             ):
                 greedy_rewrite(
                     spec,
@@ -1178,7 +1206,9 @@ class GreedyRewriteTests(unittest.TestCase):
             resumed_llm = FakeLLM(["```python\n%s\n```" % proposal_three])
             with patch(
                 "sle.algorithms.evolve.evaluate_candidate",
-                return_value={"combined_score": 0.6, "valid": 1.0},
+                side_effect=runtime_bound_evaluator([
+                    {"combined_score": 0.6, "valid": 1.0},
+                ]),
             ):
                 resumed = greedy_rewrite(
                     spec, resumed_llm, budget=3, timeout_s=20, workdir=work,
