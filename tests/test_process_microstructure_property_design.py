@@ -522,6 +522,7 @@ class ProcessMicrostructurePropertyDesignTests(unittest.TestCase):
 
     def test_raw_hypervolume_emits_a_quantized_archive_frontier_record(self):
         result = self.evaluator.evaluate(self.evaluator._reference_policy)
+        self.assertIs(result["frontier_record_emitted"], True)
         self.assertEqual(len(result["frontier_records"]), 1)
         record = result["frontier_records"][0]
         self.assertEqual(record["value"], result["development_raw_hypervolume"])
@@ -539,6 +540,7 @@ class ProcessMicrostructurePropertyDesignTests(unittest.TestCase):
         self.assertEqual(result["valid"], 1.0)
         self.assertAlmostEqual(result["combined_score"], 1.0, places=12)
         self.assertEqual(result["heldout_feasibility_rate"], 0.0)
+        self.assertIs(result["frontier_record_emitted"], False)
         self.assertEqual(result["frontier_records"], [])
 
     def test_machine_readable_panel_is_the_evaluator_source(self):

@@ -621,6 +621,7 @@ def evaluate(design_process_archive):
         "heldout_mean_barrier_index": held["mean_barrier_index"],
         "heldout_mean_process_energy": held["mean_process_energy"],
         "heldout_mean_phase_contrast": held["mean_phase_contrast"],
+        "frontier_record_emitted": bool(frontier_records),
         "frontier_records": frontier_records,
         "per_instance": records,
     }

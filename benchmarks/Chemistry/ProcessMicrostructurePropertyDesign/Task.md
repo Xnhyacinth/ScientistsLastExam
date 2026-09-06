@@ -176,11 +176,12 @@ mean barrier index, mean process energy and mean phase contrast. `heldout_hyperv
 `heldout_shifted_hypervolume_score` repeat the test on held-out materials. Each per-instance row
 contains three `raw_shifted_hypervolumes`: reduced mobility/critical-temperature shift, stronger
 gradient/interface penalty, and constituent-property shift. None of those sealed metrics enters
-the public development score.
+the public development score. `frontier_record_emitted` is true exactly when the evaluator emits
+a transfer-eligible record and false otherwise; it does not assert that a ledger admitted the record.
 
 A result emits a lifetime-credit frontier record only when every held-out artifact is legal and
 the development-shifted, held-out, and held-out-shifted normalized scores each retain at least 50%
-of the public development score. This frozen promotion gate does not change `combined_score`; it
+of the public development score. This frozen record-emission gate does not change `combined_score`; it
 prevents a non-transferring archive from entering the cross-wave ledger.
 
 ## Rules and scientific scope

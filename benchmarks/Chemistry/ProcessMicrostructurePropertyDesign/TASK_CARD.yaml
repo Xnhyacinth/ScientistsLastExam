@@ -35,6 +35,7 @@ invariants:
 - three sealed shifts separately perturb phase kinetics, gradient and interface penalties, and constituent properties
 - held-out material worlds, shifted scores and per-instance rows do not enter the public development objective
 - lifetime-credit records require legal held-out artifacts and at least 50 percent normalized-score retention on development shifts, held-out worlds and held-out shifts
+- frontier_record_emitted reports evaluator-side record emission only and never claims ledger admission
 - nonfinite, out-of-bounds, duplicate, image-like, malformed and exception-producing candidates score zero without escaping the evaluator
 known_shortcuts: The oracle is one-dimensional, uses a fixed 48-cell spectral reduced model, omits full nonlinear Cahn--Hilliard integration, mechanics, defects, degradation, scale-up and experimental noise, and employs a stylized Voigt--Reuss property closure. A tested 441-point blend-temperature shortcut and three tested 343-point coordinate-subspace shortcuts remain below the reference. A 2048-point public-proxy pool with the same refinement scores only 1.000374, while evaluator-aware coordinate exchange reaches 1.005083; neither result certifies model difficulty. New physical systems or fidelities require frozen new waves.
 review:

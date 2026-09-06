@@ -5,7 +5,7 @@ predecessor_wave_sha256: null
 cells:
   - id: process-property-pareto-hypervolume
     kind: optimization
-    definition_sha256: "205863e6a65bf2fc9371cc7b320da116c8ad73f60bc69f40144f9ad3fec51481"
+    definition_sha256: "eba964fb654b2ebdcd4e3f0eae7fd602fcedb7f2a43da460e079994e20f195c8"
     weight: 1
     objective: maximize
     reference_value: 0.05589055199212832
@@ -21,4 +21,4 @@ cells:
       evaluation_panel_path: frontier_eval/contracts/evaluation_panel_v1.json
       evaluation_panel_sha256: "01a732b128e995b6704d7fc61ef6ad9adc0e540fb924c39313e8173441bd0b53"
       oracle_path: verification/evaluator.py
-      oracle_sha256: "c13f71a8b97e075ff1a8f923deb93db581e1cc1b8a92503cd77de5368f3292cc"
+      oracle_sha256: "1dc0bcf5c20d794d6528ed42b2e69df9c2d4f8a51aa1509129f3685f645b9634"
