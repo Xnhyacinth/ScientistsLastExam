@@ -1,0 +1,256 @@
+{
+  "schema_version": 1,
+  "preregistration_id": "hy3_frontier_candidate_calibration_2026-09-06_v1",
+  "frozen_at_utc": "2026-09-06",
+  "purpose": "Prospective multi-prefix, multi-replicate HY3 calibration of three new candidate frontier tasks.",
+  "claim_limit": "candidate_calibration_only_not_hardness_certification_or_model_ranking_or_causal_feedback_evidence",
+  "source_cohort": {
+    "path": ".research/hy3_frontier_candidate_calibration_cohort_2026-09-06_v1.json",
+    "sha256": "70a839b59fdedac38527d0cc7bb30e8ebc4238427afa1068ec0a8ad3baced26d",
+    "analysis_role": "candidate_calibration",
+    "claim_limit": "candidate_calibration_only_not_hardness_certification_or_model_ranking_or_causal_feedback_evidence"
+  },
+  "frozen_source": {
+    "parent_revision": "84932edcde62fcec7fd4ce8cd2516550724d1583",
+    "runtime_source_sha256": "a8935034612e0487b9dfd05a4f860e01f33cd8542afaaa9858ed339d5c6d6b7b",
+    "source_change_rule": "The execution commit may descend from parent_revision only through files outside sle, scripts, tests, benchmarks and requirements-upstream.txt. Any scoped source change requires a new preregistration and a new full-suite and evidence gate."
+  },
+  "model_condition": {
+    "llm_condition_sha256": "220f1550316c451529bc0afa95980d8bce21256ef4b141641bacd530bfa2c020",
+    "required_readable_fields": [
+      "chat_max_tokens_field",
+      "chat_reasoning_fallback",
+      "endpoint_sha256",
+      "max_output_tokens",
+      "model",
+      "provider_request_timeout_seconds",
+      "reasoning_effort",
+      "server_side_seed_control",
+      "stream",
+      "temperature",
+      "wire"
+    ],
+    "wire": "chat",
+    "endpoint_sha256": "578447fa1726c286215ea39d9b39038cdc72c9130d03264a22ded3b1b393b1ca",
+    "model": "hy3",
+    "max_output_tokens": 32768,
+    "temperature": 0.7,
+    "reasoning_effort": null,
+    "provider_request_timeout_seconds": 600,
+    "stream": true,
+    "chat_max_tokens_field": "max_tokens",
+    "chat_reasoning_fallback": false,
+    "server_side_seed_control": false,
+    "replicate_identifier_limit": "Local replicate identifiers control only local scheduling and algorithm randomness. The endpoint exposes no provider generation seed, so same-number normal and selection_blind cells are not paired model draws."
+  },
+  "design": {
+    "analysis_role": "candidate_calibration",
+    "resume_permitted": false,
+    "task_count": 3,
+    "scheduled_trajectory_count": 18,
+    "proposal_call_upper_bound": 54,
+    "algorithm": "greedy_rewrite",
+    "feedback_modes": [
+      "normal",
+      "selection_blind"
+    ],
+    "local_replicate_identifiers": [
+      0,
+      1,
+      2
+    ],
+    "run_count_per_task_condition": 3,
+    "proposal_budget_upper_bound": 3,
+    "budget_estimands": [
+      1,
+      2,
+      3
+    ],
+    "budget_interpretation": "B1 and B2 are preregistered prefixes of each B3 trajectory, not independently restarted policies.",
+    "evaluator_timeout_seconds": 300,
+    "condition_order_design": "reverse_parity",
+    "condition_order_schedule": [
+      {
+        "replicate_identifier": 0,
+        "feedback_modes": [
+          "normal",
+          "selection_blind"
+        ]
+      },
+      {
+        "replicate_identifier": 1,
+        "feedback_modes": [
+          "selection_blind",
+          "normal"
+        ]
+      },
+      {
+        "replicate_identifier": 2,
+        "feedback_modes": [
+          "normal",
+          "selection_blind"
+        ]
+      }
+    ],
+    "block_workers": 1,
+    "parallelism_unit": "none; task-algorithm-replicate blocks execute serially and conditions execute in the frozen order",
+    "failure_policy": "first-attempt intent-to-evaluate; retain all scheduled, started, captured, judged, invalid, failed, timed-out, abstaining, blocked, missing, and completed cells; no resume or silent replacement",
+    "primary_estimands": [
+      "For every task, condition, and B1/B2/B3 prefix: scheduled, exact-prefix observed, and missing counts plus mean best-so-far score over observed rows.",
+      "For every task, condition, and prefix: cumulative valid, invalid, proposal-error, timeout, and signed-abstention counts over all scheduled rows.",
+      "For every task, condition, and prefix: fixed-scheduled-denominator fractions strictly exceeding the frozen run baseline and normalized reference 1.0.",
+      "For every task and complete prefix: descriptive unpaired difference of condition means, normal minus selection_blind; suppress the contrast if either arm is incomplete.",
+      "PDE axes retained per run: smooth/shock accuracy, stability, work, conservation error, and held-out axis scores.",
+      "Reaction axes retained per run: mechanism recovery, claimed-edge FDR and denominator, correct and calibrated refusal, expected-recovery confidence calibration, attempted discovery, coverage, and probe cost.",
+      "Process-material axes retained per run: nominal, shifted, and held-out hypervolume; feasibility; transfer retention; modulus, barrier, energy, phase contrast; and frontier-promotion status."
+    ],
+    "interpretation_rules": [
+      "All intervals and contrasts are descriptive because there are only three local replicate identifiers and no provider-side paired seed.",
+      "A high score or reference crossing may support an on-ramp or too-easy diagnosis but cannot certify scientific hardness.",
+      "A low score may reflect task difficulty, proposal invalidity, instruction following, or endpoint variance and cannot alone establish hardness.",
+      "Normal-minus-selection_blind is evidence about observed trajectories under different feedback semantics, not a causal feedback effect.",
+      "No task may be promoted beyond candidate from this calibration. Server-held worlds, contamination review, additional models and budgets, and independent domain review remain required."
+    ],
+    "tasks": [
+      {
+        "task": "ScientificComputing/AdaptiveConservativePDEMethod",
+        "scientific_role": "candidate on-ramp for conservative numerical-method configuration",
+        "maturity_contract_sha256": "a4e83ca64f813e6efd447426418fcc4dd9f8a43ce7cad426a00c42d78d147259",
+        "task_contract_sha256": "39dacfeda4929ad68e5b2c00726143fe5e716f67f4d31df1cecffc60848510a5",
+        "task_package_sha256": "3f8e02ea6d582ca4e84942956a18f29d480a19497b5842365fab3b56ff18554f",
+        "task_card_sha256": "542a9e1d6ce0d2439bfb20bf4245f2ed064d1c01dac20f033fd4367784190732",
+        "runtime_source_sha256": "a8935034612e0487b9dfd05a4f860e01f33cd8542afaaa9858ed339d5c6d6b7b",
+        "task_family_id": "ScientificComputing/AdaptiveConservativePDEMethod",
+        "wave_id": "scalar-law-panel-v1",
+        "wave_manifest_sha256": "074555b03bc94480eed4bb84534717a0c0404a148a6bb60e090d49b038e8437f",
+        "trusted_evaluator_runtime": {
+          "cache_tag": "cpython-38",
+          "distributions": {
+            "numpy": "1.24.4",
+            "scipy": "1.10.1"
+          },
+          "fingerprint_sha256": "53e48dcf7f74e05dffd72879b3cc2baeb4bc6b5b36b7fabcc4ac9955390d346a",
+          "implementation": "cpython",
+          "python_version": "3.8.20",
+          "schema_version": 1,
+          "soabi": "cpython-38-x86_64-linux-gnu"
+        },
+        "trusted_evaluator_runtime_sha256": "53e48dcf7f74e05dffd72879b3cc2baeb4bc6b5b36b7fabcc4ac9955390d346a"
+      },
+      {
+        "task": "ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery",
+        "scientific_role": "candidate open-vocabulary discovery, false-discovery, and refusal screen",
+        "maturity_contract_sha256": "37ab07c34337f46960e9c57fbb4eb095b6cc8bce3e185b05346b9aa022dd2664",
+        "task_contract_sha256": "a4cf845ece7f12a445a6866531db0fabf57e8c532626ca51a16f24c6ee056b0d",
+        "task_package_sha256": "8bcb7655f13045248ef50e241f8541ea9951afa6a9691c2ad486c169d32a3b7c",
+        "task_card_sha256": "d334b642cc9c9aae0506b996296f770a6f5d65695cab54d0cf7de04258d77dbd",
+        "runtime_source_sha256": "a8935034612e0487b9dfd05a4f860e01f33cd8542afaaa9858ed339d5c6d6b7b",
+        "task_family_id": "ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery",
+        "wave_id": "open-graph-edge-discovery-v1",
+        "wave_manifest_sha256": "f0443f58d56f671b5a784d156e886393f46c5e69a904c084860336585d57826d",
+        "trusted_evaluator_runtime": {
+          "cache_tag": "cpython-38",
+          "distributions": {
+            "numpy": "1.24.4",
+            "scipy": "1.10.1"
+          },
+          "fingerprint_sha256": "53e48dcf7f74e05dffd72879b3cc2baeb4bc6b5b36b7fabcc4ac9955390d346a",
+          "implementation": "cpython",
+          "python_version": "3.8.20",
+          "schema_version": 1,
+          "soabi": "cpython-38-x86_64-linux-gnu"
+        },
+        "trusted_evaluator_runtime_sha256": "53e48dcf7f74e05dffd72879b3cc2baeb4bc6b5b36b7fabcc4ac9955390d346a"
+      },
+      {
+        "task": "MaterialsScience/ProcessMicrostructurePropertyDesign",
+        "scientific_role": "candidate process-microstructure-property Pareto and sealed-shift screen",
+        "maturity_contract_sha256": "8063286d2ff2e55872643c8695db932f1ea454040e50ebbddca8c5f0cae2608c",
+        "task_contract_sha256": "09f98afc15a60e1b3389c3fcfc451aa0b09e62162602520673665340c513fea7",
+        "task_package_sha256": "cfd0c36c17a8b5cfa19ad7d7c33bbe62751644a3143e203b8415c10802f19d04",
+        "task_card_sha256": "1bcfb0c9b567f115e9f1cfbc63d69b78ecb93b9657db7d65b70e7bb9f2fe752a",
+        "runtime_source_sha256": "a8935034612e0487b9dfd05a4f860e01f33cd8542afaaa9858ed339d5c6d6b7b",
+        "task_family_id": "MaterialsScience/ProcessMicrostructurePropertyDesign",
+        "wave_id": "reduced-process-property-pareto-v1",
+        "wave_manifest_sha256": "5b8efd6264000a44977532cf5f1f6e77ee713bedca0ca67df0b63526985ff45d",
+        "trusted_evaluator_runtime": {
+          "cache_tag": "cpython-38",
+          "distributions": {
+            "numpy": "1.24.4",
+            "scipy": "1.10.1"
+          },
+          "fingerprint_sha256": "53e48dcf7f74e05dffd72879b3cc2baeb4bc6b5b36b7fabcc4ac9955390d346a",
+          "implementation": "cpython",
+          "python_version": "3.8.20",
+          "schema_version": 1,
+          "soabi": "cpython-38-x86_64-linux-gnu"
+        },
+        "trusted_evaluator_runtime_sha256": "53e48dcf7f74e05dffd72879b3cc2baeb4bc6b5b36b7fabcc4ac9955390d346a"
+      }
+    ],
+    "primary_command": [
+      "/tmp/sle-oracle-py38/bin/python",
+      "scripts/batch_evolve.py",
+      "--all",
+      "--tasks",
+      "ScientificComputing/AdaptiveConservativePDEMethod,ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery,MaterialsScience/ProcessMicrostructurePropertyDesign",
+      "--algorithms",
+      "greedy_rewrite",
+      "--feedback-modes",
+      "normal,selection_blind",
+      "--seeds",
+      "0,1,2",
+      "--condition-order-design",
+      "reverse_parity",
+      "--budget",
+      "3",
+      "--timeout",
+      "300",
+      "--block-workers",
+      "1",
+      "--llm-config",
+      "sle/conf/llm/local.hy3.yaml",
+      "--run-role",
+      "calibration",
+      "--preregistration",
+      ".research/hy3_frontier_candidate_calibration_preregistration_2026-09-06_v1.json",
+      "--cohort-manifest",
+      ".research/hy3_frontier_candidate_calibration_cohort_2026-09-06_v1.json",
+      "--workdir",
+      "runs/hy3_frontier_candidate_calibration_2026-09-06_v1",
+      "--output",
+      "experiments/hy3_frontier_candidate_calibration_2026-09-06_v1.json"
+    ],
+    "analysis_command": [
+      "/tmp/sle-oracle-py38/bin/python",
+      "scripts/analyze_candidate_calibration.py",
+      "--report",
+      "experiments/hy3_frontier_candidate_calibration_2026-09-06_v1.json",
+      "--preregistration",
+      ".research/hy3_frontier_candidate_calibration_preregistration_2026-09-06_v1.json",
+      "--output",
+      "experiments/hy3_frontier_candidate_calibration_analysis_2026-09-06_v1.json"
+    ],
+    "analysis_script_sha256": "accb662a7eaaf4e84f0abfc983e5633161eb3979fe95a31c84c3ea0d6db8d8c3"
+  },
+  "prerequisites": [
+    {
+      "role": "task_certification_audit",
+      "path": "experiments/task_certification_audit_2026-09-06_v77.json",
+      "sha256": "2c67259b990444943ea95980f87b633bc123d41692e04c59ca2bc4dbaea38bf1",
+      "required": "execution_passed=true, trusted_evidence=true, passed=true, inventory_count=74"
+    },
+    {
+      "role": "secure_baseline_determinism",
+      "path": "experiments/secure_baseline_determinism_2026-09-06_v60.json",
+      "sha256": "4d0798cf3a221be52db0e62a14748d25fc72139520982622e94a9701e4465c7a",
+      "required": "execution_passed=true, trusted_evidence=true, passed=true, 74 deterministic valid fail-closed baselines"
+    },
+    {
+      "role": "task_maturity_inventory",
+      "path": "experiments/task_maturity_audit_2026-09-06_v18.json",
+      "sha256": "64f01a80a7674518442e3fe67aaa2c097b2164a89f92543db2f14ee4b6c75073",
+      "required": "execution_passed=true, trusted_evidence=true, passed=true, inventory_count=74, issues=[]"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "manifest_id": "hy3_frontier_candidate_calibration_cohort_2026-09-06_v1",
+  "frozen_at_utc": "2026-09-06",
+  "analysis_role": "candidate_calibration",
+  "claim_limit": "candidate_calibration_only_not_hardness_certification_or_model_ranking_or_causal_feedback_evidence",
+  "selection": {
+    "source": "all three newly implemented runnable frontier-task prototypes",
+    "selected_before_inspecting_any_hy3_outcome_for_these_tasks": true,
+    "confirmatory_reuse_permitted": false,
+    "rule": "Retain all three tasks and every scheduled condition, including invalid, failed, timed-out, abstaining, blocked, or missing trajectories."
+  },
+  "task_weighting": "equal_task_weight_for_descriptive_aggregates_with_all_task_level_results_retained",
+  "failure_policy": "first-attempt intent-to-evaluate; retain every scheduled cell and do not replace failed or invalid cells with retries",
+  "endpoint_policies": [
+    "budget_prefix_1",
+    "budget_prefix_2",
+    "budget_prefix_3"
+  ],
+  "tasks": [
+    {
+      "task": "ScientificComputing/AdaptiveConservativePDEMethod",
+      "maturity_contract_sha256": "a4e83ca64f813e6efd447426418fcc4dd9f8a43ce7cad426a00c42d78d147259",
+      "runtime_contract_sha256": "39dacfeda4929ad68e5b2c00726143fe5e716f67f4d31df1cecffc60848510a5",
+      "task_card_sha256": "542a9e1d6ce0d2439bfb20bf4245f2ed064d1c01dac20f033fd4367784190732",
+      "provenance_class": "procedural",
+      "scientific_abstraction": "reduced_order",
+      "role": "candidate on-ramp for conservative numerical-method configuration"
+    },
+    {
+      "task": "ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery",
+      "maturity_contract_sha256": "37ab07c34337f46960e9c57fbb4eb095b6cc8bce3e185b05346b9aa022dd2664",
+      "runtime_contract_sha256": "a4cf845ece7f12a445a6866531db0fabf57e8c532626ca51a16f24c6ee056b0d",
+      "task_card_sha256": "d334b642cc9c9aae0506b996296f770a6f5d65695cab54d0cf7de04258d77dbd",
+      "provenance_class": "procedural",
+      "scientific_abstraction": "reduced_order",
+      "role": "candidate open-vocabulary discovery, false-discovery, and refusal screen"
+    },
+    {
+      "task": "MaterialsScience/ProcessMicrostructurePropertyDesign",
+      "maturity_contract_sha256": "8063286d2ff2e55872643c8695db932f1ea454040e50ebbddca8c5f0cae2608c",
+      "runtime_contract_sha256": "09f98afc15a60e1b3389c3fcfc451aa0b09e62162602520673665340c513fea7",
+      "task_card_sha256": "1bcfb0c9b567f115e9f1cfbc63d69b78ecb93b9657db7d65b70e7bb9f2fe752a",
+      "provenance_class": "procedural",
+      "scientific_abstraction": "reduced_order",
+      "role": "candidate process-microstructure-property Pareto and sealed-shift screen"
+    }
+  ]
+}
