@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "manifest_id": "hy3_frontier_candidate_calibration_cohort_2026-09-06_v1",
+  "manifest_id": "hy3_frontier_candidate_calibration_cohort_2026-09-06_v2",
   "frozen_at_utc": "2026-09-06",
   "analysis_role": "candidate_calibration",
   "claim_limit": "candidate_calibration_only_not_hardness_certification_or_model_ranking_or_causal_feedback_evidence",
@@ -38,9 +38,9 @@
     },
     {
       "task": "MaterialsScience/ProcessMicrostructurePropertyDesign",
-      "maturity_contract_sha256": "8063286d2ff2e55872643c8695db932f1ea454040e50ebbddca8c5f0cae2608c",
-      "runtime_contract_sha256": "09f98afc15a60e1b3389c3fcfc451aa0b09e62162602520673665340c513fea7",
-      "task_card_sha256": "1bcfb0c9b567f115e9f1cfbc63d69b78ecb93b9657db7d65b70e7bb9f2fe752a",
+      "maturity_contract_sha256": "d042bcf6f9bde072720f510ff41f9c1c8075c2f3911cbef9dbfe0719c28a90d3",
+      "runtime_contract_sha256": "17cc00ff394d40664bb069f16de5f0ec4a34bf61e7923893c414c1d2fdd5a680",
+      "task_card_sha256": "a7cfa5b8810afba94218b5b4b1c7ad9f866297260cbb77c09b084d3a956d3db9",
       "provenance_class": "procedural",
       "scientific_abstraction": "reduced_order",
       "role": "candidate process-microstructure-property Pareto and sealed-shift screen"
