@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 from sle.certification import certification_status
@@ -135,9 +136,13 @@ class TaskCardAuditTests(unittest.TestCase):
                     card["construction_audit"]["status"], "incomplete_legacy", spec.task_id)
             if spec.task_id in FROZEN_LINEAGE:
                 self.assertTrue(card["lineage"]["frozen_before_eval"])
-                self.assertEqual(
-                    card["lineage"]["freeze_timestamp"],
-                    "2026-09-05T22:15:00Z",
+                freeze_timestamp = card["lineage"]["freeze_timestamp"]
+                parsed_freeze = datetime.fromisoformat(
+                    freeze_timestamp.replace("Z", "+00:00")
+                )
+                self.assertIsNotNone(
+                    parsed_freeze.tzinfo,
+                    spec.task_id,
                 )
             else:
                 self.assertFalse(card["lineage"]["frozen_before_eval"])

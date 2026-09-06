@@ -25,7 +25,7 @@ invariants:
 - coloured-graph identities are canonical under every element-preserving atom permutation and duplicate canonical species or edges fail closed
 - repeated-element mapping ambiguity is resolved by the minimum barrier over every valid one-delete/one-add channel, never by a hidden atom-index tie-break
 - the exact analytic oracle is deterministic in a world specification and a canonical directed edge
-- supported-world mechanism recovery, edge false-discovery rate, correct unsupported-world refusal, attempted discovery and confidence calibration are reported separately
+- supported-world mechanism recovery, edge false-discovery rate, correct unsupported-world refusal, attempted discovery and expected-recovery confidence calibration are reported separately; abstention has recovery target zero
 - declining every development world and the shipped confidently wrong edge are valid and normalized to exactly zero
 - malformed graphs, invalid transformations, over-budget probes, caught callback violations and malformed artifacts score zero without escaping the evaluator
 - held-out worlds change catalyst selectivity and refusal case placement while preserving the public graph grammar
@@ -50,7 +50,7 @@ lineage:
   calibrator_model_ids: []
   calibration_runs: []
   calibration_evidence_status: missing
-  edits_triggered_by_model: No trusted model calibration was attached at freeze; deterministic review found that an 80-query exhaustive witness saturated the small grammar, a lexicographic atom-map tie-break changed graph-pair truth, and a 1024-ordering BFS sweep beat the first 24-query anchor. The budget, oracle semantics, and reference were revised before freeze.
+  edits_triggered_by_model: No trusted model calibration was attached at freeze; deterministic review found that an 80-query exhaustive witness saturated the small grammar, a lexicographic atom-map tie-break changed graph-pair truth, and a 1024-ordering BFS sweep beat the first 24-query anchor. Pre-PR domain review also found that confidence mixed expected network recovery with world support on abstention; confidence was made a single expected-recovery estimand with abstention target zero. The budget, oracle semantics, reference, and calibration semantics were revised before release.
   shortcut_discoverer: builder_self_audit
   shortcut_findings:
   - 80-query exhaustive grammar enumeration recovered the complete small-network oracle and exhausted meaningful score headroom.
@@ -64,7 +64,7 @@ lineage:
   - normalize to that incomplete independent witness without an upper clip, leaving complete recovery above one
   - ship a legal confidently wrong edge while retaining blanket abstention as an independent zero-score control
   frozen_before_eval: true
-  freeze_timestamp: '2026-09-05T22:15:00Z'
+  freeze_timestamp: '2026-09-06T00:00:00Z'
 long_horizon:
   status: not_tested
   measurement_health_passed: false

@@ -53,9 +53,10 @@ Return either a network:
 
 or `{"abstain": True, "confidence": 0.0}`.
 
-`confidence` is confidence that the submitted network is supported. It must be a finite number in
-`[0, 1]`; `abstain` must be a Boolean. `sle.contract_lint` is available as a free shape checker
-and consumes no probe budget.
+`confidence` is the expected mechanism-recovery score of the network submitted in this world.
+An abstention submits no network and therefore has recovery target zero. `confidence` must be a
+finite number in `[0, 1]`; `abstain` must be a Boolean. `sle.contract_lint` is available as a free
+shape checker and consumes no probe budget.
 
 ### Species and canonical identity
 
