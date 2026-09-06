@@ -28,7 +28,11 @@ def _events(scores: list[float]) -> list[dict]:
             "step": step,
             "best_score": score,
             "valid": True,
-            "accepted": step > 0 and score > scores[step - 1],
+            "accepted": step == 0 or score > max(scores[:step]),
+            "metrics": {
+                "accuracy": score,
+                "promotion_ready": score > 1.0,
+            },
         }
         for step, score in enumerate(scores)
     ]
@@ -96,6 +100,18 @@ class CandidateCalibrationAnalysisTests(unittest.TestCase):
                     "task": "D/T",
                     **binding,
                     "maturity_contract_sha256": "6" * 64,
+                    "science_metric_estimands": [
+                        {
+                            "metric": "accuracy",
+                            "value_type": "numeric",
+                            "direction": "higher_is_better",
+                        },
+                        {
+                            "metric": "promotion_ready",
+                            "value_type": "boolean",
+                            "direction": "higher_is_better",
+                        },
+                    ],
                 }],
                 "analysis_role": "candidate_calibration",
                 "resume_permitted": True,
@@ -257,6 +273,73 @@ class CandidateCalibrationAnalysisTests(unittest.TestCase):
             latest["normal_minus_selection_blind"]["D/T"]["B3"], 0.45
         )
 
+    def test_science_metric_summaries_preserve_missingness_and_contrasts(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            report_path, prereg_path = self._write_inputs(Path(temporary))
+            result = self._analyze(report_path, prereg_path)
+
+        first = result["analyses"]["first_attempt"]
+        latest = result["analyses"][
+            "latest_attempt_after_transparent_resume"
+        ]
+        first_normal = first["by_task_condition"]["D/T|normal"]["B3"]
+        latest_normal = latest["by_task_condition"]["D/T|normal"]["B3"]
+        accuracy = latest_normal["science_metrics"]["accuracy"]
+        promotion = latest_normal["science_metrics"]["promotion_ready"]
+
+        self.assertEqual(
+            first_normal["science_metrics"]["accuracy"],
+            {
+                "value_type": "numeric",
+                "direction": "higher_is_better",
+                "scheduled_n": 2,
+                "observed_n": 1,
+                "missing_n": 1,
+                "mean_over_observed": 1.1,
+            },
+        )
+        self.assertEqual(accuracy["scheduled_n"], 2)
+        self.assertEqual(accuracy["observed_n"], 2)
+        self.assertEqual(accuracy["missing_n"], 0)
+        self.assertAlmostEqual(accuracy["mean_over_observed"], 1.0)
+        self.assertEqual(promotion["value_type"], "boolean")
+        self.assertEqual(promotion["direction"], "higher_is_better")
+        self.assertAlmostEqual(promotion["true_fraction_of_observed"], 0.5)
+        self.assertEqual(
+            first["science_metric_normal_minus_selection_blind"]["D/T"][
+                "B3"
+            ],
+            None,
+        )
+        science_contrast = latest[
+            "science_metric_normal_minus_selection_blind"
+        ]["D/T"]["B3"]
+        self.assertAlmostEqual(science_contrast["accuracy"], 0.45)
+        self.assertAlmostEqual(science_contrast["promotion_ready"], 0.5)
+        self.assertEqual(
+            latest_normal["best_artifact_science_metrics_by_replicate"][0],
+            {
+                "replicate_identifier": 0,
+                "observed": True,
+                "status": "completed",
+                "best_artifact_source_step": 3,
+                "metrics": {
+                    "accuracy": 0.9,
+                    "promotion_ready": False,
+                },
+            },
+        )
+        self.assertEqual(
+            first_normal["best_artifact_science_metrics_by_replicate"][0],
+            {
+                "replicate_identifier": 0,
+                "observed": False,
+                "status": "error",
+                "best_artifact_source_step": None,
+                "metrics": None,
+            },
+        )
+
     def test_report_must_match_preregistered_model_condition(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -386,6 +469,71 @@ class CandidateCalibrationAnalysisTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, message):
                     self._analyze(report_path, prereg_path)
 
+    def test_science_metric_estimands_are_strict_and_unique(self):
+        mutations = (
+            lambda specs: specs.clear(),
+            lambda specs: specs.append(dict(specs[0])),
+            lambda specs: specs[0].update({"metric": " "}),
+            lambda specs: specs[0].update({"value_type": "ratio"}),
+            lambda specs: specs[0].update({"direction": "maximize"}),
+            lambda specs: specs[0].update({"direction": ["higher_is_better"]}),
+            lambda specs: specs[0].update({"unfrozen_field": "surprise"}),
+        )
+        for mutate in mutations:
+            with self.subTest(mutate=mutate), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                report_path, prereg_path = self._write_inputs(root)
+                prereg = json.loads(prereg_path.read_text(encoding="utf-8"))
+                mutate(
+                    prereg["design"]["tasks"][0][
+                        "science_metric_estimands"
+                    ]
+                )
+                prereg_path.write_text(json.dumps(prereg), encoding="utf-8")
+                report = json.loads(report_path.read_text(encoding="utf-8"))
+                report["config"]["preregistration"]["sha256"] = (
+                    hashlib.sha256(prereg_path.read_bytes()).hexdigest()
+                )
+                report_path.write_text(json.dumps(report), encoding="utf-8")
+
+                with self.assertRaisesRegex(
+                    ValueError, "science metric estimands"
+                ):
+                    self._analyze(report_path, prereg_path)
+
+    def test_accepted_incumbent_science_metric_values_are_strict(self):
+        metric_specs = [
+            {
+                "metric": "accuracy",
+                "value_type": "numeric",
+                "direction": "higher_is_better",
+            },
+            {
+                "metric": "promotion_ready",
+                "value_type": "boolean",
+                "direction": "higher_is_better",
+            },
+        ]
+        invalid_values = (
+            ({"accuracy": True, "promotion_ready": False}, "numeric"),
+            ({"accuracy": float("nan"), "promotion_ready": False}, "numeric"),
+            ({"accuracy": 0.5, "promotion_ready": 1}, "boolean"),
+            ({"accuracy": 0.5}, "boolean"),
+        )
+        for metrics, message in invalid_values:
+            with self.subTest(metrics=metrics):
+                events = _events([0.0, 0.5])
+                events[1]["metrics"] = metrics
+                with self.assertRaisesRegex(ValueError, message):
+                    MODULE._prefix_row(
+                        {
+                            "baseline": 0.0,
+                            "trajectory_snapshot": {"events": events},
+                        },
+                        1,
+                        metric_specs,
+                    )
+
     def test_successful_run_artifacts_must_reverify(self):
         with tempfile.TemporaryDirectory() as temporary:
             report_path, prereg_path = self._write_inputs(Path(temporary))
@@ -469,6 +617,73 @@ class CandidateCalibrationAnalysisTests(unittest.TestCase):
         self.assertEqual(row["proposal_errors_through_prefix"], 1)
         self.assertEqual(row["proposal_timeouts_through_prefix"], 1)
         self.assertEqual(row["signed_abstentions_through_prefix"], 1)
+
+    def test_prefix_science_metrics_follow_latest_accepted_incumbent(self):
+        metric_specs = [
+            {
+                "metric": "accuracy",
+                "value_type": "numeric",
+                "direction": "higher_is_better",
+            },
+            {
+                "metric": "promotion_ready",
+                "value_type": "boolean",
+                "direction": "higher_is_better",
+            },
+        ]
+        events = [
+            {
+                "step": 0,
+                "best_score": 0.0,
+                "valid": True,
+                "accepted": True,
+                "metrics": {"accuracy": 0.1, "promotion_ready": False},
+            },
+            {
+                "step": 1,
+                "best_score": 0.8,
+                "valid": True,
+                "accepted": True,
+                "metrics": {"accuracy": 0.7, "promotion_ready": True},
+            },
+            {
+                "step": 2,
+                "best_score": 0.8,
+                "valid": True,
+                "accepted": False,
+                "metrics": {"accuracy": 0.99, "promotion_ready": False},
+            },
+        ]
+
+        row = MODULE._prefix_row(
+            {
+                "baseline": 0.0,
+                "trajectory_snapshot": {"events": events},
+            },
+            2,
+            metric_specs,
+        )
+
+        self.assertEqual(row["best_artifact_source_step"], 1)
+        self.assertEqual(
+            row["best_artifact_science_metrics"],
+            {"accuracy": 0.7, "promotion_ready": True},
+        )
+
+        events[1]["accepted"] = False
+        row = MODULE._prefix_row(
+            {
+                "baseline": 0.0,
+                "trajectory_snapshot": {"events": events},
+            },
+            2,
+            metric_specs,
+        )
+        self.assertEqual(row["best_artifact_source_step"], 0)
+        self.assertEqual(
+            row["best_artifact_science_metrics"],
+            {"accuracy": 0.1, "promotion_ready": False},
+        )
 
     def test_verified_readable_model_condition_must_match_preregistration(self):
         descriptor = {

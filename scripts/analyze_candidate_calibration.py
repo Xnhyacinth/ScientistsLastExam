@@ -69,6 +69,13 @@ CANDIDATE_CALIBRATION_CLAIM_LIMIT = (
     "or_causal_feedback_evidence"
 )
 
+SCIENCE_METRIC_VALUE_TYPES = {"numeric", "boolean"}
+SCIENCE_METRIC_DIRECTIONS = {
+    "higher_is_better",
+    "lower_is_better",
+    "descriptive",
+}
+
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -315,13 +322,53 @@ def _validate_source_lineage(parent_revision: str, source_revision: str) -> None
         raise ValueError("scoped source changed after preregistration parent")
 
 
+def _validate_science_metric_estimands(
+    task_rows: list[dict[str, Any]],
+) -> dict[str, list[dict[str, str]]]:
+    required_fields = {"metric", "value_type", "direction"}
+    by_task: dict[str, list[dict[str, str]]] = {}
+    for task_row in task_rows:
+        specs = task_row.get("science_metric_estimands")
+        if not isinstance(specs, list) or not specs:
+            raise ValueError("preregistered science metric estimands are missing")
+        if any(
+            not isinstance(spec, dict) or set(spec) != required_fields
+            for spec in specs
+        ):
+            raise ValueError("preregistered science metric estimands are invalid")
+        metric_names = [spec["metric"] for spec in specs]
+        if (
+            any(
+                not isinstance(name, str) or not name.strip()
+                for name in metric_names
+            )
+            or len(set(metric_names)) != len(metric_names)
+            or any(
+                not isinstance(spec["value_type"], str)
+                or spec["value_type"] not in SCIENCE_METRIC_VALUE_TYPES
+                or not isinstance(spec["direction"], str)
+                or spec["direction"] not in SCIENCE_METRIC_DIRECTIONS
+                for spec in specs
+            )
+        ):
+            raise ValueError("preregistered science metric estimands are invalid")
+        by_task[task_row["task"]] = [dict(spec) for spec in specs]
+    return by_task
+
+
 def _validate_contract(
     report: dict[str, Any],
     preregistration: dict[str, Any],
     prereg_hash: str,
     report_path: Path,
     preregistration_path: Path,
-) -> tuple[list[str], list[str], list[int], list[int]]:
+) -> tuple[
+    list[str],
+    list[str],
+    list[int],
+    list[int],
+    dict[str, list[dict[str, str]]],
+]:
     design = preregistration.get("design") or {}
     task_rows = design.get("tasks")
     if not isinstance(task_rows, list) or not task_rows or not all(
@@ -337,6 +384,7 @@ def _validate_contract(
         len(set(tasks)) != len(tasks)
     ):
         raise ValueError("preregistered tasks must be nonempty and unique")
+    science_metric_estimands = _validate_science_metric_estimands(task_rows)
     if not isinstance(modes, list) or not modes or not all(
         isinstance(mode, str) and mode for mode in modes
     ) or len(set(modes)) != len(modes):
@@ -511,7 +559,13 @@ def _validate_contract(
         budget,
         cohort_path,
     )
-    return tasks, list(modes), list(seeds), list(prefixes)
+    return (
+        tasks,
+        list(modes),
+        list(seeds),
+        list(prefixes),
+        science_metric_estimands,
+    )
 
 
 def _validate_verified_model_condition(
@@ -637,7 +691,46 @@ def _validate_run_scores(
         raise ValueError("run baseline or best differs from verified trajectory")
 
 
-def _prefix_row(run: dict[str, Any] | None, prefix: int) -> dict[str, Any]:
+def _best_artifact_science_metrics(
+    events: list[dict[str, Any]],
+    prefix: int,
+    metric_specs: list[dict[str, str]],
+) -> tuple[int, dict[str, Any]]:
+    if events[0].get("accepted") is not True:
+        raise ValueError("trajectory initial incumbent is not accepted")
+    incumbent = events[0]
+    for event in events[1:]:
+        if int(event["step"]) > prefix:
+            break
+        if event.get("accepted") is True:
+            incumbent = event
+    metrics = incumbent.get("metrics")
+    if not isinstance(metrics, dict):
+        raise ValueError("accepted incumbent science metrics are missing")
+    values: dict[str, Any] = {}
+    for spec in metric_specs:
+        metric = spec["metric"]
+        value = metrics.get(metric)
+        if spec["value_type"] == "numeric":
+            if (
+                not isinstance(value, (int, float))
+                or isinstance(value, bool)
+                or not math.isfinite(float(value))
+            ):
+                raise ValueError("accepted incumbent numeric science metric is invalid")
+            values[metric] = float(value)
+        elif not isinstance(value, bool):
+            raise ValueError("accepted incumbent boolean science metric is invalid")
+        else:
+            values[metric] = value
+    return int(incumbent["step"]), values
+
+
+def _prefix_row(
+    run: dict[str, Any] | None,
+    prefix: int,
+    metric_specs: list[dict[str, str]] | None = None,
+) -> dict[str, Any]:
     cumulative_fields = {
         "valid_proposals_through_prefix": 0,
         "invalid_proposals_through_prefix": 0,
@@ -704,6 +797,11 @@ def _prefix_row(run: dict[str, Any] | None, prefix: int) -> dict[str, Any]:
         or not math.isfinite(float(baseline))
     ):
         raise ValueError("trajectory baseline is not finite")
+    science_metrics = {}
+    if metric_specs:
+        source_step, science_metrics = _best_artifact_science_metrics(
+            events, prefix, metric_specs
+        )
     return {
         "observed": True,
         "status": status,
@@ -713,23 +811,65 @@ def _prefix_row(run: dict[str, Any] | None, prefix: int) -> dict[str, Any]:
         "accepted_at_prefix": event.get("accepted") is True,
         "exceeds_baseline": float(score) > float(baseline),
         "exceeds_reference": float(score) > 1.0,
+        **({
+            "best_artifact_source_step": source_step,
+            "best_artifact_science_metrics": science_metrics,
+        } if metric_specs else {}),
         **cumulative_fields,
     }
 
 
+def _summarize_science_metrics(
+    rows: list[dict[str, Any]],
+    metric_specs: list[dict[str, str]],
+    scheduled_n: int,
+) -> dict[str, dict[str, Any]]:
+    observed = [row for row in rows if row["observed"]]
+    summaries = {}
+    for spec in metric_specs:
+        metric = spec["metric"]
+        values = [
+            row["best_artifact_science_metrics"][metric]
+            for row in observed
+        ]
+        summary = {
+            "value_type": spec["value_type"],
+            "direction": spec["direction"],
+            "scheduled_n": scheduled_n,
+            "observed_n": len(observed),
+            "missing_n": scheduled_n - len(observed),
+        }
+        if spec["value_type"] == "numeric":
+            summary["mean_over_observed"] = (
+                sum(values) / len(values) if values else None
+            )
+        else:
+            summary["true_fraction_of_observed"] = (
+                sum(values) / len(values) if values else None
+            )
+        summaries[metric] = summary
+    return summaries
+
+
 def _summarize_axis(
     selected: dict[tuple[str, str, str, int], dict[str, Any]],
-    tasks: list[str], modes: list[str], seeds: list[int], prefixes: list[int],
+    tasks: list[str],
+    modes: list[str],
+    seeds: list[int],
+    prefixes: list[int],
+    science_metric_estimands: dict[str, list[dict[str, str]]],
 ) -> dict[str, Any]:
     by_condition: dict[str, dict[str, Any]] = {}
     for task in tasks:
         for mode in modes:
             condition = {}
             for prefix in prefixes:
+                metric_specs = science_metric_estimands[task]
                 rows = [
                     _prefix_row(
                         selected.get((task, "greedy_rewrite", mode, seed)),
                         prefix,
+                        metric_specs,
                     )
                     for seed in seeds
                 ]
@@ -779,6 +919,23 @@ def _summarize_axis(
                         status: sum(row["status"] == status for row in rows)
                         for status in sorted({row["status"] for row in rows})
                     },
+                    "science_metrics": _summarize_science_metrics(
+                        rows, metric_specs, len(seeds)
+                    ),
+                    "best_artifact_science_metrics_by_replicate": [
+                        {
+                            "replicate_identifier": seed,
+                            "observed": row["observed"],
+                            "status": row["status"],
+                            "best_artifact_source_step": row.get(
+                                "best_artifact_source_step"
+                            ),
+                            "metrics": row.get(
+                                "best_artifact_science_metrics"
+                            ),
+                        }
+                        for seed, row in zip(seeds, rows)
+                    ],
                     **{
                         field + "_n": sum(row[field] for row in rows)
                         for field in cumulative_fields
@@ -787,25 +944,52 @@ def _summarize_axis(
             by_condition["%s|%s" % (task, mode)] = condition
 
     contrasts: dict[str, dict[str, float | None]] = {}
+    science_metric_contrasts: dict[
+        str, dict[str, dict[str, float] | None]
+    ] = {}
     if set(modes) == {"normal", "selection_blind"}:
         for task in tasks:
             task_contrasts = {}
+            task_science_metric_contrasts = {}
             for prefix in prefixes:
                 normal = by_condition["%s|normal" % task]["B%d" % prefix]
                 blind = by_condition[
                     "%s|selection_blind" % task
                 ]["B%d" % prefix]
+                complete_arms = (
+                    normal["observed_n"] == normal["scheduled_n"]
+                    and blind["observed_n"] == blind["scheduled_n"]
+                )
                 task_contrasts["B%d" % prefix] = (
                     normal["mean_best_score"] - blind["mean_best_score"]
-                    if (
-                        normal["observed_n"] == normal["scheduled_n"]
-                        and blind["observed_n"] == blind["scheduled_n"]
-                    ) else None
+                    if complete_arms else None
+                )
+                task_science_metric_contrasts["B%d" % prefix] = (
+                    {
+                        spec["metric"]: (
+                            normal["science_metrics"][spec["metric"]][
+                                "mean_over_observed"
+                                if spec["value_type"] == "numeric"
+                                else "true_fraction_of_observed"
+                            ]
+                            - blind["science_metrics"][spec["metric"]][
+                                "mean_over_observed"
+                                if spec["value_type"] == "numeric"
+                                else "true_fraction_of_observed"
+                            ]
+                        )
+                        for spec in science_metric_estimands[task]
+                    }
+                    if complete_arms else None
                 )
             contrasts[task] = task_contrasts
+            science_metric_contrasts[task] = task_science_metric_contrasts
     return {
         "by_task_condition": by_condition,
         "normal_minus_selection_blind": contrasts,
+        "science_metric_normal_minus_selection_blind": (
+            science_metric_contrasts
+        ),
     }
 
 
@@ -817,7 +1001,13 @@ def analyze(report_path: Path, preregistration_path: Path) -> dict[str, Any]:
         preregistration_path.read_text(encoding="utf-8")
     )
     prereg_hash = _sha256(preregistration_path)
-    tasks, modes, seeds, prefixes = _validate_contract(
+    (
+        tasks,
+        modes,
+        seeds,
+        prefixes,
+        science_metric_estimands,
+    ) = _validate_contract(
         report,
         preregistration,
         prereg_hash,
@@ -933,16 +1123,29 @@ def analyze(report_path: Path, preregistration_path: Path) -> dict[str, Any]:
             },
             "missing_prefix_policy": "retain in scheduled denominator, exclude from observed mean, and suppress the condition contrast",
             "contrast": "difference of condition means, normal minus selection_blind; descriptive and unpaired because provider-side seeds are unavailable",
+            "science_metric_estimands": science_metric_estimands,
+            "science_metric_incumbent_policy": "at each exact budget prefix, summarize the latest accepted artifact, with step 0 as the initial incumbent",
+            "science_metric_contrast": "difference of numeric means or boolean true fractions, normal minus selection_blind; suppressed unless both arms are complete",
         },
         "scheduled_run_count": len(expected_keys),
         "observed_first_attempt_run_count": len(first),
         "attempt_count": sum(len(rows) for rows in attempts.values()),
         "analyses": {
             "first_attempt": _summarize_axis(
-                first, tasks, modes, seeds, prefixes
+                first,
+                tasks,
+                modes,
+                seeds,
+                prefixes,
+                science_metric_estimands,
             ),
             "latest_attempt_after_transparent_resume": _summarize_axis(
-                latest, tasks, modes, seeds, prefixes
+                latest,
+                tasks,
+                modes,
+                seeds,
+                prefixes,
+                science_metric_estimands,
             ),
         },
         "limitations": [
