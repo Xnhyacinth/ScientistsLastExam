@@ -1,0 +1,7 @@
+1) Only edit solution.py and preserve improve_primal(problem).
+2) Return one dense one-dimensional assignment with exactly num_variables entries.
+3) Every returned entry must be a Python or NumPy integer; floats and booleans are rejected.
+4) Every frozen variable bound and L/G/E constraint is checked exactly with integer arithmetic.
+5) The same policy is called on comp12-2idx and scpk4 through a generic CSR payload.
+6) NumPy/SciPy/stdlib only; network and process creation are unavailable in the candidate sandbox.
+7) Do not read verification/ or frontier_eval/.

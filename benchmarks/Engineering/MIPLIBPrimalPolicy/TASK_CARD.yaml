@@ -1,0 +1,113 @@
+schema_version: 2
+scientific_question: >-
+  Can one reusable primal-improvement policy turn an early feasible assignment into a lower-objective
+  exactly feasible assignment on two frozen, public, all-integer MIPLIB 2017 instances whose frozen
+  status was open?
+artifact: >-
+  Candidate code implementing improve_primal(problem), returning one dense exact-integer assignment
+  in the frozen MPS column order for each instance.
+oracle:
+  model: >-
+    A task-local parser accepts only the two hash-bound integral MPS files, then checks finite integer
+    variable bounds, every linear row, and the objective using exact Python integer arithmetic.
+  feasibility: >-
+    Exactly one integer per variable; booleans and floats are rejected; all bounds and L/G/E rows must
+    hold exactly. The oracle supports only comp12-2idx and scpk4, not general MPS or continuous MIPs.
+  deterministic: true
+normalization:
+  baseline: >-
+    Official early MIPLIB feasible solutions: objective 391 for comp12-2idx solution 1 and 327 for
+    scpk4 solution 1. The assignments are passed to the policy as incumbents and score zero.
+  reference: >-
+    Official frozen best-known solutions in MIPLIB solufile v36: objective 277 for comp12-2idx solution
+    5 and 318 for scpk4 solution 7. Their evaluator-only replay verifies normalization but is not a
+    candidate-equivalent or truth-blind optimization policy.
+  score: >-
+    Mean of max(0, (baseline_objective - objective) / (baseline_objective - reference_objective)).
+    The formula is not clipped above one, but the fixed MILPs have finite objective ranges and the task
+    is not claimed to have mathematically infinite score.
+citations:
+  - id: doi:10.1007/s12532-020-00194-3
+    title: "MIPLIB 2017: Data-Driven Compilation of the 6th Mixed-Integer Programming Library"
+  - id: web:miplib2017-v36
+    title: "MIPLIB 2017 solution file version 36, 2026-01-26"
+  - id: web:mipcc26-solchecker
+    title: "2026 Land-Doig MIP Competition patched MIPLIB solution checker and tolerance contract"
+invariants:
+  - >-
+    The two compressed MPS files and four compressed solution files are hash-bound; model dimensions,
+    all-integrality, finite bounds, anchor objectives, and membership in open-v29 are independently checked.
+  - >-
+    The four anchor assignments are fetched from hash-bound official URLs into an ignored local directory,
+    not redistributed. They pass both the exact task oracle and the patched native MIPLIB checker at linear
+    tolerance 1e-6 and integrality tolerance 1e-5 with zero reported maximum violations.
+  - >-
+    Native checker process status is never an acceptance signal; a measured infeasible all-zero solution
+    produced exit status zero, so the replay gate requires Read MPS, Read SOL, Integrality, Constraints,
+    and Objective flags explicitly.
+  - >-
+    The generic CSR payload includes the early incumbent but no reference assignment or reference objective;
+    the public Task.md gives reference objective values solely as normalization anchors.
+  - >-
+    A verified score above one means improvement relative to the frozen 2026-01-26 snapshot only; freshness
+    review is required before calling it a new MIPLIB record.
+known_shortcuts: >-
+  Both instances, their objective histories, and all official solution files are public. A policy that
+  memorizes or retrieves the frozen reference assignment can score one, so score one is only a protocol
+  on-ramp. SciPy is already mounted in the candidate sandbox and exposes generic optimization routines;
+  a measured scipy.optimize.milp call terminated under the no-process seccomp policy even for a one-variable
+  problem, but this does not establish resistance to other solver reuse. Row or
+  column permutation does not create a fresh scientific problem and is not claimed as contamination defense.
+review:
+  status: pending_external
+  domain: pending_external_operations_research
+  evaluator_security: >-
+    Builder-reviewed exact subset parser and bounded dense-response contract; dedicated malformed-output,
+    hash, anchor replay, native-checker-output, and secure-RPC tests required before registration.
+  positive_policy_onramp: >-
+    blocked: a public reference-free one-coordinate descent policy is feasible on both instances but scores
+    zero; the score-one publication replay is not candidate-equivalent.
+provenance:
+  class: public_data_replay
+  target_source: >-
+    Hash-frozen MIPLIB 2017 MPS and solution artifacts, open-v29 membership, and solufile-v36 objective
+    anchors; source URLs and retrieval hashes are listed in references/source_manifest.json.
+  task_contract_public_before_evaluation: true
+  fresh_confirmation_status: completed_2026_09_06_against_open_v29_and_solufile_v36
+novelty_risk:
+  level: high
+  rationale: >-
+    Public instances and solution assignments may be in model training data, and an available generic solver
+    may reproduce them. Only a strictly better exact assignment is frontier evidence, and even that is a
+    frozen-snapshot claim until current MIPLIB is checked.
+lineage:
+  status: unknown
+  builder_model_ids: ["openai:codex_exact_model_unknown"]
+  builder_scaffolds: ["codex"]
+  calibrator_model_ids: []
+  calibration_runs: []
+  calibration_evidence_status: missing
+  edits_triggered_by_model: >-
+    None. No model evaluation has been run. Design decisions were driven by primary-source and checker
+    qualification: numerical/continuous candidates were excluded, official historical assignments replaced
+    synthetic anchors, and native exit status was rejected after a measured false-success exit.
+  shortcut_discoverer: builder_self_audit
+  frozen_before_eval: false
+  freeze_timestamp: null
+long_horizon:
+  status: not_tested
+  measurement_health_passed: false
+  material_headroom_after_2h: false
+  evidence: []
+construction_audit:
+  status: builder_audited_pending_external
+  author_domain: openai:codex_exact_model_unknown
+  reviewer_domain: pending_external_operations_research
+  expert_hours: null
+  red_team_rounds: 1
+  oracle_disagreement_status: >-
+    No disagreement on four frozen solutions between the exact integer oracle and patched MIPLIB checker;
+    arbitrary candidate assignments have not been differentially fuzzed.
+  independent_recomputation_status: >-
+    MPS dimensions, integral subset restrictions, four objective values, exact feasibility, file hashes,
+    checker tolerances, and checker exit-status behavior are reproducible from the package and replay utility.

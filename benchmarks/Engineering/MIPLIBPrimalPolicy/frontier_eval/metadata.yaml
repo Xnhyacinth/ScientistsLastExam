@@ -1,0 +1,15 @@
+domain: OperationsResearch
+task: MIPLIBPrimalPolicy
+scientific_role: optimization
+difficulty: candidate_unmeasured
+tier: candidate
+oracle_type: exact_integer_public_data_replay
+score_mode: uncapped
+gpu_required: false
+eval_time_seconds: 300
+science_metric: mean_verified_primal_improvement_over_early_miplib_incumbents
+instances: [comp12-2idx, scpk4]
+reference_baseline: official_early_feasible_solutions_391_and_327
+reference_sota: frozen_miplib2017_v36_best_known_solutions_277_and_318
+citation: "Gleixner et al., MIPLIB 2017, Mathematical Programming Computation 13 (2021)"
+claim_boundary: "unregistered two-instance all-integer candidate; public solutions may be memorized; score is not mathematically unbounded; external review and model calibration are missing"

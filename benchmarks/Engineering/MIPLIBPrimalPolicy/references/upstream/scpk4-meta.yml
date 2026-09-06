@@ -1,0 +1,20 @@
+company: Graduate School of Information Science and Technology, Osaka University,
+  Japan
+creator: Shunji Umetani
+description: "This is a random test instance generator for SCP using the scheme of\
+  \ the following paper, namely the column cost c[j] are integer randomly generated\
+  \ from [1,100]; every column covers at least one row; and every row is covered by\
+  \ at least two columns.\r\nE. Balas and A. Ho, Set covering algorithms using cutting\
+  \ planes, heuristics, and subgradient optimization: A computational study, Mathematical\
+  \ Programming, 12 (1980), 37-60.\r\nWe have newly generated Classes I-N with the\
+  \ following parameter values, where each class has five instances.\r\nWe have also\
+  \ generated reduced instances by a standard pricing method in the following paper.\r\
+  \nS. Umetani and M. Yagiura, Relaxation heuristics for the set covering problem,\
+  \ Journal of the Operations Research Society of Japan, 50 (2007), 350-375.\r\nYou\
+  \ can obtain the instance generator program from the following web site.\r\nhttps://sites.google.com/site/shunjiumetani/benchmark"
+email: umetani@ist.osaka-u.ac.jp
+license: cc-license
+misc: ''
+name: Shunji Umetani
+other-license: ''
+owner: Osaka University

@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "retrieved_at": "2026-09-06",
+  "artifacts": [
+    {
+      "path": "verification/data/comp12-2idx.mps.gz",
+      "sha256": "5c3b597c3d999d4298dfb52fd6589838445752a59590b10c0cc20744453643ce",
+      "source_url": "https://miplib.zib.de/WebData/instances/comp12-2idx.mps.gz"
+    },
+    {
+      "path": "verification/data/scpk4.mps.gz",
+      "sha256": "093059e2d4caa1a724dd429342ee301517ac00e4163872e3eb9f310228a7fe9d",
+      "source_url": "https://miplib.zib.de/WebData/instances/scpk4.mps.gz"
+    },
+    {
+      "path": "references/upstream/comp12-2idx-meta.yml",
+      "sha256": "16ec4c39801963a9891d96453945cb7400637aba05368bbbf118f564b27512a9",
+      "source_url": "https://git.zib.de/miplib2017/submissions/-/raw/master/Matias_Soerensen/meta.yml"
+    },
+    {
+      "path": "references/upstream/scpk4-meta.yml",
+      "sha256": "3c8d646356624b9fa97130fddf45a3d662f3986f540b38464f2f1e7ca1d21031",
+      "source_url": "https://git.zib.de/miplib2017/submissions/-/raw/master/Shunji_Umetani/meta.yml"
+    },
+    {
+      "path": "references/upstream/open-v29.test",
+      "sha256": "b50795296c5bd2c79b5a84ec15b66a83382eb3fc6aaaa41f2335afa89d42c28c",
+      "source_url": "https://miplib.zib.de/downloads/open-v29.test"
+    },
+    {
+      "path": "references/upstream/solchecker-objective-offset.patch",
+      "sha256": "2cbe511e8f0bbf2e50d817cc7395ec7c28b7eebfea32a1d3ec7e01b5e6dd6a82",
+      "source_url": "https://www.mixedinteger.org/2026/competition/solchecker.patch"
+    }
+  ],
+  "external_solution_assets": [
+    {
+      "path": "verification/private_data/comp12-2idx-baseline.sol.gz",
+      "sha256": "907c6bec3a9c4562ab78c8a29d58b5557692eac31a277d0a44fdc59ba76af4a9",
+      "source_url": "https://miplib.zib.de/downloads/solutions/comp12-2idx/1/comp12-2idx.sol.gz"
+    },
+    {
+      "path": "verification/private_data/comp12-2idx-reference.sol.gz",
+      "sha256": "ad5dec0bb00722886c3f89f93e28966140e355003b877eb3abbeb0e265ba09fe",
+      "source_url": "https://miplib.zib.de/downloads/solutions/comp12-2idx/5/comp12-2idx.sol.gz"
+    },
+    {
+      "path": "verification/private_data/scpk4-baseline.sol.gz",
+      "sha256": "2ae902a9345102fc9de070a67190ee83ee3f73d371ad4249666e9b3071ba4594",
+      "source_url": "https://miplib.zib.de/downloads/solutions/scpk4/1/scpk4.sol.gz"
+    },
+    {
+      "path": "verification/private_data/scpk4-reference.sol.gz",
+      "sha256": "19659d4a50d17838c5968258e657eabf2bb888ed03b0f1f9c9fbd8cef4a00c4e",
+      "source_url": "https://miplib.zib.de/downloads/solutions/scpk4/7/scpk4.sol.gz"
+    }
+  ],
+  "external_snapshot_files": [
+    {
+      "name": "miplib2017-v36.solu",
+      "sha256": "9236602294c1a5aca5248b6f7d03689a7533ea3cb3f3d92cff962e752e20af84",
+      "source_url": "https://miplib.zib.de/downloads/miplib2017-v36.solu",
+      "redistributed": false
+    }
+  ],
+  "external_checker": {
+    "source_url": "https://www.mixedinteger.org/2026/competition/miplib2017-checker.zip",
+    "sha256": "025577624a9f5506d43003155a14a216b52e8ef397db40c3c9dd8d607b0092df",
+    "linear_tolerance": "1e-6",
+    "integrality_tolerance": "1e-5",
+    "license": "MIT",
+    "runtime_role": "qualification_only"
+  },
+  "qualification": {
+    "patched_checker_replay": "four_of_four_frozen_solutions_passed",
+    "maximum_integrality_violation": 0,
+    "maximum_constraint_violation": 0,
+    "maximum_objective_violation": 0,
+    "checker_exit_status_is_not_an_acceptance_signal": true,
+    "runtime_oracle": "exact integer arithmetic over the two frozen all-integer MPS files"
+  }
+}

@@ -1,0 +1,12 @@
+company: MaCom A/S
+creator: Gerald Lach and Marco E. Lübbecke
+description: "Instances comp01-21 of curriculum based course timetabling from the\
+  \ International Timetabling Competition 2007.\r\nThese are time-assignment models\
+  \ (Stage I of the decomposed model), which are smaller than the full model, but\
+  \ still hard to solve."
+email: sorensen.matias@gmail.com
+license: cc-license
+misc: ''
+name: Matias Sørensen
+other-license: ''
+owner: Free for all usages

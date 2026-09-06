@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "anchors": [
+    {
+      "name": "comp12-2idx_baseline_objective",
+      "value": 391,
+      "source_url": "https://miplib.zib.de/instance_details_comp12-2idx.html",
+      "derivation": "objective of official solution id 1, replayed exactly"
+    },
+    {
+      "name": "comp12-2idx_reference_objective",
+      "value": 277,
+      "source_url": "https://miplib.zib.de/instance_details_comp12-2idx.html",
+      "derivation": "objective of official solution id 5 and MIPLIB 2017 solufile v36, replayed exactly"
+    },
+    {
+      "name": "scpk4_baseline_objective",
+      "value": 327,
+      "source_url": "https://miplib.zib.de/instance_details_scpk4.html",
+      "derivation": "objective of official solution id 1, replayed exactly"
+    },
+    {
+      "name": "scpk4_reference_objective",
+      "value": 318,
+      "source_url": "https://miplib.zib.de/instance_details_scpk4.html",
+      "derivation": "objective of official solution id 7 and MIPLIB 2017 solufile v36, replayed exactly"
+    }
+  ]
+}
