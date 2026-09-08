@@ -7,12 +7,13 @@ searches for a better feasible assignment without proving optimality. The offici
 checker is a primal check: bounds, row activity, integrality, and objective. Duals are not
 part of that contract, and this task does not score them.
 
-This conversion vendors three small all-integer MIPLIB 2017 instances (`gen-ip002`,
-`gen-ip021`, `gen-ip054`) rather than fetching live models or redistributing `.sol` files,
-whose pages do not state a separate license. All three are classified `easy` and
-`=opt=` in solufile v36 (2026-01-26). Because a proven optimum exists, the score is
-**clipped at one**. That is the honest conversion of an open-incumbent cell onto instances
-that can be audited in-repo without a network and without solution files.
+The frozen model is MIPLIB queens-30: 900 binary variables and 960 constraints.
+It maximizes the number of queens on a 30-by-30 board with each queen threatening at
+most one other queen, represented as a minimization with negative unit costs.
+MIPLIB classifies it as hard; solufile v36 records the proven optimum -40.
+The original compressed MPS is hash-bound and parsed locally; there is no runtime download.
+The empty assignment is a feasible baseline. This replaces the three gen-ip models that
+were nearly saturated by a short SciPy milp call.
 
 This is not permutation flow-shop scheduling. The object is a general integer assignment
 on an authentic MIPLIB constraint matrix, not a job permutation and not a makespan.
@@ -34,7 +35,8 @@ The same function is called once for each instance. `problem` contains:
 | `n_variables`, `n_constraints` | dimensions |
 | `variable_names` | MPS column names in frozen order |
 | `objective` | objective coefficients in that order |
-| `lower_bounds` | finite lower bounds (all 0 on this subset) |
+| `lower_bounds` | lower bounds, all 0 |
+| `upper_bounds` | upper bounds, all 1 |
 | `row_senses` | `"L"`, `"G"`, or `"E"` per row |
 | `rhs` | right-hand sides |
 | `row_ptr`, `column_indices`, `coefficients` | CSR constraint matrix |
@@ -53,32 +55,13 @@ MIPLIB optimum `r`,
 clip01( (b - z) / (b - r) )
 ```
 
-Returning the shipped weak feasible assignment scores zero. Matching the dated optimum
-scores one. Because these three models are proven optimal, the formula is clipped at
-one: a floating residual that undershoots `r` is not a new MIPLIB record.
-
-The dated optima, quoted from solufile v36, are:
-
-| instance | variables | baseline `b` | frozen optimum `r` |
-|---|---:|---:|---:|
-| `gen-ip002` | 41 | 0 | -4783.733392 |
-| `gen-ip021` | 35 | 4808.1407336654 | 2361.45419519 |
-| `gen-ip054` | 30 | 10700.711798467 | 6840.96564179 |
-
-## Difficulty ladder
-
-| ablation | combined_score |
-|---|---:|
-| shipped weak feasible integers | 0.000 |
-| coordinate ±1 descent, 1448 checks | 0.734 |
-| dated proven optimum | 1.000 |
-
-The local-search probe does not reach 1. Memorizing a published optimum still does;
-the score is clipped for that reason.
+The empty baseline scores zero; a feasible 40-queen assignment scores one. A feasible
+assignment with q queens scores q/40, clipped to [0,1]. The optimum is sourced from
+MIPLIB solufile v36; no claim is made that it is an open record.
 
 ## Tools and scope
 
-- NumPy, SciPy, and the standard library are available. No MIP solver is introduced here.
+- NumPy, SciPy, and the standard library are available. SciPy includes HiGHS through scipy.optimize.milp; its use is allowed.
 - Networkless, single-process, bounded by the framework timeout.
 - Only edit `solution.py`; keep `improve_primal(problem)`.
 - Do not read `verification/` or `frontier_eval/`.
@@ -86,10 +69,9 @@ the score is clipped for that reason.
 
 ## Relation to nearby tasks
 
-- **PermutationFlowShop (#21)** is Engineering × combinatorial too, but the object is a
+- **PermutationFlowShop (#54)** is Engineering × combinatorial too, but the object is a
   job permutation and the check is makespan. This task checks a dense integer assignment
   against an authentic MIPLIB matrix.
-- Open MIPLIB incumbents with unpublished `.sol` licenses stay gated: this conversion
-  uses only vendored MPS and published `=opt=` numbers.
+- The source and redistribution-status notes are recorded in DATA_LICENSE.md.
 - Not a Frontier-Eng design task: the object is a general integer assignment on a
   frozen MIPLIB matrix, not a simulator-backed engineering layout.

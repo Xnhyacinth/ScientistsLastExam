@@ -25,11 +25,11 @@ as `L=1`, `Q=1.25`, so the two-qubit quantum value of `I_CG` is **0.25**. A cert
 proving a bound below 0.25 is reported, not scored.
 
 The open part is **which extra NPA-2 moments to spend a Hamming-weight budget on**.
-The frozen pool is every length-2 same-party word (`A_i A_k` for `i≠k` and `B_j B_l`
-for `j≠l`): 24 words. Each instance allows at most `k` extras from that pool, on top
-of the nine NPA-1 words (identity, four `A`'s, four `B`'s). Free words outside the pool
-are rejected. That is a different identity from `BellBoundCertificate`, which lets the
-basis be any reduced words up to a letter cap.
+The frozen 24-word pool contains all 16 mixed-party words A_i B_j, plus the
+same-party pairs A0A1, A1A0, A2A3, A3A2 and B0B1, B1B0, B2B3, B3B2.
+Each instance allows 8, 12 or 16 extras on top of nine NPA-1 words. Words outside
+this declared pool are rejected. Mixed-party words supply constraints unavailable to the
+former same-party-only pool.
 
 The evaluator never solves an SDP. Floats are rejected.
 
@@ -54,10 +54,10 @@ def build_certificate(instance):
 | `max_basis` | `9 + extra_budget` |
 | `max_squares`, `max_word_letters` | caps |
 | `max_numerator`, `max_denominator` | rational magnitude caps |
-| `free_bound` | triangle bound 4, the zero of the scale |
-| `catalog_sos_bound` | catalog SOS 3.5; the pairing grid reaches this and scores ~0.46 |
-| `score_one_bound` | wave-1 evaluator target 3.0, not a published NPA-2 number |
-| `published_target_bound` | same as `score_one_bound` |
+| `free_bound` | exact level-one certificate bound 5/8, the zero of the scale |
+| `catalog_sos_bound` | same 5/8 free certificate bound |
+| `score_one_bound` | included full-pool rational certificate bound, approximately 0.4553306767 |
+| `full_pool_certificate_bound` | same as `score_one_bound` |
 | `best_known_quantum_value` | 0.25 |
 
 `basis` words are `[A-letters, B-letters]` with setting indices in `{0,1,2,3}`, already
@@ -66,28 +66,19 @@ vector entries are integers or `[numerator, denominator]` pairs.
 
 ## Scoring
 
-Mean over three budgets `k=4,8,12` of logarithmic progress in the gap to 0.25:
+Mean over budgets k=8,12,16 of logarithmic progress in the gap to 0.25:
 
 ```text
-(log10(4 - 0.25) - log10(bound - 0.25)) / (log10(4 - 0.25) - log10(3.0 - 0.25))
+max(0, log((0.625 - 0.25)/(bound - 0.25))
+       / log((0.625 - 0.25)/(score_one_bound - 0.25)))
 ```
 
-Triangle scores zero. Score one is hung at certified bound 3.0, which is a wave-1
-evaluator target, not a published NPA-2 number. The catalog SOS at 3.5 scores about
-0.46. Stronger exact certificates score above one. Below 0.25 is reported and
-scored zero.
-
-## Difficulty ladder
-
-| ablation | bound | combined_score |
-|---|---:|---:|
-| triangle, no extras | 4.00 | 0.000 |
-| one CHSH block | 3.75 | 0.222 |
-| two CHSH blocks (catalog) | 3.50 | 0.461 |
-| score-one wave target | 3.00 | 1.000 |
-
-A 36-point grid over A/B pairings and signs finds the catalog on 2 of 36 points
-(score 0.46, does not reach 3.0). Beating 3.0 needs a different SOS.
+Score one is supported by an exact rational certificate over the entire pool. It is a
+builder-computed witness, not a published optimum and not a guarantee that each smaller
+budget can reach it. The free certificate and full-pool certificate are re-expanded by tests.
+Scores above one mean a stronger exact bound than that witness. Below 0.25 is reported
+and scores zero. Numerical optimization is permitted for proposal construction, but the
+submitted operator identity must hold exactly.
 
 ## Tools and scope
 

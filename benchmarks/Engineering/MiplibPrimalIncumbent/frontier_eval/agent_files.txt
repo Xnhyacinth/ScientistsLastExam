@@ -1,6 +1,4 @@
 Task.md
 solution.py
 frontier_eval/constraints.txt
-references/instances/gen-ip002.mps
-references/instances/gen-ip021.mps
-references/instances/gen-ip054.mps
+references/instances/queens-30.mps.gz

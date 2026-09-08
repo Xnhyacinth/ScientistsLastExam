@@ -49,6 +49,7 @@ DECLARED_EXTERNAL_ANCHORS = {
     "DiscreteGeometry/SpherePackingCertificate",
     "QuantumFoundations/BellBoundCertificate",
     "DiscreteOptimization/MiplibPrimalIncumbent",
+    "InformationTheory/ShannonCapacityCertificate",
     "Mathematics/NonlinearCodeRecords",
     "Optimization/CirclePacking",
     "Algorithm/MatrixMultiplicationRank",

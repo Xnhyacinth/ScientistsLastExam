@@ -6,7 +6,7 @@
    instance["extra_budget"]. NPA-1 words (identity, single A, single B) are always allowed.
    Basis words reduced and distinct; one vector entry per basis word.
 4) instance also contains name, settings, functional, scale, offset, max_basis, max_squares,
-   max_word_letters, max_numerator, max_denominator, free_bound, published_target_bound, and
+   max_word_letters, max_numerator, max_denominator, free_bound, full_pool_certificate_bound, and
    best_known_quantum_value.
 5) NumPy/SciPy only. Deterministic CPU code. No network/process creation. Do not read
    verification/ or frontier_eval/.

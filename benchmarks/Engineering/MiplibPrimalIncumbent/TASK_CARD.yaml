@@ -1,29 +1,23 @@
 schema_version: 2
 scientific_question: >-
-  Can one reusable primal heuristic improve a weak feasible integer assignment on three frozen
-  MIPLIB 2017 all-integer models whose dated status is proven optimal?
+  Can one reusable primal heuristic improve a weak feasible integer assignment on the frozen
+  MIPLIB queens-30 binary model, whose dated status is hard and proven optimal?
 artifact: >-
   Candidate code implementing improve_primal(problem), returning one dense integer assignment in
   frozen MPS column order for each instance.
 oracle:
   model: >-
-    A task-local MPS parser checks the three hash-bound vendored files, then checks variable
+    A task-local MPS parser checks the hash-bound compressed MPS file, then checks variable
     bounds, every linear row at MIPLIB linear tolerances, and the objective. Duals are never
     consulted.
   feasibility: >-
-    Exactly one integer per variable; booleans and floats are rejected; lower bounds and L/G/E
+    Exactly one integer per variable; booleans and floats are rejected; lower/upper bounds and L/G/E
     rows must hold at the frozen tolerances.
   deterministic: true
 normalization:
-  baseline: >-
-    Weak feasible integers: the origin on gen-ip002, and two small-magnitude feasible points on
-    gen-ip021 and gen-ip054. Returning them scores zero.
-  reference: >-
-    MIPLIB 2017 solufile v36 proven optima: -4783.733392, 2361.45419519, 6840.96564179. The
-    corresponding assignments are not redistributed.
-  score: >-
-    Mean of clip01((baseline_objective - objective) / (baseline_objective - reference_objective)).
-    Clipped because the three models are proven optimal; this is not an open-incumbent claim.
+  baseline: the feasible all-zero binary vector, objective 0
+  reference: official MIPLIB solufile v36 proven optimum -40 for queens-30
+  score: clip01(-objective/40); proven optimum, not an open-incumbent record
 citations:
   - id: doi:10.1007/s12532-020-00194-3
     title: "MIPLIB 2017: Data-Driven Compilation of the 6th Mixed-Integer Programming Library"
@@ -31,43 +25,45 @@ citations:
     title: "MIPLIB 2017 solution file version 36, 2026-01-26"
 invariants:
   - >-
-    The three MPS files are hash-bound and parsed on every evaluation; no live download and no
+    The compressed MPS is hash-bound and parsed on every evaluation; no live download and no
     .sol files.
   - The checker is primal-only. Dual unboundedness or dual feasible rays are not scored.
   - Malformed submissions score zero and never raise out of the evaluator.
-  - The three models are MIPLIB-easy and proven optimal; score one is not a new library record.
+  - The model is MIPLIB-hard and proven optimal; score one is not a new library record.
 known_shortcuts: >-
-  Coordinate ±1 descent plus 200 random tweaks (1448 checks, seed 0) scores 0.734 and does
-  not reach the dated optima. Memorizing a published optimal assignment still scores one;
-  that is a protocol on-ramp, which is why the formula is clipped. SciPy is mounted.
+  The former gen-ip trio scores 0.996066 under a 60-second-per-model SciPy milp probe
+  in the Linux sandbox. It is retired. On queens-30, SciPy 1.11.4 / NumPy 1.26.4,
+  a 240-second single-thread milp call in the same sandbox finds 35 queens, score 0.875,
+  with zero constraint violation. A 60-second in-process probe also finds 35.
+  This removes near-saturation, but library reuse remains strong and calibration is pending.
 review:
   status: pending_external
   domain: pending_external_operations_research
   evaluator_security: >-
-    Bounded dense-integer response; MPS parser accepts only the three named files; malformed
+    Bounded dense-integer response; MPS parser accepts only the named file; malformed
     output scores zero.
 provenance:
   class: public_data_replay
-  target_source: >-
-    Hash-frozen MIPLIB 2017 MPS files gen-ip002, gen-ip021, gen-ip054 and solufile-v36 objective
-    anchors.
+  target_source: official MIPLIB queens-30 compressed MPS and solufile v36; archive/content hashes and URLs are recorded in references/anchors.json
   task_contract_public_before_evaluation: true
-  fresh_confirmation_status: completed_2026_09_06_against_solufile_v36
+  fresh_confirmation_status: completed_2026_09_08_against_solufile_v36
 novelty_risk:
   level: high
   rationale: >-
     Public instances and published optima may occur in training data. Only a verified feasible
-    assignment is scored, and score one is clipped at a proven optimum.
+    assignment is scored, and score one is clipped at a proven optimum. Nearest neighbours
+    are PermutationFlowShop (scheduling), GraphFromDistances (graph recovery) and
+    ShannonCapacityCertificate (exact code/bound certificates), with different artifacts.
 lineage:
-  status: complete
+  status: incomplete_legacy
   builder_model_ids: ["cursor-grok-4.6"]
   builder_scaffolds: ["cursor"]
   calibrator_model_ids: []
   calibration_runs: []
   calibration_evidence_status: missing
   edits_triggered_by_model: >-
-    Converted from a gated open-instance design that fetched official .sol files. The conversion
-    vendors three small proven-optimal models, drops live download, and clips the score.
+    Maintainer reproduced near-saturation by HiGHS. Replaced the gen-ip trio with queens-30
+    and added upper-bound enforcement plus fail-closed rejection of unsupported MPS sections.
   shortcut_discoverer: builder_self_audit
   frozen_before_eval: false
   freeze_timestamp: null
@@ -77,14 +73,10 @@ long_horizon:
   material_headroom_after_2h: false
   evidence: []
 construction_audit:
-  status: builder_audited_pending_external
+  status: incomplete_legacy
   author_domain: cursor-grok-4.6
   reviewer_domain: pending_external_operations_research
   expert_hours: null
   red_team_rounds: 1
-  oracle_disagreement_status: >-
-    Baseline assignments were rechecked against the parsed MPS at the frozen tolerances; gen-ip002
-    at the origin is feasible with objective 0.
-  independent_recomputation_status: >-
-    MPS hashes, dimensions, and dated =opt= values are reproducible from the package and solufile
-    v36.
+  oracle_disagreement_status: baseline and 35-queen solver assignment pass all parsed bounds and rows
+  independent_recomputation_status: archive/content hashes, dimensions, official optimum and sandbox milp probe are recorded; external review pending

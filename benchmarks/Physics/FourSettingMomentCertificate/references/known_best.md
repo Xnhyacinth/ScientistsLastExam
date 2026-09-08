@@ -1,75 +1,51 @@
-# FourSettingMomentCertificate — measured values
+# FourSettingMomentCertificate — current witnesses
 
-Every SOS number here is produced by `verification/`. Classical and two-qubit anchors
-are quoted from the papers cited in `references/anchors.json` and rechecked as noted.
+## Reproducing
 
-## Reference — `verification/reference_certificate.py`
+Run the task's reference through sle eval. Tests expand both references/level_one_certificate.json
+and references/full_pool_certificate.json using exact Fraction arithmetic; no SDP runs in the oracle.
 
-Truth-blind: it reads the public instance (functional, pool, budget) and returns
-squares. It does not call an SDP solver.
+## Reference and anchors
 
-Hand exact SOS: two CHSH 2×2 replacements using four frozen BB extras
-`(B1 B2, B2 B1, B0 B3, B3 B0)`. Expanded bound **7/2**. Legal at every budget in this
-task (`k ≥ 4`).
+The public-input reference adapts BellBoundCertificate's numerical Gram search, exact rational
+identity repair, diagonal PSD repair and LDL squares. All supplied coefficients are checked exactly.
+The zero anchor is the exact level-one optimum 5/8: a matching PSD unit-diagonal
+moment matrix in level_one_moment_matrix.json attains the same value. Tests verify both sides. The score-one anchor is the included
+24-word-pool certificate 0.45533067671165467, a computed witness, not a published optimum.
+The pool is 16 mixed A_i B_j words and eight explicitly listed same-party words.
 
-The reference is capability-complete for a small exact SOS and deliberately not at the
-two-qubit floor 0.25. On the logarithmic scale it scores about 0.46. Score one is hung
-at bound 3.0, which the 36-point pairing grid does not prove. Headroom below 3.5 is
-which extra moments to spend the rest of the Hamming-weight budget on.
+## Ablation ladder and shortcut probes
 
-## Baseline — `solution.py`
+A Python 3.12 / NumPy 1.26.4 / SciPy 1.14.1 builder probe gave:
 
-| | k=4 | k=8 | k=12 | mean |
-|---|---:|---:|---:|---:|
-| triangle bound | 4 | 4 | 4 | |
-| triangle score | 0 | 0 | 0 | **0** |
-| catalog SOS | 3.5 | 3.5 | 3.5 | |
-| catalog log-score | 0.461 | 0.461 | 0.461 | **0.461** |
+| basis | bound | score |
+|---|---:|---:|
+| old pairing shortcut, no nonzero extras | 3.5 | 0 |
+| level one, no extras | 0.625 exactly | 0 |
+| k=8 reference | 0.5714453258 | 0.255848 |
+| k=12 reference | 0.5255800974 | 0.511449 |
+| k=16 reference | 0.4588295476 | 0.971947 |
+| full k=24 pool witness | 0.4553306767 | 1 |
 
-The baseline is the triangle inequality written as squares over the NPA-1 basis. It
-uses no extra moments.
-
-## Difficulty ladder
-
-| ablation | bound | combined_score | what was removed |
-|---|---:|---:|---|
-| triangle, no extras | 4.00 | 0.000 | all extra-moment SOS |
-| one CHSH block (two BB extras) | 3.75 | **0.222** | the second block |
-| two CHSH blocks (catalog) | 3.50 | 0.461 | — |
-| below two-qubit 0.25 | — | 0 (reported) | not rewarded |
-
-Dropping either CHSH block of the catalog raises the bound by 0.25 and drops the
-log-score from 0.461 to 0.222. The extras are doing the work.
-
-## Shortcut probe
-
-A 36-point grid over the three perfect matchings of four A settings, the three of
-four B settings, zip vs cross pairing, and two sign patterns. Two of 36 geometries
-are valid and both score **0.461** (bound 3.5); they are the catalog pairing and its
-sign-matched twin. The other 34 fail the operator identity (score 0).
-
-The grid reaches the reference and does not reach the score-one bound 3.0. Beating
-3.5 requires a different SOS, not another pairing from this grid. Recalling I3322
-NPA numbers is worth nothing: the functional is different.
-
-## Model draws
-
-Not run. No frontier calibration on a clean tree. A searcher that enumerates the
-36-point CHSH-block grid would hit 0.461, not 1.0. The untouched part of the scale
-is below 3.5, toward the wave-1 target 3.0.
+Reference mean: 0.579748. The numerical solver may vary across SciPy versions;
+the exact checker and the two stored anchors do not. The k=16 result is near the full-pool
+witness, so this is not a claim of uniform remaining headroom across budgets.
 
 ## Construction errors
 
-The gated design was an I3322 NPA-4 dual occupying the same identity as
-`BellBoundCertificate`. It was replaced by `I_4422^{13}` and a frozen Hamming-weight
-pool. A free word budget was refused because that is the sibling task. Floats were
-refused rather than rounded; accepting them would have turned the oracle into an SDP
-call. A bound below 0.25 is reported and zeroed, not rewarded.
+The old reference contained zero coefficients on every extra moment; its entire pairing ladder
+was level one and the same-party-only pool failed to improve the free 5/8 bound in our probe.
+Changing only the score from affine to logarithmic did not repair that defect. This revision
+changes the pool and reference method, and removes the misleading published_target_bound key.
+The solver/algebra lineage is explicitly BellBoundCertificate. The old shortcut is retained
+as references/pairing_shortcut.py for regression, with unused padding removed during the test.
 
 ## Robustness
 
-Twelve malformed submissions — empty mapping, `None`, empty basis, empty squares,
-negative weight, unreduced `A0 A0`, duplicate words, five extras on a k=4 budget,
-zero denominator, a boolean posing as a weight, mismatched vector length, and a
-raising callable — all score 0, and none raises out of the evaluator. A length-2
-AB correlator outside the same-party pool is rejected.
+Malformed weights, floats, unreduced words, out-of-pool words and incorrect identities fail closed.
+Anchor certificates are expanded exactly. No measurement of model robustness is claimed.
+
+## Model draws
+
+Not run. Lineage and construction status are incomplete_legacy. External quantum-information
+review and difficulty calibration remain pending; no frozen run evidence is added.

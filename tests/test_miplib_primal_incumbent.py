@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import unittest
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,6 +22,13 @@ BASELINE = _load("mip_baseline", TASK / "solution.py")
 
 
 class MiplibPrimalTests(unittest.TestCase):
+    def test_parser_rejects_unsupported_mps_sections(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "bad.mps"
+            path.write_text("NAME bad\nROWS\n N cost\n L row\nCOLUMNS\n x cost 1 row 1\nRHS\n rhs row 2\nRANGES\n range row 1\nENDATA\n")
+            with self.assertRaisesRegex(ValueError, "RANGES"):
+                EVALUATOR._parse_mps(path)
+
     def test_vendored_hashes_and_dimensions_match(self):
         for row in EVALUATOR.INSTANCES:
             model = EVALUATOR._load_model(row)
@@ -33,15 +41,15 @@ class MiplibPrimalTests(unittest.TestCase):
         self.assertEqual(result["feasibility_rate"], 1.0)
         self.assertEqual(result["combined_score"], 0.0)
 
-    def test_infeasible_origin_on_gen_ip021_scores_zero_there(self):
-        def candidate(problem):
-            return [0] * problem["n_variables"]
+    def test_binary_upper_bounds_are_enforced(self):
+        result = EVALUATOR.evaluate(lambda p: [2] + [0] * (p["n_variables"] - 1))
+        self.assertEqual(result["valid"], 0.0)
+        self.assertIn("upper bound", result["per_instance"][0]["reason"])
 
-        result = EVALUATOR.evaluate(candidate)
-        by_name = {row["name"]: row for row in result["per_instance"]}
-        self.assertTrue(by_name["gen-ip002"]["valid"])
-        self.assertFalse(by_name["gen-ip021"]["valid"])
-        self.assertFalse(by_name["gen-ip054"]["valid"])
+    def test_one_queen_is_a_feasible_improvement(self):
+        result = EVALUATOR.evaluate(lambda p: [1] + [0] * (p["n_variables"] - 1))
+        self.assertEqual(result["valid"], 1.0)
+        self.assertEqual(result["combined_score"], 0.025)
 
     def test_malformed_submissions_score_zero_without_raising(self):
         cases = {

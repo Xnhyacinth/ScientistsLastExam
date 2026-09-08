@@ -1,25 +1,14 @@
 {
   "anchors": [
     {
-      "name": "gen-ip002_opt",
-      "value": -4783.733392,
-      "source_url": "https://miplib.zib.de/",
-      "derivation": "MIPLIB 2017 solufile v36 line `=opt= gen-ip002 -4783.733392`, retrieved 2026-09-06.",
-      "retrieved_on": "2026-09-06"
-    },
-    {
-      "name": "gen-ip021_opt",
-      "value": 2361.45419519,
-      "source_url": "https://miplib.zib.de/",
-      "derivation": "MIPLIB 2017 solufile v36 line `=opt= gen-ip021 2361.45419519`, retrieved 2026-09-06.",
-      "retrieved_on": "2026-09-06"
-    },
-    {
-      "name": "gen-ip054_opt",
-      "value": 6840.96564179,
-      "source_url": "https://miplib.zib.de/",
-      "derivation": "MIPLIB 2017 solufile v36 line `=opt= gen-ip054 6840.96564179`, retrieved 2026-09-06.",
-      "retrieved_on": "2026-09-06"
+      "name": "queens-30_opt",
+      "value": -40,
+      "source_url": "https://miplib.zib.de/downloads/miplib2017-v36.solu",
+      "derivation": "Official solufile v36 line =opt= queens-30 -40; verified 2026-09-08.",
+      "retrieved_on": "2026-09-08",
+      "mps_gz_source_url": "https://miplib.zib.de/WebData/instances/queens-30.mps.gz",
+      "mps_gz_sha256": "2f9f48263d7d7770bfdd391c7c47491ac70aa8ff575558063ad510b539680323",
+      "mps_sha256": "eef3ffedcc73def40d975e6090d5b7b7278ebbe0f38a15843e46e3279285ac61"
     }
   ]
 }

@@ -1,19 +1,7 @@
-"""Hidden oracle for FourSettingMomentCertificate.
+"""Exact SOS oracle for I_4422^{13} with a 24-word mixed-party moment pool.
 
-The product is not an object. It is an argument, and the score is the strength of what the
-argument proves.
-
-The functional is Brunner-Gisin I_4422^{13}, not I3322. Extra basis words must be a
-Hamming-weight subset of a frozen 24-word NPA-2 same-party pool; free words are rejected.
-A certificate is an exact rational sum of squares for beta * I - B. Floats are rejected,
-not rounded. The evaluator never solves an SDP.
-
-Scoring is logarithmic in the gap to the two-qubit value 0.25, matching
-BellBoundCertificate: the triangle bound 4 scores zero, and score one is hung at
-certified bound 3.0. That target is a wave-1 evaluator anchor, not a published
-NPA-2 number. The catalog SOS at 7/2 and the 36-point pairing grid both stop at
-3.5 and therefore land below one. A certificate below 0.25 is reported rather
-than scored.
+Zero is the exact level-one certificate 5/8. One is the included full-pool rational
+certificate, not a claimed published optimum. Candidate squares are verified exactly.
 """
 from __future__ import annotations
 
@@ -206,15 +194,7 @@ def certified_bound(basis, weights, vectors, instance):
 
 
 def _instance_score(instance, bound):
-    """Logarithmic in the distance to the two-qubit value; uncapped above.
-
-    A linear ratio against the catalog SOS at 7/2 compressed the open region into
-    the last step of a 36-point pairing grid. Halving the remaining gap to 0.25 is
-    worth the same wherever it happens, which is the only scale on which 4 → 3.5
-    and 3.5 → 3.0 are comparable. Score one is hung at 3.0, which that grid does
-    not reach. There is still no independently recomputed NPA-2 number for this
-    functional; 3.0 is a wave-1 evaluator target, not a recalled I3322 table.
-    """
+    """Log progress from the exact level-one witness to the full-pool rational witness."""
     quantum = instance["quantum_value"]
     gap = float(bound) - quantum
     if gap < 0.0:
@@ -242,15 +222,16 @@ I4422_TIMES_FOUR = {
 SETTINGS = (4, 4)
 NPA1 = (((), ()),) + tuple(((i,), ()) for i in range(4)) + tuple(((), (j,)) for j in range(4))
 MOMENT_POOL = (
-    tuple(((i, k), ()) for i in range(4) for k in range(4) if i != k)
-    + tuple(((), (j, l)) for j in range(4) for l in range(4) if j != l)
+    tuple(((i,), (j,)) for i in range(4) for j in range(4))
+    + tuple(((i, j), ()) for i, j in ((0, 1), (1, 0), (2, 3), (3, 2)))
+    + tuple(((), (i, j)) for i, j in ((0, 1), (1, 0), (2, 3), (3, 2)))
 )
+
 I4422_QUANTUM = 0.25
-I4422_TRIANGLE = 4.0
-I4422_CATALOG = 3.5
-# Score one is hung here. The catalog SOS and the 36-point pairing grid prove 3.5
-# and stop; 3.0 is not a published NPA-2 value for this functional.
-I4422_SCORE_ONE = 3.0
+I4422_TRIANGLE = 0.625
+I4422_CATALOG = 0.625
+# Score-one witness is independently expanded in tests from references/full_pool_certificate.json.
+I4422_SCORE_ONE = 0.45533067671165467
 
 
 def _i4422(name, extra_budget):
@@ -271,9 +252,9 @@ def _i4422(name, extra_budget):
 
 
 INSTANCES = (
-    _i4422("i4422_k4", 4),
-    _i4422("i4422_k8", 8),
+        _i4422("i4422_k8", 8),
     _i4422("i4422_k12", 12),
+    _i4422("i4422_k16", 16),
 )
 
 
@@ -296,7 +277,7 @@ def evaluate(build_certificate):
             "free_bound": instance["easy_bound"],
             "catalog_sos_bound": instance["catalog_bound"],
             "score_one_bound": instance["target_bound"],
-            "published_target_bound": instance["target_bound"],
+            "full_pool_certificate_bound": instance["target_bound"],
             "best_known_quantum_value": instance["quantum_value"],
         }
         try:
@@ -311,7 +292,7 @@ def evaluate(build_certificate):
                 "square_count": len(weights),
                 "instance_score": round(score, 6),
                 "beats_the_free_bound": bool(float(bound) < instance["easy_bound"]),
-                "beats_the_published_target": bool(float(bound) < instance["target_bound"]),
+                "beats_the_full_pool_certificate": bool(float(bound) < instance["target_bound"]),
                 # A certificate below the best known quantum value would contradict an explicit
                 # published strategy. It is reported, never scored: it is either a defect in this
                 # checker or a result, and neither is a number to average.
@@ -322,7 +303,7 @@ def evaluate(build_certificate):
                 "valid": False, "reason": "%s: %s" % (type(exc).__name__, exc),
                 "certified_bound": None, "basis_size": None, "square_count": None,
                 "instance_score": 0.0, "beats_the_free_bound": False,
-                "beats_the_published_target": False,
+                "beats_the_full_pool_certificate": False,
                 "below_best_known_quantum_value": False,
             })
         rows.append(published)
@@ -336,8 +317,8 @@ def evaluate(build_certificate):
         "raw_score": float(combined),
         "instances_with_a_valid_certificate": len(valid),
         "instances_beating_the_free_bound": sum(1 for r in rows if r["beats_the_free_bound"]),
-        "instances_beating_the_published_target": sum(
-            1 for r in rows if r["beats_the_published_target"]),
+        "instances_beating_the_full_pool_certificate": sum(
+            1 for r in rows if r["beats_the_full_pool_certificate"]),
         "instances_below_best_known_quantum_value": sum(
             1 for r in rows if r["below_best_known_quantum_value"]),
         "per_instance": rows,
@@ -347,8 +328,8 @@ def evaluate(build_certificate):
 def _public_instance(instance):
     """What the candidate is told. Everything here is public; nothing is withheld.
 
-    The functional, the scenario and the budget are the problem statement. The anchors are quoted
-    from the literature and are in the task card. There is no hidden held-out set to protect,
+    The functional, the scenario and the budget are the problem statement. The anchors are exact rational witnesses
+    supplied in references; their interpretation is in the task card. There is no hidden held-out set to protect,
     because the score is a proof: a certificate cannot be tuned to a grader it has not seen, it can
     only be correct or not.
     """
@@ -369,6 +350,6 @@ def _public_instance(instance):
         "free_bound": instance["easy_bound"],
         "catalog_sos_bound": instance["catalog_bound"],
         "score_one_bound": instance["target_bound"],
-        "published_target_bound": instance["target_bound"],
+        "full_pool_certificate_bound": instance["target_bound"],
         "best_known_quantum_value": instance["quantum_value"],
     }

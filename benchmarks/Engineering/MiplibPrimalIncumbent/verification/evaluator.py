@@ -1,4 +1,4 @@
-"""Primal-only oracle for three frozen MIPLIB 2017 integer programs.
+"""Primal-only oracle for the frozen MIPLIB 2017 queens-30 binary program.
 
 The official MIPLIB checker is a primal feasibility and objective check. Duals are not
 part of the contract. This evaluator reparses the vendored MPS files and checks a dense
@@ -8,6 +8,8 @@ not fetch anything, does not read `.sol` files, and does not call a MIP solver.
 from __future__ import annotations
 
 import hashlib
+import gzip
+import math
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -19,40 +21,14 @@ CONSTRAINT_ABS_TOL = 1e-6
 CONSTRAINT_REL_TOL = 1e-5
 INTEGRALITY_TOL = 1e-5
 
-# Dated MIPLIB 2017 solufile v36 proven optima. Literals by design: this checker is primal-only.
-PUBLISHED_OPTIMUM_GEN_IP002 = -4783.733392
-PUBLISHED_OPTIMUM_GEN_IP021 = 2361.45419519
-PUBLISHED_OPTIMUM_GEN_IP054 = 6840.96564179
-
-INSTANCES = (
-    {
-        "name": "gen-ip002",
-        "mps_filename": "gen-ip002.mps",
-        "mps_sha256": "30ed071e531beea561b330dd8e590eb641a5ec6d4e3f41a8d54735ce27db01b6",
-        "n_variables": 41,
-        "n_constraints": 24,
-        "baseline_objective": 0.0,
-        "reference_objective": PUBLISHED_OPTIMUM_GEN_IP002,
-    },
-    {
-        "name": "gen-ip021",
-        "mps_filename": "gen-ip021.mps",
-        "mps_sha256": "ab3150e5e4ba4fd022f5a0ccab21bef329b6da8001cb67eedacb11221f2e7c54",
-        "n_variables": 35,
-        "n_constraints": 28,
-        "baseline_objective": 4808.1407336654,
-        "reference_objective": PUBLISHED_OPTIMUM_GEN_IP021,
-    },
-    {
-        "name": "gen-ip054",
-        "mps_filename": "gen-ip054.mps",
-        "mps_sha256": "8b71b70a6f92ea9bde78b375f4366e7cc021cfb517df87130775f8b8bdf47333",
-        "n_variables": 30,
-        "n_constraints": 27,
-        "baseline_objective": 10700.711798467,
-        "reference_objective": PUBLISHED_OPTIMUM_GEN_IP054,
-    },
-)
+# Official proven optimum; source and both archive/content hashes are in anchors.json.
+INSTANCES = ({
+    "name": "queens-30",
+    "mps_filename": "queens-30.mps.gz",
+    "mps_sha256": "2f9f48263d7d7770bfdd391c7c47491ac70aa8ff575558063ad510b539680323",
+    "n_variables": 900, "n_constraints": 960,
+    "baseline_objective": 0.0, "reference_objective": -40.0,
+},)
 
 
 def _sha256(path: Path) -> str:
@@ -65,42 +41,58 @@ def _parse_mps(path: Path) -> dict[str, Any]:
     matrix: dict[str, dict[str, float]] = defaultdict(dict)
     rhs: dict[str, float] = {}
     lower: dict[str, float] = {}
+    upper: dict[str, float] = {}
+    integer_columns: set[str] = set()
+    integer_section = False
     section = None
     objrow = None
     columns: list[str] = []
     seen: set[str] = set()
-    with path.open(encoding="iso-8859-1") as handle:
+    opener = gzip.open if path.suffix == ".gz" else open
+    with opener(path, "rt", encoding="iso-8859-1") as handle:
         for raw in handle:
             line = raw.strip()
             if not line or line.startswith("*"):
                 continue
-            if line.startswith("ROWS"):
+            if line in {"RANGES", "OBJSENSE", "OBJNAME", "SOS", "QMATRIX", "QSECTION"}:
+                raise ValueError("unsupported MPS section: " + line)
+            if line == "ROWS":
                 section = "ROWS"
                 continue
-            if line.startswith("COLUMNS"):
+            if line == "COLUMNS":
                 section = "COLUMNS"
                 continue
-            if line.startswith("RHS"):
+            if line == "RHS":
                 section = "RHS"
                 continue
-            if line.startswith("BOUNDS"):
+            if line == "BOUNDS":
                 section = "BOUNDS"
                 continue
-            if line.startswith("ENDATA"):
+            if line == "ENDATA":
                 break
-            if line.startswith("NAME") or line.startswith("OBJSENSE"):
+            if line.startswith("NAME "):
                 continue
             fields = line.split()
             if section == "ROWS":
                 row_sense, name = fields[0], fields[1]
+                if row_sense not in {"N", "L", "G", "E"}:
+                    raise ValueError("unsupported row sense: " + row_sense)
                 sense[name] = row_sense
                 if row_sense == "N" and objrow is None:
                     objrow = name
                 continue
             if section == "COLUMNS":
                 if "MARKER" in line:
+                    if "INTORG" in line:
+                        integer_section = True
+                    elif "INTEND" in line:
+                        integer_section = False
+                    else:
+                        raise ValueError("unsupported integer marker")
                     continue
                 column = fields[0]
+                if integer_section:
+                    integer_columns.add(column)
                 if column not in seen:
                     seen.add(column)
                     columns.append(column)
@@ -115,17 +107,35 @@ def _parse_mps(path: Path) -> dict[str, Any]:
             if section == "RHS":
                 rest = fields[1:]
                 for index in range(0, len(rest), 2):
+                    if rest[index] == objrow:
+                        raise ValueError("objective RHS offsets are unsupported")
                     rhs[rest[index]] = float(rest[index + 1])
                 continue
             if section == "BOUNDS":
                 kind = fields[0]
                 if kind in {"LO", "LI"}:
-                    lower[fields[2]] = float(fields[3]) if len(fields) > 3 else 0.0
+                    lower[fields[2]] = float(fields[3])
+                elif kind in {"UP", "UI"}:
+                    upper[fields[2]] = float(fields[3])
+                elif kind == "BV":
+                    lower[fields[2]], upper[fields[2]] = 0.0, 1.0
+                    integer_columns.add(fields[2])
+                elif kind == "FX":
+                    lower[fields[2]] = upper[fields[2]] = float(fields[3])
+                else:
+                    raise ValueError("unsupported MPS bound: " + kind)
+                if kind in {"LI", "UI"}:
+                    integer_columns.add(fields[2])
+    if not columns or set(columns) != integer_columns:
+        raise ValueError("this task requires every MPS column to be integer")
+    if any(not math.isfinite(value) for mapping in (objective, rhs, lower, upper) for value in mapping.values()):
+        raise ValueError("nonfinite MPS value")
     constraint_names = [name for name, row_sense in sense.items() if row_sense != "N"]
     return {
         "columns": columns,
         "objective": [float(objective.get(column, 0.0)) for column in columns],
         "lower_bounds": [float(lower.get(column, 0.0)) for column in columns],
+        "upper_bounds": [float(upper.get(column, float("inf"))) for column in columns],
         "row_senses": [sense[name] for name in constraint_names],
         "rhs": [float(rhs.get(name, 0.0)) for name in constraint_names],
         "matrix": [
@@ -171,6 +181,7 @@ def _public_instance(row: dict[str, Any], model: dict[str, Any]) -> dict[str, An
         "variable_names": list(model["columns"]),
         "objective": list(model["objective"]),
         "lower_bounds": list(model["lower_bounds"]),
+        "upper_bounds": list(model["upper_bounds"]),
         "row_senses": list(model["row_senses"]),
         "rhs": list(model["rhs"]),
         "row_ptr": row_ptr,
@@ -240,9 +251,11 @@ def evaluate(improve_primal):
         try:
             assignment = _read_assignment(
                 improve_primal(_public_instance(row, model)), row["n_variables"])
-            for value, lower in zip(assignment, model["lower_bounds"]):
+            for value, lower, upper in zip(assignment, model["lower_bounds"], model["upper_bounds"]):
                 if value < lower - INTEGRALITY_TOL:
                     raise ValueError("variable below its lower bound")
+                if value > upper + INTEGRALITY_TOL:
+                    raise ValueError("variable above its upper bound")
             violation = _max_violation(assignment, model)
             if violation > 0:
                 raise ValueError("infeasible assignment; residual %s" % violation)
