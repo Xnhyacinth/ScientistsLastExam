@@ -72,6 +72,6 @@ MIPLIB solufile v36; no claim is made that it is an open record.
 - **PermutationFlowShop (#54)** is Engineering × combinatorial too, but the object is a
   job permutation and the check is makespan. This task checks a dense integer assignment
   against an authentic MIPLIB matrix.
-- The source and redistribution-status notes are recorded in DATA_LICENSE.md.
+- The source and redistribution-status notes are recorded in references/DATA_LICENSE.md.
 - Not a Frontier-Eng design task: the object is a general integer assignment on a
   frozen MIPLIB matrix, not a simulator-backed engineering layout.

@@ -1,8 +1,13 @@
-The three MPS files under `instances/` are MIPLIB 2017 models (Bowly generated integer
-programs gen-ip002, gen-ip021, gen-ip054), retrieved from the MIPLIB 2017 distribution
-and frozen by SHA-256 in the evaluator.
+# MIPLIB source status
 
-MIPLIB 2017 is described in Gleixner et al., *Mathematical Programming Computation* 13
-(2021), DOI 10.1007/s12532-020-00194-3. Instance data from the MIPLIB 2017 project is
-used here under the terms published with that library. Official `.sol` files are not
-redistributed.
+Source: https://miplib.zib.de/WebData/instances/queens-30.mps.gz, linked from the official
+instance and download pages. The original archive is retained byte-for-byte with its SHA-256;
+its decompressed content is independently hashed in references/anchors.json.
+Submitter: Ashutosh Mahajan; imported from MIPLIB2010. Model description: IBM Ponder This,
+August 2008, as attributed by the official instance page.
+
+MIPLIB provides these instance collections for benchmarking download. The instance page does
+not state a separate file-level redistribution license; this repository does not invent or
+extend one, and external data-rights review remains pending. No optimal .sol file is included.
+The numerical optimum is cited from the public solufile v36. This corrects the earlier record's
+inconsistent treatment of .mps and .sol licensing, rather than claiming an unverified permission.
