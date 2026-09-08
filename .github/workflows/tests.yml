@@ -51,8 +51,7 @@ jobs:
       - name: Python dependencies into the system interpreter
         run: |
           /usr/bin/python3 --version
-          sudo env PIP_BREAK_SYSTEM_PACKAGES=1 /usr/bin/python3 -m pip install --upgrade pip
-          sudo /usr/bin/python3 -m pip install --break-system-packages "numpy==${{ matrix.numpy }}" "scipy==${{ matrix.scipy }}" pyyaml pytest
+          sudo env PIP_BREAK_SYSTEM_PACKAGES=1 /usr/bin/python3 -m pip install "numpy==${{ matrix.numpy }}" "scipy==${{ matrix.scipy }}" pyyaml pytest
           # The sandbox resolves site-packages for the interpreter it execs; prove they are there.
           /usr/bin/python3 -c "import numpy, scipy, yaml; print(numpy.__file__)"
       - name: Inventory and card audits
