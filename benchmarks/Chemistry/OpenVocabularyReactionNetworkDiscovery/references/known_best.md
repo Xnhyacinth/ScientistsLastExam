@@ -73,4 +73,3 @@ BFS sweep `0.9578902692868527`, budgeted reference `1.0`, and complete evaluator
 branching priority gives `0.9645472862744551`, `0.9257058383039174`, and
 `0.996111761955115`. These are algorithmic ablations inside a four-heavy-atom synthetic grammar;
 they do not certify chemical realism or long-horizon difficulty.
-

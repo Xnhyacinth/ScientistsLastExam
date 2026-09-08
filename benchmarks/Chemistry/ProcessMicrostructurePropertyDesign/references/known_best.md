@@ -99,4 +99,3 @@ Sealed-shift measured anchors (evaluator-side; they do not enter `combined_score
 |---|---:|---:|---:|---:|
 | baseline | 0.03655170742063612 | 0.032344076195489124 | — | — |
 | reference | 0.05589055199212832 | 0.05004532824833629 | 0.06125903702179302 | 0.055433072836922594 |
-
