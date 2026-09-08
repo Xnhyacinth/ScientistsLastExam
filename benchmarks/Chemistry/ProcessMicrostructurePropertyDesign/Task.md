@@ -73,7 +73,7 @@ Every key passed to `design_process_archive` is listed here:
 | `grid_cells` | spatial cells in the frozen one-dimensional reduced model |
 | `constituent_properties` | public nominal `reduced_modulus` and `reduced_permeability` pairs |
 | `critical_temperature_estimate` | public nominal spinodal threshold estimate |
-| `reference_search` | declared 1024-point Latin-hypercube construction, two 11-point-per-axis coordinate-exchange passes, low-fidelity proxy coefficients, objective normalization and 20-row archive size used by the reproducible reference policy |
+| `objective_normalization` | public offsets/scales for specific modulus and barrier index, and the process-energy maximum |
 | `phase_field_model` | description of spectral conserved growth and coarsening closure |
 | `homogenization_model` | description of the frozen Voigt--Reuss property closure |
 | `objectives` | rows with objective `name` and optimization `sense` |
@@ -86,39 +86,11 @@ The two entries in each property list are constituent A then B; they are not dic
 modulus_a, modulus_b = problem["constituent_properties"]["reduced_modulus"]
 permeability_a, permeability_b = problem["constituent_properties"]["reduced_permeability"]
 
-proxy = problem["reference_search"]["proxy_parameters"]
-normalization = problem["reference_search"]["objective_normalization"]
+normalization = problem["objective_normalization"]
 ```
 
-A representative mapping is:
-
-```python
-{
-    "constituent_properties": {
-        "reduced_modulus": [2.2, 5.4],
-        "reduced_permeability": [0.62, 1.55],
-    },
-    "reference_search": {
-        "pool_size": 1024,
-        "archive_size": 20,
-        "coordinate_refinement_passes": 2,
-        "coordinate_refinement_points_per_axis": 11,
-        "latin_hypercube_multipliers": [1, 73, 127, 181, 239],
-        "latin_hypercube_offsets": [0, 19, 43, 71, 101],
-        "proxy_parameters": {"crystallization_rate_constant": 700.0, ...},
-        "objective_normalization": {
-            "specific_modulus": {"offset": 1.2, "scale": 4.4},
-            "barrier_index": {"offset": 0.7, "scale": 5.5},
-            "process_energy_maximum": 7.5,
-            "clip": {"minimum": 0.0, "maximum": 1.0},
-        },
-    },
-}
-```
-
-Every `proxy_parameters` coefficient used by the public reference is supplied in that mapping;
-consume the mapping rather than recreating coefficients from prose. Numerical property values can
-change between worlds, but these nested keys and list ordering do not.
+The mapping supplies constituent properties and score units, not a reference search recipe
+or the hidden property-model coefficients.
 
 ## Frozen mechanism oracle
 
@@ -130,17 +102,8 @@ does not expose or score an image.
 
 The resulting local field enters a Voigt--Reuss interpolation. Crystallization is mobility-limited:
 `Xc = Xeq * (1 - exp(-k * t_eff * exp(-Ec / (T + T0))))`, with world mobility multiplying `k`.
-The frozen reduced constants `Ec=7` and `k=700` keep a low-temperature long anneal from standing
-in for a temperature-resolved kinetic search; cooling enters `Xeq` with coefficient `0.30`. Draw
-orientation applies an explicit `0.35` modulus gain and a competing `0.20` permeability penalty.
-Crystallinity, interface density and draw therefore modify a reduced specific modulus and
-permeability-derived barrier index. Anneal time and temperature, drawing, and slow cooling
-contribute to reduced process energy, whose `7.5` normalization covers the reachable bounded
-energy envelope. Every scored coefficient and every reference-search setting has one source in
-the machine-readable panel. The cited literature motivates only the phase-field, crystallization,
-homogenization, transport and process-energy modelling families; all reduced coefficients, their
-combination, the worlds and the search settings are benchmark-chosen rather than literature
-calibrated. This is a frozen mechanistic surrogate with declared shortcuts, not a neural surrogate
+Crystallinity, interface density and draw modify reduced specific modulus and permeability.
+The coefficients and worlds are benchmark-chosen, not literature-calibrated. This is a frozen mechanistic surrogate with declared shortcuts, not a neural surrogate
 and not a first-principles prediction.
 
 ## Pareto scoring and continuing improvement
@@ -155,27 +118,7 @@ The evaluator computes exact three-dimensional hypervolume relative to the zero 
 non-dominated schedules can therefore add continuous marginal volume instead of only passing a
 threshold. `combined_score` is development hypervolume normalized so the shipped conservative
 four-process archive scores `0.0` and the independent public-problem-only 20-process witness scores
-`1.0`. That witness performs greedy proxy-hypervolume selection over a declared deterministic
-1024-point Latin hypercube, followed by two deterministic 11-point-per-axis coordinate-exchange
-passes, using only the problem mapping. It neither imports nor queries the scored phase-field
-model. The score is uncapped: a better archive can exceed the witness.
-
-The executable deterministic ladder is baseline `0.0`; a 441-point blend--temperature shortcut
-`0.24854152762865947`; three 343-point coordinate-subspace shortcuts `0.6919779457497287`,
-`0.2987325943208072`, and `0.4519928224629508`; reference `1.0`; and an evaluator-aware
-coordinate-exchange red team `1.0050830170752605`. A public-only 2048-point pool with the same
-refinement scores `1.00037415439912`, showing that scalar pool-size inflation is on the reference
-platform rather than an easy improvement. Reference-archive ablations score
-`0.5240992860282923` without draw, `0.7647896745827635` at shortest time,
-`0.7708825121464876` at fastest cooling, and `0.6727115591109907` at one low temperature. These
-tests establish local separation and uncapped headroom, not model-level or long-horizon hardness.
-
-Sealed-shift measured anchors (evaluator-side; they do not enter `combined_score`):
-
-| archive | development raw HV | development shifted HV | held-out raw HV | held-out shifted HV |
-|---|---:|---:|---:|---:|
-| baseline | 0.03655170742063612 | 0.032344076195489124 | — | — |
-| reference | 0.05589055199212832 | 0.05004532824833629 | 0.06125903702179302 | 0.055433072836922594 |
+`1.0`. The release score is clipped to [0, 1]. Raw hypervolumes remain separate.
 
 Reported separately are `development_hypervolume_score`,
 `development_shifted_hypervolume_score`, feasibility, raw hypervolume, mean specific modulus,
@@ -186,7 +129,7 @@ gradient/interface penalty, and constituent-property shift. None of those sealed
 the public development score. `frontier_record_emitted` is true exactly when the evaluator emits
 a transfer-eligible record and false otherwise; it does not assert that a ledger admitted the record.
 
-A result emits a lifetime-credit frontier record only when every held-out artifact is legal and
+A result emits a lifetime-credit frontier record only when the development score is at least 0.1, every held-out artifact is legal, and
 the development-shifted, held-out, and held-out-shifted normalized scores each retain at least 50%
 of the public development score. This frozen record-emission gate does not change `combined_score`; it
 prevents a non-transferring archive from entering the cross-wave ledger.

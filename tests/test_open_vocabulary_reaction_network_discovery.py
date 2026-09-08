@@ -255,7 +255,7 @@ class OpenVocabularyReactionNetworkDiscoveryTests(unittest.TestCase):
             max(seeded_raw), reference["development_raw_world_score"], places=12
         )
 
-    def test_complete_recovery_can_exceed_the_uncapped_reference_anchor(self):
+    def test_complete_recovery_is_clipped_at_the_reference_anchor(self):
         evaluator = self.evaluator
 
         class CompleteOracleControl:
@@ -288,7 +288,7 @@ class OpenVocabularyReactionNetworkDiscoveryTests(unittest.TestCase):
                 pass
 
         result = self.evaluator.evaluate(CompleteOracleControl())
-        self.assertGreater(result["combined_score"], 1.0)
+        self.assertEqual(result["combined_score"], 1.0)
         self.assertAlmostEqual(result["development_mechanism_recovery"], 1.0)
 
     def test_shipped_confidently_wrong_edge_is_legal_and_scores_zero(self):

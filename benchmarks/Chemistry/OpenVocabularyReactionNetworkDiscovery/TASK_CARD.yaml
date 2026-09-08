@@ -8,7 +8,7 @@ oracle:
 normalization:
   baseline: Submit one legal but confidently wrong fixed edge; an independent no-probe always-abstain control also scores zero.
   reference: Independent active-frontier exploration prioritizing unseen products with a qualitative bond-strength barrier surrogate and public grammar-branching tie-break, using at most 24 charged probes per world.
-  score: Mean supported-network recovery and correct unsupported-world refusal, normalized above the exact always-abstain floor to the budgeted reference and left uncapped; complete recovery can exceed one.
+  score: Mean supported-network recovery and correct unsupported-world refusal, normalized above the exact always-abstain floor to the budgeted reference and clipped to [0,1]; verified-edge lifetime records are separate.
 citations:
 - id: doi:10.1021/acs.jctc.2c00193
   title: SCINE Chemoton 2.0 - Autonomous Exploration of Chemical Reaction Networks
@@ -40,9 +40,12 @@ provenance:
   fresh_confirmation_status: not_applicable_synthetic_oracle
 novelty_risk:
   level: medium
-  rationale: Reaction-network exploration and graph canonicalization are established. Frontier-Eng reaction tasks optimize continuous conditions or catalysts for fixed known reactions, whereas this cell constructs unlisted species graphs and directed edges, probes barriers, and scores false discovery and refusal without exposing a catalogue. The exact networks are benchmark-specific, and the small grammar makes exhaustive search a known shortcut, so difficulty must be measured rather than inferred.
+  rationale: >-
+    Reaction-network exploration and graph canonicalization are established. Frontier-Eng reaction tasks optimize continuous conditions or catalysts for fixed known reactions, whereas this cell constructs unlisted species graphs and directed edges, probes barriers, and scores false discovery and refusal without exposing a catalogue. The exact networks are benchmark-specific, and the small grammar makes exhaustive search a known shortcut, so difficulty must be measured rather than inferred.
+    Nearest neighbours are ReactionMechanismFitting and EnzymeKineticsLaw; this task
+    constructs molecular graphs and elementary edges rather than selecting a supplied law.
 lineage:
-  status: complete
+  status: incomplete_legacy
   builder_model_ids:
   - openai:codex-gpt-5
   builder_scaffolds:
@@ -63,15 +66,15 @@ lineage:
   - replace node-local BFS with novelty-first active-frontier acquisition, a qualitative chemical barrier surrogate, and a public grammar-branching information-gain tie-break
   - normalize to that incomplete independent witness without an upper clip, leaving complete recovery above one
   - ship a legal confidently wrong edge while retaining blanket abstention as an independent zero-score control
-  frozen_before_eval: true
-  freeze_timestamp: '2026-09-06T00:00:00Z'
+  frozen_before_eval: false
+  freeze_timestamp: null
 long_horizon:
   status: not_tested
   measurement_health_passed: false
   material_headroom_after_2h: false
   evidence: []
 construction_audit:
-  status: builder_audited_pending_external
+  status: incomplete_legacy
   author_domain: openai:codex-gpt-5
   reviewer_domain: pending_external_chemical_kinetics
   expert_hours: null

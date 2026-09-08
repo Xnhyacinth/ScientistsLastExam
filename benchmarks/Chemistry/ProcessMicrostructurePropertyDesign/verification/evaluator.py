@@ -85,10 +85,6 @@ HELDOUT_WORLDS = tuple(world for world in WORLDS if world["split"] == "heldout")
 
 
 def _problem(world):
-    proxy_parameters = {
-        name: MODEL_PARAMETERS["properties"][name]
-        for name in REFERENCE_SEARCH["proxy_parameter_names"]
-    }
     return {
         "process_fields": list(PROCESS_FIELDS),
         "bounds": {key: list(value) for key, value in BOUNDS.items()},
@@ -100,37 +96,9 @@ def _problem(world):
             "reduced_permeability": [world["permeability_a"], world["permeability_b"]],
         },
         "critical_temperature_estimate": world["critical_temperature"],
-        "reference_search": {
-            "pool_size": REFERENCE_SEARCH["pool_size"],
-            "archive_size": REFERENCE_SEARCH["archive_size"],
-            "coordinate_refinement_passes": REFERENCE_SEARCH[
-                "coordinate_refinement_passes"
-            ],
-            "coordinate_refinement_points_per_axis": REFERENCE_SEARCH[
-                "coordinate_refinement_points_per_axis"
-            ],
-            "latin_hypercube_multipliers": list(
-                REFERENCE_SEARCH["latin_hypercube_multipliers"]
-            ),
-            "latin_hypercube_offsets": list(
-                REFERENCE_SEARCH["latin_hypercube_offsets"]
-            ),
-            "proxy_parameters": proxy_parameters,
-            "objective_normalization": {
-                "specific_modulus": dict(
-                    OBJECTIVE_NORMALIZATION["specific_modulus"]
-                ),
-                "barrier_index": dict(
-                    OBJECTIVE_NORMALIZATION["barrier_index"]
-                ),
-                "process_energy_maximum": OBJECTIVE_NORMALIZATION[
-                    "process_energy"
-                ]["maximum"],
-                "clip": {
-                    "minimum": OBJECTIVE_NORMALIZATION["objective_clip"][0],
-                    "maximum": OBJECTIVE_NORMALIZATION["objective_clip"][1],
-                },
-            },
+        "objective_normalization": {
+            name: dict(OBJECTIVE_NORMALIZATION[name])
+            for name in ("specific_modulus", "barrier_index", "process_energy")
         },
         "phase_field_model": (
             "frozen one-dimensional linearized conserved phase-field growth with bounded "
@@ -526,10 +494,10 @@ def _anchors():
 def _normalized(value, weak, reference):
     if reference <= weak:
         raise RuntimeError("invalid Pareto normalization anchors")
-    return float(max(
+    return float(min(max(
         (value - weak) / (reference - weak),
         OBJECTIVE_NORMALIZATION["score_floor"],
-    ))
+    ), 1.0))
 
 
 def _summary(records, split):
@@ -560,6 +528,8 @@ def _summary(records, split):
 
 
 def _passes_frontier_promotion(development, heldout):
+    if development["score"] < FRONTIER_PROMOTION["minimum_development_score"]:
+        return False
     if heldout["feasibility_rate"] < FRONTIER_PROMOTION[
         "minimum_heldout_feasibility_rate"
     ]:

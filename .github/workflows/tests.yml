@@ -17,7 +17,17 @@ on:
 
 jobs:
   sandbox:
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            numpy: "1.24.4"
+            scipy: "1.10.1"
+          - os: ubuntu-24.04
+            numpy: "1.26.4"
+            scipy: "1.11.4"
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,6 +37,12 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q bubblewrap util-linux python3-pip
+          # Noble restricts unprivileged namespaces via AppArmor. Enable them only on
+          # this disposable CI runner; production still uses unshare-all and seccomp.
+          # https://discourse.ubuntu.com/t/ubuntu-24-04-lts-noble-numbat-release-notes/39890
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
           bwrap --version && flock --version
           # This is only an availability probe. The test suite exercises the narrower production
           # mount contract and will fail if the runner stops allowing unprivileged namespaces.
@@ -35,8 +51,8 @@ jobs:
       - name: Python dependencies into the system interpreter
         run: |
           /usr/bin/python3 --version
-          sudo /usr/bin/python3 -m pip install --upgrade pip
-          sudo /usr/bin/python3 -m pip install "numpy==1.24.4" "scipy==1.10.1" pyyaml pytest
+          sudo env PIP_BREAK_SYSTEM_PACKAGES=1 /usr/bin/python3 -m pip install --upgrade pip
+          sudo /usr/bin/python3 -m pip install --break-system-packages "numpy==${{ matrix.numpy }}" "scipy==${{ matrix.scipy }}" pyyaml pytest
           # The sandbox resolves site-packages for the interpreter it execs; prove they are there.
           /usr/bin/python3 -c "import numpy, scipy, yaml; print(numpy.__file__)"
       - name: Inventory and card audits

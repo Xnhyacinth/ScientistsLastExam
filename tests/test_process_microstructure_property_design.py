@@ -184,13 +184,17 @@ class ProcessMicrostructurePropertyDesignTests(unittest.TestCase):
             "process_structure_reference",
         )
 
+    def test_public_problem_does_not_expose_reference_recipe(self):
+        problem = self.evaluator._problem(self.evaluator.DEVELOPMENT_WORLDS[0])
+        self.assertNotIn("reference_search", problem)
+        self.assertNotIn("proxy_parameters", problem)
+
     def test_public_contract_exposes_nested_surrogate_inputs(self):
         task_text = (TASK / "Task.md").read_text(encoding="utf-8")
 
         self.assertIn('problem["constituent_properties"]["reduced_modulus"]', task_text)
         self.assertIn('problem["constituent_properties"]["reduced_permeability"]', task_text)
-        self.assertIn('problem["reference_search"]["proxy_parameters"]', task_text)
-        self.assertIn('problem["reference_search"]["objective_normalization"]', task_text)
+        self.assertIn('problem["objective_normalization"]', task_text)
 
         problem = self.evaluator._problem(self.evaluator.DEVELOPMENT_WORLDS[0])
         self.assertEqual(
@@ -198,10 +202,9 @@ class ProcessMicrostructurePropertyDesignTests(unittest.TestCase):
             {"reduced_modulus", "reduced_permeability"},
         )
         self.assertEqual(len(problem["constituent_properties"]["reduced_modulus"]), 2)
-        self.assertIsInstance(problem["reference_search"]["proxy_parameters"], dict)
         self.assertEqual(
-            set(problem["reference_search"]["objective_normalization"]),
-            {"specific_modulus", "barrier_index", "process_energy_maximum", "clip"},
+            set(problem["objective_normalization"]),
+            {"specific_modulus", "barrier_index", "process_energy"},
         )
 
     def test_shipped_process_archive_is_legal_and_normalized_to_zero(self):
@@ -378,9 +381,7 @@ class ProcessMicrostructurePropertyDesignTests(unittest.TestCase):
 
     def test_larger_public_proxy_pool_is_on_the_reference_platform(self):
         def larger_pool(problem):
-            expanded = copy.deepcopy(problem)
-            expanded["reference_search"]["pool_size"] = 2048
-            return self.reference.design_process_archive(expanded)
+            return self.reference.design_process_archive(problem, pool_size=2048)
 
         result = self.evaluator.evaluate(larger_pool)
         self.assertEqual(result["valid"], 1.0)
@@ -391,14 +392,13 @@ class ProcessMicrostructurePropertyDesignTests(unittest.TestCase):
         problem = copy.deepcopy(
             self.evaluator._problem(self.evaluator.DEVELOPMENT_WORLDS[0])
         )
-        problem["reference_search"]["pool_size"] = 128
-        pool = self.reference._candidate_pool(problem)
+        pool = self.reference._candidate_pool(problem, pool_size=128)
         objectives = [
             self.reference._proxy_objectives(problem, row) for row in pool
         ]
         selected = []
         remaining = list(range(len(pool)))
-        for _ in range(problem["reference_search"]["archive_size"]):
+        for _ in range(self.reference.SEARCH["archive_size"]):
             best = max(
                 remaining,
                 key=lambda candidate: self.reference._hypervolume_3d([
@@ -409,12 +409,12 @@ class ProcessMicrostructurePropertyDesignTests(unittest.TestCase):
             remaining.remove(best)
         self.assertEqual(
             self.reference._select_archive_indices(
-                objectives, problem["reference_search"]["archive_size"]
+                objectives, self.reference.SEARCH["archive_size"]
             ),
             selected,
         )
 
-    def test_uncapped_score_has_evaluator_aware_headroom(self):
+    def test_release_score_clips_but_raw_hypervolume_keeps_improvements(self):
         problem = self.evaluator._problem(self.evaluator.DEVELOPMENT_WORLDS[0])
         reference = self.evaluator._reference_policy(problem)["processes"]
         refined = _refine_with_development_oracle(
@@ -424,7 +424,8 @@ class ProcessMicrostructurePropertyDesignTests(unittest.TestCase):
             lambda _problem: {"processes": refined}
         )
         self.assertEqual(result["valid"], 1.0)
-        self.assertGreater(result["combined_score"], 1.004)
+        self.assertEqual(result["combined_score"], 1.0)
+        self.assertGreater(result["development_raw_hypervolume"], self.evaluator._anchors()["development"]["reference"])
         self.assertEqual(result["heldout_feasibility_rate"], 1.0)
 
     def test_reference_is_stronger_than_each_single_factor_ablation(self):
@@ -445,6 +446,8 @@ class ProcessMicrostructurePropertyDesignTests(unittest.TestCase):
                     _quantize(problem, {**row, field: value})
                     for row in reference
                 ]
+                rows = list({tuple(row[field] for field in problem["process_fields"]): row
+                             for row in rows}.values())
                 result = self.evaluator.evaluate(
                     lambda _problem, rows=rows: {"processes": rows}
                 )
@@ -598,18 +601,9 @@ class ProcessMicrostructurePropertyDesignTests(unittest.TestCase):
             7.5,
         )
         problem = self.evaluator._problem(self.evaluator.DEVELOPMENT_WORLDS[0])
-        names = panel["reference_search"]["proxy_parameter_names"]
-        self.assertEqual(
-            problem["reference_search"]["proxy_parameters"],
-            {
-                name: panel["model_parameters"]["properties"][name]
-                for name in names
-            },
-        )
-        self.assertEqual(
-            problem["reference_search"]["pool_size"],
-            panel["reference_search"]["pool_size"],
-        )
+        self.assertNotIn("reference_search", problem)
+        self.assertNotIn("proxy_parameters", problem)
+        self.assertNotEqual(self.reference.PROXY, panel["model_parameters"]["properties"])
 
     def test_standalone_runner_keeps_oracle_out_of_candidate_modules(self):
         candidate_source = '''

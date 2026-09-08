@@ -34,9 +34,9 @@ discovery_kind:
   parameter_inversion: recover numbers of a form that is already named
 
 tasks:
+  Ecology/OccupancyDetectionDesign: {form: discovery, kind: evidence, note: latent_occupancy_and_repeat_detection_not_population_history_or_climate_fingerprinting}
   Physics/CriticalPhenomenaLab: {form: discovery, kind: parameter_inversion, note: finite_size_scaling_not_microscopic_law}
   MaterialsScience/ProcessMicrostructurePropertyDesign: {form: optimization, analogue: engineering_design}
-  ScientificComputing/AdaptiveConservativePDEMethod: {form: optimization, analogue: scientific_method, note: on_ramp_do_not_pair}
   ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery: {form: discovery, kind: structure, note: finite_analytic_grammar_candidate_not_real_reaction_discovery}
   # --- optimization / frontier-eng ------------------------------------------
   Thermodynamics/HeatExchangerDesign: {form: optimization, analogue: engineering_design}
@@ -74,6 +74,7 @@ tasks:
   Exoplanets/TransmissionSpectrumSpecies: {form: discovery, kind: substance, note: which_molecules_are_present_under_a_budget_with_an_unidentifiable_regime}
   DiscreteGeometry/SpherePackingCertificate: {form: optimization, analogue: certificate_bound, note: exact_rational_Cohn_Elkies_bound_not_a_packing_construction}
   QuantumFoundations/BellBoundCertificate: {form: optimization, analogue: certificate_bound, note: exact_rational_SOS_bound_on_a_Bell_functional_not_a_construction}
+  InformationTheory/ShannonCapacityCertificate: {form: optimization, analogue: certificate_bound, note: two_sided_interval_for_an_open_capacity_lower_side_is_a_code_upper_side_is_exact_rational}
   Mathematics/NonlinearCodeRecords: {form: optimization, analogue: combinatorial}
   Algorithm/MatrixMultiplicationRank: {form: optimization, analogue: combinatorial}
   Algorithm/TensorRank555: {form: optimization, analogue: combinatorial, note: new_sizes_not_extension_of_certified_matmul}
@@ -117,6 +118,7 @@ tasks:
   MolecularDynamics/ForceFieldCalibration: {form: discovery, kind: parameter_inversion}
   HeatTransfer/ConvectionDiffusionOpt: {form: discovery, kind: parameter_inversion}
   Geophysics/GravityInversion: {form: discovery, kind: parameter_inversion}
+  Geophysics/UPbConcordiaInference: {form: discovery, kind: evidence, note: coupled_decay_event_history_not_spatial_gravity_source_inversion}
   PopulationGenetics/DemographicSFS: {form: discovery, kind: parameter_inversion}
   ChemicalKinetics/ReactionMechanismFitting: {form: discovery, kind: parameter_inversion}
   Spectroscopy/SpinSystemInference: {form: discovery, kind: parameter_inversion}

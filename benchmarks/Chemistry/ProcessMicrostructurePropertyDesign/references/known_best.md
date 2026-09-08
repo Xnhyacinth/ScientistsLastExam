@@ -1,3 +1,16 @@
+# Current revision and superseded measurements
+
+The 2026-09-08 revision clips release scores to [0,1]. Earlier uncapped scores below
+are historical diagnostics, not current release scores. No model calibration has been run.
+
+Process reference-search controls and proxy coefficients are no longer sent in the public problem.
+The policy now uses explicitly builder-chosen approximate coefficients, not the oracle coefficient
+mapping. Current development baseline/reference raw HV: 0.03655170742063612 /
+0.055564306822422194; shifted 0.032344076195489124 / 0.049579047191111676.
+Heldout baseline/reference raw HV: 0.03945024971536756 / 0.06109601978858342;
+shifted 0.035306255126056375 / 0.05514273018591831. Old reference/ablation numbers
+are superseded where the policy changed. The promotion gate now requires development score >=0.1.
+
 # Known witnesses and limits
 
 ## Reproducing
@@ -62,3 +75,28 @@ temperature.
 Held-out worlds, three sealed shifts, malformed artifacts and runner isolation are tested. HY3
 draws, real polymers, higher-dimensional morphology, manufacturing validation and experiments
 remain pending.
+
+## Historical recipe and measurements removed from the candidate prompt
+
+`1.0`. That witness performs greedy proxy-hypervolume selection over a declared deterministic
+1024-point Latin hypercube, followed by two deterministic 11-point-per-axis coordinate-exchange
+passes, using only the problem mapping. It neither imports nor queries the scored phase-field
+model. The score is uncapped: a better archive can exceed the witness.
+
+The executable deterministic ladder is baseline `0.0`; a 441-point blend--temperature shortcut
+`0.24854152762865947`; three 343-point coordinate-subspace shortcuts `0.6919779457497287`,
+`0.2987325943208072`, and `0.4519928224629508`; reference `1.0`; and an evaluator-aware
+coordinate-exchange red team `1.0050830170752605`. A public-only 2048-point pool with the same
+refinement scores `1.00037415439912`, showing that scalar pool-size inflation is on the reference
+platform rather than an easy improvement. Reference-archive ablations score
+`0.5240992860282923` without draw, `0.7647896745827635` at shortest time,
+`0.7708825121464876` at fastest cooling, and `0.6727115591109907` at one low temperature. These
+tests establish local separation and uncapped headroom, not model-level or long-horizon hardness.
+
+Sealed-shift measured anchors (evaluator-side; they do not enter `combined_score`):
+
+| archive | development raw HV | development shifted HV | held-out raw HV | held-out shifted HV |
+|---|---:|---:|---:|---:|
+| baseline | 0.03655170742063612 | 0.032344076195489124 | — | — |
+| reference | 0.05589055199212832 | 0.05004532824833629 | 0.06125903702179302 | 0.055433072836922594 |
+

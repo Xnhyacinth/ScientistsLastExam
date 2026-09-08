@@ -87,7 +87,7 @@ benchmarks/
 ```yaml
 domain: Chemistry                    # 稳定的逻辑 domain(不是顶层目录名)
 task: LennardJonesCluster            # 任务目录名
-difficulty: hard                     # on_ramp | uncalibrated_candidate | hard | flagship
+difficulty: hard                     # unmeasured | hard | flagship
 tier: T2                             # candidate | T2(专家) | T3(flagship)
 oracle_type: analytical              # analytical | physical_sim | dataset_oracle | neural_surrogate
 score_mode: clipped                  # clipped(压在 [0,1])| uncapped(相对 SoTA,>1 表示超越)

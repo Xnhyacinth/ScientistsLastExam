@@ -588,7 +588,7 @@ def _split_summary(records, split):
     raw = _mean(records, "world_score")
     abstention_floor = len(unsupported) / len(records)
     reference_raw = _reference_raw_scores()[split]
-    normalized = max((raw - abstention_floor) / (reference_raw - abstention_floor), 0.0)
+    normalized = min(max((raw - abstention_floor) / (reference_raw - abstention_floor), 0.0), 1.0)
     return {
         "normalized": float(normalized),
         "raw": raw,

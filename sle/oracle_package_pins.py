@@ -26,7 +26,7 @@ BASE_CANDIDATE_PINS = {
     (3, 9): {"numpy": "1.24.4", "scipy": "1.10.1"},
     (3, 10): {"numpy": "1.24.4", "scipy": "1.10.1"},
     (3, 11): {"numpy": "1.24.4", "scipy": "1.10.1"},
-    (3, 12): {"numpy": "1.26.4", "scipy": "1.14.1"},
+    (3, 12): {"numpy": "1.26.4", "scipy": "1.11.4"},
 }
 
 # These distributions carry Astropy's numerical and serialization behavior into Radial. They are

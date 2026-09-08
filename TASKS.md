@@ -4,12 +4,12 @@
 
 | | |
 |---|---:|
-| 任务包 | 82 |
+| 任务包 | 84 |
 | optimization | 42 |
-| discovery | 40 |
+| discovery | 42 |
 | certified | 5 |
-| candidate | 77 |
-| 学科 | 7(Biology 7,Chemistry 15,ComputerScience 7,EarthScience 6,Engineering 12,Mathematics 19,Physics 16) |
+| candidate | 79 |
+| 学科 | 7(Biology 8,Chemistry 15,ComputerScience 7,EarthScience 7,Engineering 12,Mathematics 19,Physics 16) |
 
 认证描述的是证据质量,不是难度。`uncapped` 表示分数不在 reference=1 截断,不保证固定 wave 数学无界；on-ramp 已被确定性搜索或模型证据判定易饱和,不用于 hard-task 配对。
 
@@ -22,7 +22,7 @@
 | [`AlloyHardnessOptimization`](benchmarks/Chemistry/AlloyHardnessOptimization/)<br>合金硬度实验设计 | Chemistry | MaterialsScience | uncapped | real_data_replay | candidate | design a study-held alloy batch | 在按论文 DOI 分组的多主元合金数据里做实验设计,选出研究外留出的硬度批次 | 留出硬度 + 多样性 + 代理失效 + 不确定性 + 来源迁移 + 稀疏独立确认;无上限 |
 | [`DistillationColumnDesign`](benchmarks/Chemistry/DistillationColumnDesign/)<br>精馏塔设计 | Chemistry | ChemicalProcess | uncapped | equilibrium_stage_process_sim | candidate | robust mixed-integer equilibrium-stage design | 混合整数精馏塔设计:塔板数与进料位置离散,兼顾纯度回收约束与再沸冷凝能耗 | 年化成本;留出迁移与密封变工况分列,无上限 |
 | [`ElectrolyteConductivityDesign`](benchmarks/Chemistry/ElectrolyteConductivityDesign/)<br>电解液电导率设计 | Chemistry | Electrochemistry | uncapped | real_data_replay | candidate | allocate EIS assays and select a robust formulation batch | 在高通量电解液数据回放里分配阻抗测定预算,选出稳健的配方批次 | 温度剖面电导率 + 批次多样性 + 重复稳健性 + 留出迁移;无上限 |
-| [`ProcessMicrostructurePropertyDesign`](benchmarks/Chemistry/ProcessMicrostructurePropertyDesign/)<br>过程-微结构-性质协同设计 | Chemistry | MaterialsScience | uncapped | analytical_reduced_order_physics | candidate | Can a policy propose a *manufacturable processing archive* whose blend composition, anneal, | 联合设计共混、退火、冷却与拉伸工艺,经冻结相场和均匀化模型形成性质 Pareto 档案 | 三目标超体积;密封材料/工艺偏移决定能否进入 lifetime-credit ledger,固定 wave 仍有界但不在 reference=1 截断 |
+| [`ProcessMicrostructurePropertyDesign`](benchmarks/Chemistry/ProcessMicrostructurePropertyDesign/)<br>过程-微结构-性质协同设计 | Chemistry | MaterialsScience | clipped | analytical_reduced_order_physics | candidate | Can a policy propose a *manufacturable processing archive* whose blend composition, anneal, | 联合设计共混、退火、冷却与拉伸工艺,经冻结相场和均匀化模型形成性质 Pareto 档案 | 三目标超体积;密封材料/工艺偏移决定能否进入 lifetime-credit ledger,固定 wave 仍有界但不在 reference=1 截断 |
 | [`SparseRecovery`](benchmarks/ComputerScience/SparseRecovery/)<br>压缩感知稀疏恢复 | ComputerScience | SignalProcessing | clipped | analytical | candidate | compressed sensing signal recovery | 从远少于奈奎斯特的测量里恢复 k 稀疏信号 | 平均恢复信噪比 |
 | [`HeatExchangerDesign`](benchmarks/Engineering/HeatExchangerDesign/)<br>换热器帕累托设计 | Engineering | Thermodynamics | uncapped | physical_sim | candidate | discover a multi-fidelity Pareto design archive | 发现换热器的多保真帕累托设计档案,权衡换热量、成本与泵功 | 成本对换热量的帕累托超体积;密封代理一致性、留出迁移与结垢/制造/堵塞稳健性分列,无上限 |
 | [`InvertedPendulumSwingUp`](benchmarks/Engineering/InvertedPendulumSwingUp/)<br>倒立摆摆起控制 | Engineering | ControlTheory | clipped | physical_sim | candidate | swing up and robustly stabilize a cart-pole | 设计小车倒立摆的摆起与稳定控制律,兼顾轨道限位与作动器约束 | 摆起效用;偏移工况稳健性分列 |
@@ -69,20 +69,15 @@
 | [`LennardJonesCluster`](benchmarks/Chemistry/LennardJonesCluster/)<br>Lennard-Jones 团簇 | Chemistry | Chemistry | uncapped | analytical | certified | minimize the energy of atomic clusters | 求 Lennard-Jones 原子簇的最低能量几何构型 | 对全局最小的平均缺口闭合;无上限 |
 | [`MolecularLeadOptimization`](benchmarks/Chemistry/MolecularLeadOptimization/)<br>分子先导组合优化 | Chemistry | MedicinalChemistry | uncapped | rdkit_cheminformatics_property_filter | candidate | build a diverse portfolio of novel, developable leads | 构建结构多样、可开发的新颖先导化合物组合,而非单个分子 | 多样性约束下的组合价值,对标已上市药物;无上限 |
 
-### certificate_bound — 2
+### certificate_bound — 3
 
 | 任务 | 学科 | 领域 | 打分 | oracle | 认证 | 说明 | 中文题意 | 中文评估方法 |
 |---|---|---|---|---|---|---|---|---|
+| [`ShannonCapacityCertificate`](benchmarks/ComputerScience/ShannonCapacityCertificate/)<br>奇圈香农容量双侧证书 | ComputerScience | InformationTheory | uncapped | analytical | candidate | certify the interval, do not quote it | 为奇圈的香农容量给出一段可精确验证的区间:下界交一个强积幂里的零错码(任意两码字不得在每个坐标上都相等或相邻),上界交一份有理 Lovasz 矩阵与有理界,使 b*I - A 正定。C7 的容量自 1956 年 Shannon 提出、1979 年 Lovasz 解决 C5 之后一直未知,下端在 2026 年 7 月一个月内被改进了三次,上端 theta 自 1979 年未动过。 | 四个奇圈(C7/C13/C19/C23)取均值,不设上限。零点不是引用而是随包发布的显式码集,oracle 用同一套独立性检验接受它;1.0 是 2026-09-06 时的已发表最好下界,四个都不是在本题允许的幂上达到的。有理数精确验证,提交浮点判零——数值特征值不是证明。 |
 | [`SpherePackingCertificate`](benchmarks/Mathematics/SpherePackingCertificate/)<br>球堆积上界证书 | Mathematics | DiscreteGeometry | uncapped | analytical | candidate | prove a packing bound, exactly | 为球堆积密度给出一份可精确验证的上界证明。Cohn-Elkies 定理把上界化为分析问题:找一个函数,它在半径外非正、其傅里叶变换处处非负。除 1/2/3/8/24 维外全部开放——12 维已知最好堆积 0.03704,最好的证明只到 0.06279。取变量 w=2π‖x‖²,拉盖尔特征基的系数是有理的,两条假设都变成有理半轴上的有理多项式,而单变量多项式在半轴非负当且仅当能写成 σ₀+wσ₁,这个刻画是完备的。 | 四个维度(8/12/16/20)取均值,不设上限。零点是闭式的二项证书——这个方法不花力气就能给出的东西;1.0 是已发表的 Cohn-Elkies 数值界,而与之等强的精确有理证书似乎在任何维度都还没有人发表过。有理数精确验证,提交浮点判零:网格线性规划这个教科书方法会给出假界(16 阶时 8 维报 0.06237,低于 E8 格实际达到的 0.0625)。 |
 | [`BellBoundCertificate`](benchmarks/Physics/BellBoundCertificate/)<br>贝尔不等式上界证书 | Physics | QuantumFoundations | uncapped | analytical | candidate | prove an upper bound, do not just compute one | 为贝尔泛函的量子最大值给出一份可精确验证的上界证明:提交一组基词与若干加权平方,使它们的和恰好等于 beta*I - B。CHSH 的答案是无理数 2√2,只能逼近;I3322 的量子值至今未知,NPA 层级 1 给 0.375、层级 2 给 0.25102173、已知最好值 0.25087538 要到层级 4 以上。 | 四个实例(CHSH 与三种基词预算下的 I3322)取均值,不设上限。分数是所证界到已知量子值距离的对数进步:免费的层级 1 界记 0,已发表的层级 2 界记 1,超过则大于 1。有理数精确验证,提交浮点数直接判零——数值 SDP 解不是证明。 |
 
-### scientific_method — 1
-
-| 任务 | 学科 | 领域 | 打分 | oracle | 认证 | 说明 | 中文题意 | 中文评估方法 |
-|---|---|---|---|---|---|---|---|---|
-| [`AdaptiveConservativePDEMethod`](benchmarks/ComputerScience/AdaptiveConservativePDEMethod/)<br>自适应守恒 PDE 方法设计 | ComputerScience | ScientificComputing | uncapped | analytical_numerical_pde | candidate | Can one deterministic finite-volume method improve cell-average accuracy across a frozen panel of · on-ramp,不配对 | 为多种光滑、激波与稳定性工况设计自适应守恒通量和时间推进方法 | 误差、守恒、激波、稳定性与计算量综合分;公开参考为 1,更强合法方法可继续超过 |
-
-## Discovery(40)
+## Discovery(42)
 
 ### 公式(formula) — 6
 
@@ -100,19 +95,21 @@
 | 任务 | 学科 | 领域 | 打分 | oracle | 认证 | 说明 | 中文题意 | 中文评估方法 |
 |---|---|---|---|---|---|---|---|---|
 | [`GeneNetworkIntervention`](benchmarks/Biology/GeneNetworkIntervention/)<br>基因网络干预设计 | Biology | SystemsBiology | clipped | physical_sim | candidate | discover a dynamic regulatory network and design a phenotype intervention | 用扰动实验恢复带符号的动态调控网络,并设计达成表型的干预 | 网络恢复 + 预测 + 表型干预迁移 + 拒答 |
-| [`OpenVocabularyReactionNetworkDiscovery`](benchmarks/Chemistry/OpenVocabularyReactionNetworkDiscovery/)<br>开放词汇反应网络发现 | Chemistry | ChemicalKinetics | uncapped | analytical | candidate | Starting from a small heavy-atom inventory and one seed molecule, can an active policy construct | 从一个种子分子主动构造并探测未列出的分子图和基元反应边,同时识别空网络与模型不足 | 规范物种/反应恢复、总假发现率、校准拒答与尝试覆盖率分列;当前有限解析语法可穷举 |
+| [`OpenVocabularyReactionNetworkDiscovery`](benchmarks/Chemistry/OpenVocabularyReactionNetworkDiscovery/)<br>开放词汇反应网络发现 | Chemistry | ChemicalKinetics | clipped | analytical | candidate | Starting from a small heavy-atom inventory and one seed molecule, can an active policy construct | 从一个种子分子主动构造并探测未列出的分子图和基元反应边,同时识别空网络与模型不足 | 规范物种/反应恢复、总假发现率、校准拒答与尝试覆盖率分列;当前有限解析语法可穷举 |
 | [`GraphFromDistances`](benchmarks/ComputerScience/GraphFromDistances/)<br>距离查询重建图 | ComputerScience | Algorithm | clipped | community_graph_algorithms_networkx | candidate | A weighted network exists but you cannot see it. | 在有限次距离查询下重建加权网络的边:短距离不等于相邻,可能是两条短边的两跳路径 | 边恢复 F1;误发现率与不可辨识拒答分开报告 |
 | [`InterventionalSCM`](benchmarks/ComputerScience/InterventionalSCM/)<br>干预式结构因果模型 | ComputerScience | CausalDiscovery | clipped | physical_sim | candidate | recover hidden causal mechanisms by experimentation | 用干预实验打破马尔可夫等价,恢复隐藏线性无环结构因果模型的有向图与系数 | 有向图与结构系数恢复;观测关联不足以定向 |
 | [`SurvivorshipConfoundedDesign`](benchmarks/ComputerScience/SurvivorshipConfoundedDesign/)<br>幸存者偏差下的效应估计 | ComputerScience | CausalDiscovery | clipped | physical_sim | candidate | association among survivors is not a treatment effect | 每一行数据都已被结果相关的筛选选中,在幸存者表里估计真实处理效应 | 处理效应恢复;混杂开启的伪关联须识别,无 T→Y 边时不得宣称效应 |
 | [`BlackBoxGroupIdentification`](benchmarks/Mathematics/BlackBoxGroupIdentification/)<br>黑盒群同构辨识 | Mathematics | Mathematics | clipped | analytical | candidate | A finite set of `order` labelled elements and a black-box product: `mul(a, b)` returns the label | 只给黑盒乘法与随机标号,在查询预算内从公开构造目录里辨识群的同构类 | 目录 id 精确门控;非群与目录外两种拒答理由分开计分,阶数分布不足以辨识 |
 | [`HiddenCouplingNetwork`](benchmarks/Physics/HiddenCouplingNetwork/)<br>隐藏耦合网络重建 | Physics | Physics | clipped | physical_sim | candidate | A network of `units` observed units relaxes to a steady state under constant drive. | 实验次数少于单元数,从多单元驱动的稳态里恢复带符号的直接耦合图;存在未观测单元时拒答 | 带符号边 F1;间接路径、tanh 非线性与隐藏单元造成的稠密低秩耦合分别记误发现 |
 
-### 证据(evidence) — 7
+### 证据(evidence) — 9
 
 | 任务 | 学科 | 领域 | 打分 | oracle | 认证 | 说明 | 中文题意 | 中文评估方法 |
 |---|---|---|---|---|---|---|---|---|
+| [`OccupancyDetectionDesign`](benchmarks/Biology/OccupancyDetectionDesign/)<br>生态占域与探测设计 | Biology | Ecology | clipped | statistical_sim | candidate | A nondetection does not prove absence. | 在漏检条件下分配站点复访与调查方法,恢复栖息地占域效应或拒绝不充分模型 | 效应方向、效应量与平均占域率;误发现、拒答、覆盖率和留出迁移分列 |
 | [`ProspectiveMetaAnalysis`](benchmarks/Biology/ProspectiveMetaAnalysis/)<br>前瞻荟萃分析 | Biology | EvidenceSynthesis | clipped | prospective_evidence_synthesis | candidate | synthesize registered evidence and design confirmation | 在注册表加文献语料里筛研究、识别同一人群血缘的重复报告与换端点,做异质性荟萃回归 | 筛选、证据血缘完整性、荟萃回归、校准拒答、下一步研究信息量与前瞻确认分列 |
 | [`ForcedSignalAttribution`](benchmarks/EarthScience/ForcedSignalAttribution/)<br>强迫信号检测归因 | EarthScience | ClimateScience | clipped | statistical_sim | candidate | A regional field is observed for `years` years over `regions` regions. | 在控制年预算下判断区域记录里是否含强迫响应、估其幅度与区间;模型指纹或变率不可信时拒答 | 检测率、幅度分、区间覆盖分列;红噪声假趋势与安静模型均记误发现 |
+| [`UPbConcordiaInference`](benchmarks/EarthScience/UPbConcordiaInference/)<br>铀铅谐和图事件归因 | EarthScience | Geophysics | clipped | physical_sim | candidate | infer a zircon event history | 在分析预算内选择锆石域,由两套铀铅衰变比判断单一结晶或一次铅丢失历史;可分辨的多事件历史须拒答 | 事件类型 + 结晶与铅丢失年龄 + 证据血缘;误发现、拒答、覆盖率和留出迁移分列 |
 | [`ModalDamageAttribution`](benchmarks/Engineering/ModalDamageAttribution/)<br>模态损伤归因 | Engineering | StructuralEngineering | clipped | physical_sim | candidate | is the modal shift damage, or the weather? | 在受预算约束的测量日里判断模态频率的偏移是不是某个内部元件的刚度损伤、是哪一个、损失多少;支座变化导致的偏移须拒答 | 定位精确门控 + 严重度容差评分;温度对频率比精确抵消,健康结构误报与支座变化误判分别记误发现,分数标尺锚在全弃权为零 |
 | [`HeavyTailEvidence`](benchmarks/Mathematics/HeavyTailEvidence/)<br>重尾证据判别 | Mathematics | Mathematics | clipped | physical_sim | candidate | A positive sample is either a power law with known `xmin`, a lognormal above `xmin`, a | 在已知 xmin 下判断样本是幂律还是对数正态;指数截断或样本过短须拒答 | 家族恢复 + 截断/小样本拒答;不是质量窗口的 look-elsewhere,也不是不相容常数调和 |
 | [`DiscrepantMeasurements`](benchmarks/Physics/DiscrepantMeasurements/)<br>不相容测量调和 | Physics | ParticlePhysics | clipped | statistical_sim | candidate | Eight groups have measured the same physical constant. · on-ramp,不配对 | 八组测量同一常数但彼此不相容,诊断这批证据出了什么问题并给最佳值或判定没有最佳值 | 缺陷诊断 + 收费的内部一致性检验 + 拒答 |

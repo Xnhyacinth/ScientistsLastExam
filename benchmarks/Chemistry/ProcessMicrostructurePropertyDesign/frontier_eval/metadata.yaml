@@ -1,12 +1,12 @@
 domain: MaterialsScience
 task: ProcessMicrostructurePropertyDesign
 scientific_role: optimization
-difficulty: uncalibrated_candidate
+difficulty: unmeasured
 tier: candidate
 oracle_type: analytical_reduced_order_physics
-score_mode: uncapped
+score_mode: clipped
 gpu_required: false
-eval_time_seconds: 5
+eval_time_seconds: 10
 science_metric: exact process-to-phase-field-to-homogenized-property three-objective Pareto hypervolume with sealed process and material shifts
 reference_baseline: conservative four-process archive normalized to exactly zero
 reference_sota: candidate-equivalent 20-process public-only witness selected by a declared low-fidelity proxy from a deterministic 1024-point Latin hypercube and two 11-point-per-axis coordinate-exchange passes; a 2048-point public search is on the same score platform and evaluator-aware refinement exceeds it, with no global-optimality or real-material claim

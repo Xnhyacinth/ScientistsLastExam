@@ -1,7 +1,7 @@
 """Candidate-equivalent public-problem-only process-archive witness.
 
 The witness generates a deterministic Latin-hypercube pool, evaluates a
-declared low-fidelity mixture/crystallization proxy supplied in ``problem``,
+builder-chosen approximate mixture/crystallization surrogate,
 greedily adds the process with the largest proxy hypervolume increment, and
 performs deterministic coordinate exchange on the selected archive.  It never
 imports or calls the scored phase-field oracle.
@@ -10,6 +10,54 @@ from __future__ import annotations
 
 import math
 from heapq import heappop, heappush
+
+# Search settings and approximate surrogate belong to the policy, not the public problem.
+SEARCH = {
+    "pool_size": 1024,
+    "archive_size": 20,
+    "coordinate_refinement_passes": 2,
+    "coordinate_refinement_points_per_axis": 11,
+    "latin_hypercube_multipliers": [
+        1,
+        73,
+        127,
+        181,
+        239
+    ],
+    "latin_hypercube_offsets": [
+        0,
+        19,
+        43,
+        71,
+        101
+    ]
+}
+PROXY = {
+    "crystallinity_equilibrium_temperature_coefficient": 4.0,
+    "crystallinity_equilibrium_temperature_reference": 0.75,
+    "crystallinity_equilibrium_cooling_coefficient": 0.25,
+    "crystallization_rate_constant": 500.0,
+    "crystallization_activation_energy": 6.0,
+    "crystallization_temperature_offset": 0.2,
+    "modulus_voigt_base": 0.5,
+    "modulus_orientation_weight": 0.3,
+    "modulus_reuss_base": 0.5,
+    "crystallinity_base": 0.75,
+    "crystallinity_gain": 0.3,
+    "draw_modulus_gain": 0.4,
+    "density_base": 1.0,
+    "density_blend_coefficient": 0.2,
+    "permeability_parallel_base": 0.3,
+    "permeability_orientation_weight": 0.5,
+    "permeability_series_base": 0.7,
+    "draw_permeability_penalty": 0.25,
+    "energy_time_base": 0.1,
+    "energy_temperature_coefficient": 0.8,
+    "energy_temperature_reference": 0.4,
+    "energy_draw_coefficient": 0.3,
+    "energy_draw_exponent": 1.5,
+    "energy_cooling_coefficient": 0.2
+}
 
 
 def _quantize(problem, process):
@@ -22,8 +70,10 @@ def _quantize(problem, process):
     return row
 
 
-def _candidate_pool(problem):
-    search = problem["reference_search"]
+def _candidate_pool(problem, pool_size=None):
+    search = dict(SEARCH)
+    if pool_size is not None:
+        search["pool_size"] = pool_size
     size = search["pool_size"]
     rows = []
     for index in range(size):
@@ -41,8 +91,8 @@ def _candidate_pool(problem):
 
 
 def _proxy_objectives(problem, process):
-    parameters = problem["reference_search"]["proxy_parameters"]
-    normalization = problem["reference_search"]["objective_normalization"]
+    parameters = PROXY
+    normalization = problem["objective_normalization"]
     blend = process["blend_fraction_b"]
     temperature = process["anneal_temperature"]
     duration = process["anneal_time"]
@@ -135,16 +185,16 @@ def _proxy_objectives(problem, process):
         normalized(
             (specific_modulus - normalization["specific_modulus"]["offset"])
             / normalization["specific_modulus"]["scale"],
-            normalization["clip"],
+            {"minimum": 0.0, "maximum": 1.0},
         ),
         normalized(
             (barrier_index - normalization["barrier_index"]["offset"])
             / normalization["barrier_index"]["scale"],
-            normalization["clip"],
+            {"minimum": 0.0, "maximum": 1.0},
         ),
         normalized(
-            1.0 - energy / normalization["process_energy_maximum"],
-            normalization["clip"],
+            1.0 - energy / normalization["process_energy"]["maximum"],
+            {"minimum": 0.0, "maximum": 1.0},
         ),
     )
 
@@ -171,7 +221,7 @@ def _hypervolume_3d(points):
 
 def _refine_archive(problem, rows):
     fields = problem["process_fields"]
-    search = problem["reference_search"]
+    search = SEARCH
     objectives = [_proxy_objectives(problem, row) for row in rows]
     for _ in range(search["coordinate_refinement_passes"]):
         for row_index in range(len(rows)):
@@ -234,11 +284,11 @@ def _select_archive_indices(objectives, archive_size):
     return selected
 
 
-def design_process_archive(problem):
+def design_process_archive(problem, pool_size=None):
     """Search and coordinate-refine the declared public proxy Pareto witness."""
-    pool = _candidate_pool(problem)
+    pool = _candidate_pool(problem, pool_size)
     objectives = [_proxy_objectives(problem, process) for process in pool]
-    archive_size = problem["reference_search"]["archive_size"]
+    archive_size = min(SEARCH["archive_size"], problem["archive_size_bounds"][1])
     selected = _select_archive_indices(objectives, archive_size)
     rows = [pool[index] for index in selected]
     return {"processes": _refine_archive(problem, rows)}

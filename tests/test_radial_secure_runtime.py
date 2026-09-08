@@ -27,7 +27,7 @@ class RadialVelocityPackageContractTests(unittest.TestCase):
     @staticmethod
     def pinned_versions():
         base = (
-            {"numpy": "1.26.4", "scipy": "1.14.1"}
+            {"numpy": "1.26.4", "scipy": "1.11.4"}
             if sys.version_info[:2] == (3, 12)
             else {"numpy": "1.24.4", "scipy": "1.10.1"}
         )
@@ -38,6 +38,16 @@ class RadialVelocityPackageContractTests(unittest.TestCase):
             "PyYAML": "6.0.2",
             "packaging": "26.2",
         }
+
+    def test_ubuntu_2404_base_packages_are_accepted(self):
+        versions = {"numpy": "1.26.4", "scipy": "1.11.4"}
+        with tempfile.TemporaryDirectory() as temporary, patch(
+            "sle.secure_eval.sys.version_info", (3, 12)
+        ), patch(
+            "sle.secure_eval.importlib.metadata.version",
+            side_effect=lambda distribution: versions[distribution],
+        ):
+            self.assertEqual(read_candidate_packages(Path(temporary)), ())
 
     def test_candidate_toolkit_dependency_pins_are_complete(self):
         expected = {

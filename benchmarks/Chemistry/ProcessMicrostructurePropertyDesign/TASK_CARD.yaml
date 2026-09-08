@@ -8,7 +8,7 @@ oracle:
 normalization:
   baseline: Four shortest, hottest, fastest-cooled, undrawn schedules spread across the legal blend range.
   reference: An independent candidate-equivalent 20-schedule witness performs greedy low-fidelity proxy-hypervolume selection over a declared 1024-point Latin hypercube, followed by two deterministic 11-point-per-axis coordinate-exchange passes, using only the public problem; it is not a global optimum.
-  score: Exact three-objective development hypervolume normalized above the baseline and left uncapped; shifted hypervolume, held-out transfer, feasibility and physical summary axes remain separate.
+  score: Exact three-objective development hypervolume normalized above the baseline and left clipped; shifted hypervolume, held-out transfer, feasibility and physical summary axes remain separate.
 citations:
 - id: doi:10.1146/annurev.matsci.32.112001.132041
   title: Phase-field models for microstructure evolution
@@ -30,14 +30,21 @@ invariants:
 - the submitted artifact is a bounded composition and processing schedule, never a target image or predicted property
 - the deterministic oracle applies process to phase-field/coarsening state before homogenizing macroscopic properties
 - the phase-field and homogenization equations are explicitly frozen reduced models and do not support a real-material discovery claim
-- exact three-dimensional hypervolume assigns marginal credit to each newly non-dominated property-energy tradeoff and remains uncapped above the witness
+- exact three-dimensional hypervolume assigns marginal credit to each newly non-dominated property-energy tradeoff and remains clipped above the witness
 - the shipped weak process archive is feasible and normalized to exactly zero while an independent 20-row witness produces strict Pareto gain
 - three sealed shifts separately perturb phase kinetics, gradient and interface penalties, and constituent properties
 - held-out material worlds, shifted scores and per-instance rows do not enter the public development objective
 - lifetime-credit records require legal held-out artifacts and at least 50 percent normalized-score retention on development shifts, held-out worlds and held-out shifts
 - frontier_record_emitted reports evaluator-side record emission only and never claims ledger admission
 - nonfinite, out-of-bounds, duplicate, image-like, malformed and exception-producing candidates score zero without escaping the evaluator
-known_shortcuts: The oracle is one-dimensional, uses a fixed 48-cell spectral reduced model, omits full nonlinear Cahn--Hilliard integration, mechanics, defects, degradation, scale-up and experimental noise, and employs a stylized Voigt--Reuss property closure. A tested 441-point blend-temperature shortcut and three tested 343-point coordinate-subspace shortcuts remain below the reference. A 2048-point public-proxy pool with the same refinement scores only 1.000374, while evaluator-aware coordinate exchange reaches 1.005083; neither result certifies model difficulty. New physical systems or fidelities require frozen new waves.
+known_shortcuts: >-
+  The model is a 48-cell one-dimensional surrogate, not a real material oracle. Current
+  441-point and three 343-point coordinate-subspace probes stay below the reference;
+  a 2048-point policy and evaluator-aware refinement are checked separately. Historical
+  numeric results under the old policy are marked superseded in references/known_best.md.
+  The public mapping no longer contains reference-search controls or oracle coefficients.
+  No model-difficulty or long-horizon claim follows from these algorithm probes.
+
 review:
   domain: pending_external_polymer_and_process_materials
   evaluator_security: automated_determinism_process_schema_no_image_pareto_gain_sealed_shift_bad_candidate_and_baseline_normalization_tests
@@ -48,9 +55,12 @@ provenance:
   fresh_confirmation_status: not_applicable_synthetic_oracle
 novelty_risk:
   level: medium
-  rationale: Phase-field evolution, homogenization and multiobjective process design are established. Frontier-Eng contains fixed additive-manufacturing toolpath/laser-control tasks, but no task that submits a blend, anneal, cooling and draw archive and scores the resulting morphology-property-energy Pareto frontier. The cell's joint artifact and frozen coefficients are benchmark-specific, but model difficulty and resistance to analytic shortcut policies remain unmeasured.
+  rationale: >-
+    Phase-field evolution, homogenization and multiobjective process design are established. Frontier-Eng contains fixed additive-manufacturing toolpath/laser-control tasks, but no task that submits a blend, anneal, cooling and draw archive and scores the resulting morphology-property-energy Pareto frontier. The cell's joint artifact and frozen coefficients are benchmark-specific, but model difficulty and resistance to analytic shortcut policies remain unmeasured.
+    Nearest neighbours are AlloyHardnessOptimization and QuinaryConvexHull; their artifacts
+    are compositions or phase evidence rather than joint process archives.
 lineage:
-  status: complete
+  status: incomplete_legacy
   builder_model_ids:
   - openai:codex-gpt-5
   builder_scaffolds:
@@ -70,19 +80,19 @@ lineage:
   - freeze a mobility-limited crystallization-completion law and explicit 0.35 draw modulus gain versus 0.20 permeability penalty
   - increase reduced Arrhenius selectivity to Ec 7 and k 700, cooling sensitivity to 0.30, and align the energy normalization with the reachable 7.5 envelope
   - test no-draw, short-time, fast-cooling and single-low-temperature ablations with a 0.90 ceiling
-  - anchor to a deterministic 1024-point public proxy search followed by two 11-point-per-axis coordinate-exchange passes while retaining uncapped score and sealed transfer gates
-  frozen_before_eval: true
-  freeze_timestamp: '2026-09-05T22:15:00Z'
+  - anchor to a deterministic 1024-point public proxy search followed by two 11-point-per-axis coordinate-exchange passes while retaining clipped score and sealed transfer gates
+  frozen_before_eval: false
+  freeze_timestamp: null
 long_horizon:
   status: not_tested
   measurement_health_passed: false
   material_headroom_after_2h: false
   evidence: []
 construction_audit:
-  status: builder_audited_pending_external
+  status: incomplete_legacy
   author_domain: openai:codex-gpt-5
   reviewer_domain: pending_external_polymer_and_process_materials
   expert_hours: null
   red_team_rounds: 3
   oracle_disagreement_status: not_quantified
-  independent_recomputation_status: baseline, candidate-equivalent public reference search through the isolated runner, 441-point and three 343-point shortcut probes, 2048-point public-platform stability, evaluator-aware uncapped headroom, four physical ablations, sealed shifts and malformed-candidate paths are runnable from the package
+  independent_recomputation_status: baseline, candidate-equivalent public reference search through the isolated runner, 441-point and three 343-point shortcut probes, 2048-point public-platform stability, evaluator-aware clipped headroom, four physical ablations, sealed shifts and malformed-candidate paths are runnable from the package
