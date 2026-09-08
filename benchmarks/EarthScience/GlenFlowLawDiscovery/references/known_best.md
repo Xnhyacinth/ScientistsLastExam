@@ -17,6 +17,9 @@ The prior two weak sliding worlds had true curvatures 0.007/0.006 under a noise 
 0.03 and should not have been treated as cleanly separable. They now have true curvatures
 0.2501707249 / 0.2159040914, both inside the requested 0.1-0.3 intermediate region.
 
+Reproduce the shortcut sweep and fresh-noise audit with
+`uv run python benchmarks/EarthScience/GlenFlowLawDiscovery/references/shortcut_probe.py`.
+
 ## Shortcut probes and ablations
 
 An adapted 20/63/200 stress scan, four repeats each at 255 K, guesses Q/R=6000 and sweeps
