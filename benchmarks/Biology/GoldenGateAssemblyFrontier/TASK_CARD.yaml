@@ -23,7 +23,8 @@ normalization:
   score: >-
     uncapped logarithmic remaining-gap progress in log predicted fidelity: baseline is zero,
     score one is hung at log fidelity -0.001 (~99.9% predicted fidelity), which the public-data
-    beam-search witness does not reach; malformed artifacts score zero
+    beam-search witness does not reach; >1 means surpassing this engineering fidelity target,
+    not a published experimental record; malformed artifacts score zero
   measured_anchors: see references/known_best.md
 citations:
   - id: doi:10.1371/journal.pone.0238592
@@ -61,8 +62,10 @@ novelty_risk:
   rationale: >-
     Published high-fidelity overhang sets can be remembered, but they do not determine legal cut
     positions in these seeded target sequences, enzyme compatibility, or bounded fragment lengths.
+    OrthogonalDNACodewords optimizes free codeword sets; RNAInverseDesign and RNAEnsembleDesign
+    optimize single-sequence folding, without construct segmentation and measured ligation crosstalk.
 lineage:
-  status: complete
+  status: incomplete_legacy
   builder_model_ids: []
   builder_scaffolds: [codex]
   calibrator_model_ids: []
@@ -76,7 +79,7 @@ lineage:
   frozen_before_eval: false
   freeze_timestamp: null
 construction_audit:
-  status: builder_audited_pending_external
+  status: incomplete_legacy
   author_domain: computational_benchmark_engineering
   reviewer_domain: pending_external_synthetic_biology_and_dna_assembly
   expert_hours: null

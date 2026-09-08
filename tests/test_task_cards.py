@@ -11,6 +11,7 @@ from scripts.audit_tasks import LINEAGE_STATUSES, _task_card_issues, audit
 # Tasks built inside this repository, whose builder model, scaffold and red-team history are
 # recorded on the card rather than reconstructed after the fact. Everything else is inherited.
 RECORDED_LINEAGE = {
+    "Ecology/OccupancyDetectionDesign",
     "Physics/CriticalPhenomenaLab",
     "SystemsBiology/EnzymeKineticsLaw",
     "ParticlePhysics/DiscrepantMeasurements",
@@ -35,6 +36,7 @@ RECORDED_LINEAGE = {
     "Exoplanets/TransmissionSpectrumSpecies",
     "DiscreteGeometry/SpherePackingCertificate",
     "QuantumFoundations/BellBoundCertificate",
+    "InformationTheory/ShannonCapacityCertificate",
     "QuantumControl/ActiveNoiseSpectroscopy",
     "Mathematics/NonlinearCodeRecords",
     "Mathematics/CapSetFrontier",
@@ -47,7 +49,7 @@ RECORDED_LINEAGE = {
     "Mathematics/HeavyTailEvidence",
     "Mathematics/NarrowAdmissibleTuple",
     "Superconductivity/SuperconductorTcRecord",
-    "SyntheticBiology/GoldenGateAssemblyFrontier",
+    "Geophysics/UPbConcordiaInference",
 }
 
 

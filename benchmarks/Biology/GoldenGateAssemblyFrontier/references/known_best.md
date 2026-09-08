@@ -60,3 +60,21 @@ row cannot change the submitted pool's fidelity.
 These are predictions under one measured ligation-frequency assay and four enzyme conditions. No
 assembly was physically built for the synthetic targets. Promotion requires independent synthetic-
 biology review, clean sandbox replay and frozen frontier-model calibration.
+
+## 7. Model draws and construction errors
+
+No frozen frontier-model calibration has been run; builder model identity was not recorded.
+Lineage is incomplete_legacy and this task is excluded from RECORDED_LINEAGE.
+The former evaluator recomputed its reference search in each fresh evaluation process, even
+for invalid submissions. Anchors are now constants guarded by explicit full recomputation.
+The former Task.md omitted the development-mean definition; that omission is repaired.
+
+## 8. Maintainer shortcut measurements
+
+Source: PR #18 comment by Geniusyingmanji, 2026-09-08, head f3e553d.
+Greedy: infeasible, 0.000000. Beam width 2: 0.078686 development.
+Beam width 8 without refinement: 0.429900 development / 0.130161 heldout.
+Reference: 0.536922 / 0.501698. Refinement adds about 0.11 development and 0.37 heldout.
+A wider search previously measured 1.014924 / 0.660575. These are algorithm measurements,
+not model draws or proof of difficulty. The score-one target is an engineering target, not a
+published experimental record.

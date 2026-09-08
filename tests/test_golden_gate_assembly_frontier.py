@@ -33,6 +33,22 @@ REFERENCE = _load(
 
 
 class GoldenGateAssemblyFrontierTests(unittest.TestCase):
+    def test_frozen_anchors_match_explicit_recomputation(self):
+        for profile in EVALUATOR._DEVELOPMENT_PROFILES + EVALUATOR._HELDOUT_PROFILES:
+            problem = EVALUATOR._public_problem(profile)
+            baseline, error = EVALUATOR._validate(problem, EVALUATOR.baseline_design(problem))
+            self.assertIsNone(error)
+            reference, error = EVALUATOR._validate(problem, REFERENCE.design_assembly(copy.deepcopy(problem)))
+            self.assertIsNone(error)
+            expected = EVALUATOR._anchors(profile["id"])
+            self.assertAlmostEqual(baseline, expected[0], places=12)
+            self.assertAlmostEqual(reference, expected[1], places=12)
+
+    def test_evaluation_does_not_run_anchor_search(self):
+        with patch.object(EVALUATOR, "_reference_callable", side_effect=AssertionError("anchor search")):
+            metrics = EVALUATOR.evaluate(SOLUTION.design_assembly)
+        self.assertEqual(metrics["combined_score"], 0.0)
+
     def test_canonical_python38_imports_and_executes_the_baseline(self):
         python38 = shutil.which("python3.8")
         if python38 is None:

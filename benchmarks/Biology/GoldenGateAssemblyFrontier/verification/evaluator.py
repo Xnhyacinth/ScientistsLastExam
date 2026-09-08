@@ -445,21 +445,18 @@ def _log_gap_score(value: float, baseline: float, target: float = SCORE_ONE_LOG_
     return max(0.0, achieved / span)
 
 
-@lru_cache(maxsize=None)  # noqa: UP033 - canonical trusted runtime is Python 3.8
+# Baseline/reference log fidelities; explicitly recomputed by the anchor regression test.
+ANCHORS = {
+    "dev_a": (-1.0279651925321247, -0.01831917597371898),
+    "dev_b": (-0.8945596474089156, -0.09178802574257545),
+    "dev_c": (-0.4552313081154621, -0.006465927750627498),
+    "heldout_a": (-0.9384742549606723, -0.024870120861122724),
+    "heldout_b": (-0.6198458294353375, -0.02962823654101676),
+}
+
+
 def _anchors(instance_id: str) -> tuple[float, float]:
-    profile = next(
-        row
-        for row in _DEVELOPMENT_PROFILES + _HELDOUT_PROFILES
-        if row["id"] == instance_id
-    )
-    problem = _public_problem(profile)
-    baseline, error = _validate(problem, baseline_design(problem))
-    if error:
-        raise RuntimeError(error)
-    reference, error = _validate(problem, _reference_callable()(copy.deepcopy(problem)))
-    if error or reference is None or baseline is None or reference <= baseline:
-        raise RuntimeError("reference must strictly improve the baseline")
-    return baseline, reference
+    return ANCHORS[instance_id]
 
 
 def _score_world(design_assembly, profile: dict, split: str) -> dict:

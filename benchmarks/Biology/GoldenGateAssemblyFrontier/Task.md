@@ -84,29 +84,22 @@ an intentional internal site for one or two enzyme families. Split labels and pr
 passed to the candidate; the complete target and measured design inputs are.
 
 For each target, the baseline evenly spaces fragments and takes the nearest legal unused junction.
-The reference performs two deterministic public-data beam searches followed by coordinate
-refinement. If `L = log(F)`, the uncapped instance score is logarithmic remaining-gap progress
+If `L = log(F)`, the uncapped instance score is logarithmic remaining-gap progress
 toward a wave-1 target of `L = -0.001` (~99.9% predicted fidelity):
 
 ```text
 log10((-L_baseline) / (-L_candidate)) / log10((-L_baseline) / 0.001)
 ```
 
-The shipped baseline is exactly 0. The public-data beam-search witness lands below
-one (about 0.3–0.8). A design with `L` closer to 0 than `-0.001` scores above 1.
-targets; `robustness_score` reports the two held-out targets. Feasibility, predicted fidelity,
-chosen condition and the number of instances beating the reference remain separate. Invalid
-submissions score zero for that target and never receive a small-pool reward.
+The shipped baseline is exactly 0. A design with `L` closer to 0 than `-0.001` scores above 1.
+`combined_score` is the mean of the three development instance scores; `robustness_score`
+reports the mean of the two held-out instance scores. Feasibility, predicted fidelity and
+chosen condition remain separate. Invalid submissions score zero for that target.
 `development_complete`, `development_valid_count`, `development_invalid_count` and
 `development_feasibility_rate` describe the public panel. The parallel `heldout_complete`,
 `heldout_valid_count`, `heldout_invalid_count` and `heldout_feasibility_rate` fields are computed
 from held-out calls regardless of development validity; failure on one split cannot erase or
 upgrade the other split's execution record.
-
-The reference is not claimed optimal. A wider deterministic search scores `1.014924` on the
-development mean because it improves one target, while falling to `0.660575` on the two held-out
-targets. This is executable headroom and an explicit warning against selecting only on development,
-not evidence that the task is frontier-model hard.
 
 ## Rules and scope
 
