@@ -1,7 +1,7 @@
-"""Catalog SOS for I_4422^{13}: two CHSH replacements using four frozen BB extras.
+"""Retired level-one pairing shortcut, retained for a regression.
 
-This is a hand exact certificate, not an SDP solve. It proves 7/2, strictly below the
-triangle bound 4, and uses extra moments from the frozen NPA-2 pool rather than free words.
+Its extra basis entries have zero coefficients. Tests strip that padding and show that
+its 7/2 bound earns zero on the corrected scale.
 """
 from fractions import Fraction
 
