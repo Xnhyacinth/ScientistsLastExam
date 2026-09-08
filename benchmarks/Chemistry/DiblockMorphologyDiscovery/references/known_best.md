@@ -1,6 +1,6 @@
 # DiblockMorphologyDiscovery — reference results
 
-Every number here is produced by running code in this directory. Nothing is copied from a table.
+Builder measurements and separately attributed maintainer probes are recorded below.
 
 ## Reproducing
 
@@ -32,3 +32,23 @@ Buys one mid-q assay it ignores. Always publishes lamellae. Mixture and ABC trac
 | signal recovery rate | 0.20 |
 | false discovery rate | 1.00 |
 | correct refusal rate | 0.00 |
+
+## Ablation ladder and shortcut probes
+
+Maintainer measurements in PR #26, 2026-09-08, head 1b5381a: replacing reference
+refusals with lamella gives 0.600 development / 0.333 heldout. A 16-point grid and
+secondary-peak-ratio nearest neighbour gives 0.400 development. Reference is 1.000 / 1.000.
+Peak height distinguishes several generator classes; this is a known shortcut. No unmeasured
+headroom or frontier-model hardness is claimed from the reference ceiling.
+
+## Construction errors
+
+The initial records omitted shortcut numbers and robustness. Task documentation incorrectly
+presented contract_lint as an evaluator call; it is an optional free candidate-side checker.
+The amplitude cue in the synthetic traces remains a known limitation pending redesigned and remeasured instances.
+
+## Robustness and model draws
+
+The held-out numbers above use the fixed evaluator-only split; they are not fresh-seed,
+external-data, or model calibration results. No frontier-model draws or long-horizon runs
+have been performed. Calibration evidence remains missing and lineage is incomplete_legacy.

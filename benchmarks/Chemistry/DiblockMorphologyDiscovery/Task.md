@@ -41,4 +41,4 @@ def identify_morphology(problem, measure):
 ## Scoring
 
 Mechanism, false discovery, refusal and coverage are separate. Always-abstain is exactly zero.
-`contract_lint` rejects unknown keys by failing closed at the evaluator.
+`sle.contract_lint` is importable and free to call for shape checks; the evaluator independently validates submissions.

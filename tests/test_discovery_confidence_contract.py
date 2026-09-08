@@ -17,6 +17,7 @@ EVALUATORS = (
     "benchmarks/Physics/PTAHellingsDowns/verification/evaluator.py",
     "benchmarks/Chemistry/UnimolecularFalloffLaw/verification/evaluator.py",
     "benchmarks/Chemistry/DiblockMorphologyDiscovery/verification/evaluator.py",
+    "benchmarks/Mathematics/HeavyTailEvidence/verification/evaluator.py",
 )
 
 REQUIRED_BOOLEAN_FIELDS = (

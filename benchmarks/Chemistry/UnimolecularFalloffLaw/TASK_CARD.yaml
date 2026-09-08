@@ -11,9 +11,7 @@ normalization:
   score: development mechanism recovery normalized above always-abstain; signal recovery, false discovery, refusal, coverage and the held-out split stay separate
 citations:
 - id: doi:10.1002/bbpc.19830870218
-  title: "Theory of thermal unimolecular reactions at low pressures. I. Solutions of the master equation"
-- id: doi:10.1002/bbpc.19830870219
-  title: "Theory of thermal unimolecular reactions in the fall-off range. I. Strong collision rate constants"
+  title: "Theory of Thermal Unimolecular Reactions in the Fall-off Range. II. Weak Collision Rate Constants"
 invariants:
 - in-family k interpolates between a third-body low-pressure limit and a high-pressure limit; Lindemann has F=1 and Troe has Fcent in (0,1)
 - a second pressure-independent channel leaves a low-P floor, so the apparent reaction order at the lowest pressures is not 1
@@ -21,7 +19,11 @@ invariants:
 - declining every world scores exactly zero; the axes separate blanket abstention from confident publication
 - measure calls are charged and overspend fails closed; malformed submissions score zero and never raise out of the evaluator
 - held-out split, per-world rows and the discovery axes remain evaluator-only
-known_shortcuts: The laboratory is a reduced Troe Fcent, not a full master-equation RRKM solve. World seeds are repository-visible and require a future server-held split. Fitting the full T-dependence of k0 and k_inf is leftover headroom, not an exploit.
+known_shortcuts: >-
+  The laboratory is a reduced Troe Fcent, not a full master-equation RRKM solve. World seeds are repository-visible and require a future server-held split. Fitting the full T-dependence of k0 and k_inf is leftover headroom, not an exploit.
+  Maintainer PR 26 probe on 2026-09-08 scores 0.565 development / 0.698 heldout
+  with three assays versus reference 0.731992 / 0.776873. No hardness claim follows.
+
 review:
   domain: pending_external
   evaluator_security: automated_bad_candidate_crash_sweep_determinism_and_abstention_normalization_checks
@@ -32,9 +34,12 @@ provenance:
   fresh_confirmation_status: not_completed
 novelty_risk:
   level: medium
-  rationale: Lindemann and Troe are textbook. What is not published is which world is two-channel or negative-order, and the score turns on recovering Fcent and Pr without publishing those out-of-family worlds.
+  rationale: >-
+    Lindemann and Troe are textbook. What is not published is which world is two-channel or negative-order, and the score turns on recovering Fcent and Pr without publishing those out-of-family worlds.
+    Nearest neighbours are ReactionMechanismFitting and EnzymeKineticsLaw; this task
+    jointly estimates falloff parameters and tests two distinct refusal mechanisms.
 lineage:
-  status: complete
+  status: incomplete_legacy
   builder_model_ids:
   - cursor-grok-4.6
   builder_scaffolds:
@@ -54,7 +59,7 @@ long_horizon:
   material_headroom_after_2h: false
   evidence: []
 construction_audit:
-  status: builder_audited_pending_external
+  status: incomplete_legacy
   author_domain: cursor-grok-4.6
   reviewer_domain: pending_external
   expert_hours: null

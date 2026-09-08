@@ -17,7 +17,10 @@ PUBLIC_PROBLEM = {
     "family_names": ["lindemann", "troe"],
     "rate_law": (
         "k(T,P) = k_inf(T) * Pr/(1+Pr) * F(Pr); Pr = k0(T)*[M]/k_inf(T); "
-        "Lindemann has F=1; Troe uses a constant Fcent in (0,1)"
+        "Lindemann has F=1; reduced Troe uses constant Fcent in [0.05,1), "
+        "n = 0.75 - 1.27*log10(Fcent), "
+        "log10(F) = log10(Fcent)/(1 + (log10(max(Pr,1e-12))/n)^2). "
+        "This symmetric reduced law omits the full Troe c and d terms."
     ),
     "measurement_model": (
         "measure(temperature_K, pressure_bar) returns ln k in 1/s plus frozen Gaussian noise"

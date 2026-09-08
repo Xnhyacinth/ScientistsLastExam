@@ -4,7 +4,7 @@
 
 A unimolecular (or recombination) rate coefficient depends on both temperature and
 pressure. In the Lindemann–Hinshelwood picture it interpolates between a third-body
-low-pressure limit and a high-pressure limit. Troe's *Fcent* broadens that falloff.
+low-pressure limit and a high-pressure limit. A reduced symmetric Troe *Fcent* law broadens that falloff.
 A second, pressure-independent channel, or a rate that **falls** as pressure rises,
 is outside this family: refuse.
 
@@ -35,6 +35,19 @@ Lindemann submissions must set `Fcent` to 1. Troe submissions must set `Fcent` i
 | `measurement_model` | `measure` returns `ln k` |
 | `abstain_when` | second channel, or k falling with P |
 
+The evaluator uses this reduced broadening law, rather than the full Troe 1983 formula:
+
+```text
+Pr = k0(T)*[M]/k_inf(T)
+n = 0.75 - 1.27*log10(Fcent)
+log10(F) = log10(Fcent)/(1 + (log10(max(Pr,1e-12))/n)^2)
+k = k_inf(T)*Pr/(1+Pr)*F
+```
+
+The full Troe c and d terms are omitted. Fcent is constant in this model.
+Negative-pressure-order worlds are synthetic counterexamples, not a claimed elementary law.
+Repeated measurements receive distinct deterministic noise draws indexed by call number;
+repeats can therefore be averaged within the budget.
 Spending past the budget fails the world closed.
 
 ## Relation and distinction
@@ -47,5 +60,5 @@ Spending past the budget fails the world closed.
 ## Scoring
 
 Mechanism, false discovery, refusal and coverage are reported separately. Always-abstain
-is exactly zero. The held-out split is evaluator-only. `contract_lint` fails closed on
-unknown families and non-boolean abstain flags.
+is exactly zero. The held-out split is evaluator-only. `sle.contract_lint` is importable and free to call for shape checks.
+The evaluator independently rejects unknown families and non-boolean abstain flags.

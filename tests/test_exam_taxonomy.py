@@ -96,6 +96,10 @@ class ExamTaxonomyTests(unittest.TestCase):
             tax["tasks"]["PolymerScience/DiblockMorphologyDiscovery"].get("note"),
             "diblock_saxs_not_binary_xrd",
         )
+        self.assertEqual(
+            tax["tasks"]["Mathematics/HeavyTailEvidence"].get("note"),
+            "clauset_tails_not_lookelsewhere",
+        )
 
 
 if __name__ == "__main__":

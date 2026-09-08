@@ -10,6 +10,19 @@ policy:
   statuses: [certified, candidate, quarantined]
 
 tasks:
+  Ecology/OccupancyDetectionDesign:
+    status: candidate
+    reason: Active repeat-survey allocation and latent occupancy inference under imperfect detection, with explicit refusal for nonlinear habitat and spatially structured worlds; retained as a candidate pending server-held surveys, real field-data replication and independent ecology review.
+    citation_ids:
+      - doi:10.1890/0012-9658(2002)083[2248:EORWPD]2.0.CO;2
+      - doi:10.1890/0012-9658(2003)084[0777:EAFRPA]2.0.CO;2
+  Physics/CriticalPhenomenaLab:
+    status: candidate
+    reason: Active finite-size-scaling discovery over continuous, first-order, crossover and BKT-like worlds; retained as a candidate pending external statistical-physics review and independent Monte Carlo replication.
+    citation_ids:
+      - doi:10.1103/PhysRevB.30.1477
+      - doi:10.1038/NPHYS4037
+      - doi:10.1103/PhysRevLett.132.207301
   Mathematics/NarrowAdmissibleTuple:
     status: candidate
     reason: exact admissibility/diameter oracle scored uncapped against Polymath8b's own published narrow-admissible-tuple diameters (246 at k=50, direct primary-source quote; 270 at k=54, secondary-source only, disclosed); no frontier searcher draw yet, pending external number-theory review
@@ -137,6 +150,21 @@ tasks:
     citation_ids:
       - doi:10.1103/PhysRevLett.112.190501
       - doi:10.1016/j.cpc.2012.11.019
+  QuantumControl/ActiveNoiseSpectroscopy:
+    status: candidate
+    reason: >-
+      active non-Gaussian dephasing-noise identification on a complete eight-control filter-function
+      panel, with Gaussian OU and random-telegraph worlds sharing exactly the same Lorentzian PSD;
+      exact two-state tilted-Markov propagation, cumulative binomial shot accounting, symmetric
+      zero-phase telegraph positives, free-Gaussian and multi-fluctuator refusal, three continuous
+      mechanism parameters and sealed-control prediction are checked separately. The truth-blind
+      task-local reference reaches about 0.94 development and 0.88 heldout on the construction
+      worktree, but no frontier-model calibration, server-held confirmation, independent oracle
+      recomputation or external quantum-noise review has been completed.
+    citation_ids:
+      - doi:10.1038/s41467-019-11699-4
+      - arxiv:1903.01043
+      - doi:10.1103/PhysRevLett.116.150503
   Exoplanets/RadialVelocityPlanets:
     status: candidate
     reason: >-
@@ -474,7 +502,6 @@ tasks:
       No frontier searcher draw.
     citation_ids:
       - doi:10.1002/bbpc.19830870218
-      - doi:10.1002/bbpc.19830870219
   PolymerScience/DiblockMorphologyDiscovery:
     status: candidate
     reason: >-
@@ -485,6 +512,15 @@ tasks:
     citation_ids:
       - doi:10.1021/ma9512115
       - doi:10.1021/ma60080a030
+  Mathematics/HeavyTailEvidence:
+    status: candidate
+    reason: >-
+      Evidence cell that is not a LookElsewhere bump hunt and not discrepant
+      constants: a Clauset-style sample is a power law or a lognormal, and an
+      exponential cutoff or a too-small sample must be refused. The alpha=2
+      baseline never declines. Candidate, not certified. No frontier searcher draw.
+    citation_ids:
+      - doi:10.1137/070710111
   Mathematics/RamseyLowerBound:
     status: candidate
     reason: >-
@@ -568,6 +604,17 @@ tasks:
       return false bounds and is recorded; no frontier searcher draw yet, pending external
       discrete-geometry review
     citation_ids: [doi:10.4007/annals.2003.157.689, doi:10.4007/annals.2017.185.3.7, arxiv:2206.15373]
+  InformationTheory/ShannonCapacityCertificate:
+    status: candidate
+    reason: >-
+      two-sided certificates for the Shannon capacity of an odd cycle - a zero-error code in a
+      strong product power below, an exact rational Lovasz matrix above - scored by the width of
+      the interval they prove, uncapped. The zero of the scale is an explicit set shipped in
+      references/ rather than a citation, and the oracle's own independence test accepts all four;
+      the four published targets are quoted verbatim from arXiv:2607.29681 and carry retrieval
+      dates. Candidate rather than certified because no external information-theory review has
+      happened and the published anchors moved three times in July 2026.
+    citation_ids: [doi:10.1109/TIT.1979.1055985, arxiv:2607.29681, doi:10.1016/j.ipl.2018.11.006, doi:10.1016/S0020-0190(01)00229-0, arxiv:2607.21517]
   QuantumFoundations/BellBoundCertificate:
     status: candidate
     reason: >-
@@ -686,6 +733,21 @@ tasks:
     citation_ids:
       - doi:10.1029/JZ064i001p00049
       - doi:10.1190/1.1444302
+  Geophysics/UPbConcordiaInference:
+    status: candidate
+    reason: >-
+      An active zircon U-Pb evidence task over concordant, single lead-loss and resolvable
+      multi-event suites, with charged precision choices, coupled Wetherill concordia geometry,
+      continuous event-age scoring, evidence lineage and calibrated model-inadequacy refusal; the
+      valid one-grain baseline is normalized to zero, a truth-blind six-grain concordia/discordia
+      fit scores 0.914/0.818 development/held-out, 192 apparent-age threshold shortcuts peak at
+      0.345, and two clean thinking-disabled runs each of DeepSeek V4 Flash and Pro keep every first
+      proposal below the reference while terminal best scores range from 0.203 to 0.560; retain
+      pending server-held geological histories and independent geochronology review
+    citation_ids:
+      - doi:10.1029/TR037i003p00320
+      - doi:10.1016/S0016-7037(98)00059-3
+      - doi:10.5194/gchron-6-37-2024
   PopulationGenetics/DemographicSFS:
     status: candidate
     reason: v2 replaces the rank-two time-index surrogate with exact finite-sample Kingman lineage-count CTMC occupancy, a fixed ancestral scale, charged sample-size/replicate sequencing, constant and three-epoch mechanism recovery, evaluator-only sample-size projection and resolvable ancestral-state-polarization-error refusal; the constant-size theta/i identity and an independent ODE occupancy implementation agree, all seven nonconstant supported histories have full-rank log-parameter sensitivities, and a truth-blind eight-unit multisample design reaches 0.770/0.510 development/held-out mechanism with 0.988/0.983 sample-size prediction and zero false discovery, versus 0.538/0.397 for an equal-budget repeated-small-sample design; finite four-epoch and population-mixture histories remain explicitly non-rejectable under the registered SFS threshold, so retain as a conditioned demographic-inference candidate pending server-held histories, linkage/recombination and structure, sequence-data QC and independent population-genetics review
