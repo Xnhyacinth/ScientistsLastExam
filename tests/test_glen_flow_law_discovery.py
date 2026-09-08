@@ -29,6 +29,11 @@ class GlenFlowLawDiscoveryTests(unittest.TestCase):
             TASK / "verification/reference_flow.py", "glen_reference"
         )
 
+    def test_glen_exponent_is_a_world_parameter(self):
+        spec = {"kind": "glen", "A": 2e-7, "n": 2.7}
+        observed = math.log(self.evaluator.true_speed(spec, 200) / self.evaluator.true_speed(spec, 20)) / math.log(10)
+        self.assertAlmostEqual(observed, 2.7)
+
     def test_glen_is_cubic_and_sliding_curves_the_log_log_slope(self):
         glen = {"kind": "glen", "A": 2.0e-7}
         newtonian = {"kind": "newtonian", "A": 0.012}
@@ -44,6 +49,23 @@ class GlenFlowLawDiscoveryTests(unittest.TestCase):
             abs(slope(sliding, taus[1], taus[2]) - slope(sliding, taus[0], taus[1])),
             0.4,
         )
+
+    def test_former_weak_sliding_worlds_have_resolvable_curvature(self):
+        lo, hi = self.evaluator.TAU_BOUNDS
+        mid = math.sqrt(lo * hi)
+        for worlds in [self.evaluator.DEVELOPMENT_WORLDS, self.evaluator.HELDOUT_WORLDS]:
+            spec = next(w for w in worlds if w["seed"] in (72003,82003))
+            y = [math.log(self.evaluator.true_speed(spec,tau)) for tau in (lo,mid,hi)]
+            curvature = (y[2] - 2*y[1] + y[0]) / math.log(mid/lo)
+            self.assertGreater(curvature, 0.1)
+            self.assertLess(curvature, 0.3)
+
+    def test_temperature_response_and_parameter_denominators_are_reported(self):
+        metrics = self.evaluator.evaluate(self.reference.identify_flow_law)
+        self.assertEqual(metrics["development_supported_count"], 3)
+        self.assertEqual(metrics["development_unsupported_count"], 5)
+        spec = self.evaluator.DEVELOPMENT_WORLDS[0]
+        self.assertGreater(self.evaluator.true_speed(spec,100,265), self.evaluator.true_speed(spec,100,245))
 
     def test_full_abstention_is_valid_and_scores_zero(self):
         metrics = self.evaluator.evaluate(
@@ -63,10 +85,11 @@ class GlenFlowLawDiscoveryTests(unittest.TestCase):
         self.assertEqual(baseline["combined_score"], 0.0)
         self.assertEqual(baseline["development_false_discovery_rate"], 1.0)
         self.assertGreater(reference["combined_score"], 0.3)
-        self.assertLess(reference["combined_score"], 0.8)
+        # Scientific admission remains blocked; do not disguise the strong reference.
+        self.assertGreater(reference["combined_score"], 0.8)
         self.assertGreater(reference["development_signal_recovery_rate"], 0.5)
-        self.assertGreater(reference["development_false_discovery_rate"], 0.0)
-        self.assertLess(reference["development_correct_refusal_rate"], 1.0)
+        self.assertEqual(reference["development_false_discovery_rate"], 0.0)
+        self.assertEqual(reference["development_correct_refusal_rate"], 1.0)
 
     def test_malformed_submissions_score_zero_without_raising(self):
         metrics = self.evaluator.evaluate(lambda *_args: {"abstain": True, "confidence": 1.1})

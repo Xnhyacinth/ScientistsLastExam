@@ -7,17 +7,23 @@ import numpy as np
 
 MEASURE_BUDGET = 12
 TAU_BOUNDS = (20.0, 200.0)
+TEMPERATURE_BOUNDS = (245.0, 265.0)
+REFERENCE_TEMPERATURE = 255.0
 SUPPORTED = {"glen", "newtonian"}
 
 PUBLIC_PROBLEM = {
     "stress_bounds_kPa": list(TAU_BOUNDS),
+    "temperature_bounds_K": list(TEMPERATURE_BOUNDS),
+    "reference_temperature_K": REFERENCE_TEMPERATURE,
+    "glen_exponent_bounds": [2.6, 3.6],
     "measure_budget_calls": MEASURE_BUDGET,
     "family_names": ["glen", "newtonian"],
     "rate_law": (
-        "v = A * tau^n; Glen ice has n near 3; Newtonian viscous ice has n = 1"
+        "v = A * tau^n * exp(-activation_temperature*(1/T - 1/255)); "
+        "Glen n is in [2.6,3.6]; Newtonian n=1; A and activation_temperature are unknown"
     ),
     "measurement_model": (
-        "measure(stress_kPa) returns ln of surface speed plus frozen Gaussian noise"
+        "measure(stress_kPa, temperature_K=255) returns ln speed plus Gaussian noise (sigma=0.03)"
     ),
     "abstain_when": (
         "basal sliding makes the log-log slope curved or puts n outside the family"
@@ -29,15 +35,16 @@ def public_problem():
     return dict(PUBLIC_PROBLEM)
 
 
-def true_speed(spec, stress):
+def true_speed(spec, stress, temperature=REFERENCE_TEMPERATURE):
     stress = max(float(stress), 1e-6)
     kind = spec["kind"]
+    thermal = math.exp(-float(spec.get("activation_temperature", 0.0)) * (1.0 / temperature - 1.0 / REFERENCE_TEMPERATURE))
     if kind == "glen":
-        return float(spec["A"]) * stress ** 3.0
+        return float(spec["A"]) * stress ** float(spec.get("n", 3.0)) * thermal
     if kind == "newtonian":
-        return float(spec["A"]) * stress
+        return float(spec["A"]) * stress * thermal
     if kind == "sliding":
-        return float(spec["A"]) * stress ** 3.0 + float(spec["C"]) * stress
+        return float(spec["A"]) * stress ** float(spec.get("n", 3.0)) * thermal + float(spec["C"]) * stress
     if kind == "plug":
         return float(spec["C"])
     raise ValueError("unknown family")
@@ -49,8 +56,11 @@ class _Lab:
         self.used = 0
         self.violated = False
 
-    def measure(self, stress_kPa):
+    def measure(self, stress_kPa, temperature_K=REFERENCE_TEMPERATURE):
         stress = float(stress_kPa)
+        temperature = float(temperature_K)
+        if not math.isfinite(temperature) or not TEMPERATURE_BOUNDS[0] <= temperature <= TEMPERATURE_BOUNDS[1]:
+            raise ValueError("assay outside temperature_bounds_K")
         if not math.isfinite(stress):
             raise ValueError("stress must be finite")
         if not (TAU_BOUNDS[0] <= stress <= TAU_BOUNDS[1]):
@@ -60,7 +70,7 @@ class _Lab:
             raise RuntimeError("measure budget exhausted")
         self.used += 1
         rng = np.random.default_rng((int(self.spec["seed"]), 19, self.used))
-        return float(math.log(max(true_speed(self.spec, stress), 1e-30)) + 0.03 * rng.normal())
+        return float(math.log(max(true_speed(self.spec, stress, temperature), 1e-30)) + 0.03 * rng.normal())
 
 
 def _validate(submission):
@@ -73,45 +83,52 @@ def _validate(submission):
     if not math.isfinite(confidence) or not 0.0 <= confidence <= 1.0:
         raise ValueError("confidence must lie in [0, 1]")
     if abstain:
-        return True, None, None, confidence
+        return True, None, None, confidence, None, None
     family = submission.get("family")
     if family not in PUBLIC_PROBLEM["family_names"]:
         raise ValueError("family must be one of family_names")
     exponent = float(submission.get("n"))
     if not math.isfinite(exponent) or exponent <= 0.0:
         raise ValueError("n must be a positive finite number")
-    return False, family, exponent, confidence
+    log_a = float(submission.get("log_A"))
+    activation = float(submission.get("activation_temperature"))
+    if not math.isfinite(log_a) or not math.isfinite(activation) or activation < 0:
+        raise ValueError("finite log_A and nonnegative activation_temperature are required")
+    return False, family, exponent, confidence, log_a, activation
 
 
-def _mechanism(spec, abstain, family, exponent):
+def _mechanism(spec, abstain, family, exponent, log_a, activation):
     if spec["kind"] not in SUPPORTED:
         return (1.0 if abstain else 0.0), bool(abstain), (not abstain)
     if abstain:
         return 0.0, False, False
-    true_n = 3.0 if spec["kind"] == "glen" else 1.0
-    family_err = 0.0 if family == spec["kind"] else 0.85
-    n_err = min(abs(float(exponent) - true_n) / 0.35, 1.0)
-    err = 0.55 * family_err + 0.45 * n_err
-    return float(np.clip(1.0 - err / 0.55, 0.0, 1.0)), False, False
+    if family != spec["kind"]:
+        return 0.0, False, False
+    true_n = float(spec.get("n", 3.0)) if spec["kind"] == "glen" else 1.0
+    # Continuous joint recovery; the widths state parameter resolution, not a noise change.
+    error = (abs(exponent - true_n) / 0.1
+             + abs(log_a - math.log(spec["A"])) / 0.3
+             + abs(activation - spec["activation_temperature"]) / 1000.0) / 3.0
+    return math.exp(-error), False, False
 
 
 DEVELOPMENT_WORLDS = (
-    {"kind": "glen", "seed": 71001, "A": 2.0e-7},
-    {"kind": "glen", "seed": 71002, "A": 5.5e-7},
-    {"kind": "newtonian", "seed": 71003, "A": 0.012},
-    {"kind": "sliding", "seed": 72001, "A": 1.0e-5, "C": 0.05},
-    {"kind": "sliding", "seed": 72002, "A": 3.0e-6, "C": 0.01},
-    {"kind": "sliding", "seed": 72003, "A": 2.0e-7, "C": 8.0e-7},
+    {"kind": "glen", "seed": 71001, "A": 2.0e-7, "n": 2.65, "activation_temperature": 4000.0},
+    {"kind": "glen", "seed": 71002, "A": 5.5e-7, "n": 3.45, "activation_temperature": 7200.0},
+    {"kind": "newtonian", "seed": 71003, "A": 0.012, "activation_temperature": 5400.0},
+    {"kind": "sliding", "seed": 72001, "A": 1.0e-5, "C": 0.05, "activation_temperature": 4800.0},
+    {"kind": "sliding", "seed": 72002, "A": 3.0e-6, "C": 0.01, "activation_temperature": 7800.0},
+    {"kind": "sliding", "seed": 72003, "A": 2.0e-7, "C": 3.6e-5, "activation_temperature": 6500.0},
     {"kind": "plug", "seed": 73001, "C": 0.45},
     {"kind": "plug", "seed": 73002, "C": 1.2},
 )
 HELDOUT_WORLDS = (
-    {"kind": "glen", "seed": 81001, "A": 3.4e-7},
-    {"kind": "newtonian", "seed": 81002, "A": 0.008},
-    {"kind": "sliding", "seed": 82001, "A": 1.0e-5, "C": 0.05},
+    {"kind": "glen", "seed": 81001, "A": 3.4e-7, "n": 3.15, "activation_temperature": 6100.0},
+    {"kind": "newtonian", "seed": 81002, "A": 0.008, "activation_temperature": 8600.0},
+    {"kind": "sliding", "seed": 82001, "A": 1.0e-5, "C": 0.05, "activation_temperature": 4800.0},
     {"kind": "plug", "seed": 83001, "C": 0.7},
-    {"kind": "sliding", "seed": 82002, "A": 3.0e-5, "C": 0.2},
-    {"kind": "sliding", "seed": 82003, "A": 3.4e-7, "C": 1.2e-6},
+    {"kind": "sliding", "seed": 82002, "A": 3.0e-5, "C": 0.2, "activation_temperature": 5100.0},
+    {"kind": "sliding", "seed": 82003, "A": 3.4e-7, "C": 5.1e-5, "activation_temperature": 7500.0},
 )
 
 
@@ -120,10 +137,10 @@ def _evaluate_world(identify, spec, split, index):
     base = {"split": split, "world_index": int(index), "kind": spec["kind"], "measure_calls": 0}
     try:
         submission = identify(public_problem(), lab.measure)
-        abstain, family, exponent, confidence = _validate(submission)
+        abstain, family, exponent, confidence, log_a, activation = _validate(submission)
         if lab.violated:
             raise RuntimeError("measure budget exceeded")
-        mech, refused, false = _mechanism(spec, abstain, family, exponent)
+        mech, refused, false = _mechanism(spec, abstain, family, exponent, log_a, activation)
         return {
             **base,
             "mechanism_score": round(float(mech), 6),
@@ -162,6 +179,12 @@ def _split_summary(records):
         "discovery_coverage": float(np.mean([not row["abstained"] for row in supported])),
         "valid_count": sum(bool(row["valid"]) for row in records),
         "world_count": len(records),
+        "supported_count": len(supported),
+        "unsupported_count": len(unsupported),
+        "confidence_calibration": float(np.mean([
+            1.0 - (row["confidence"] - (row["valid"] and not row["abstained"] and row["kind"] in SUPPORTED)) ** 2
+            for row in records
+        ])),
     }
 
 
@@ -194,5 +217,11 @@ def evaluate(identify_flow_law):
         "heldout_false_discovery_rate": held["false_discovery_rate"],
         "heldout_correct_refusal_rate": held["correct_refusal_rate"],
         "heldout_discovery_coverage": held["discovery_coverage"],
+        "development_supported_count": dev["supported_count"],
+        "development_unsupported_count": dev["unsupported_count"],
+        "heldout_supported_count": held["supported_count"],
+        "heldout_unsupported_count": held["unsupported_count"],
+        "development_confidence_calibration": dev["confidence_calibration"],
+        "heldout_confidence_calibration": held["confidence_calibration"],
         "per_instance": development + heldout,
     }

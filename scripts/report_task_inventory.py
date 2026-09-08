@@ -50,12 +50,14 @@ CHINESE_NAMES = {
     "ClimateScience/ForcedSignalAttribution": "强迫信号检测归因",
     "ControlTheory/InvertedPendulumSwingUp": "倒立摆摆起控制",
     "DynamicalSystems/ActiveLawDiscovery": "主动定律发现",
+    "Ecology/OccupancyDetectionDesign": "生态占域与探测设计",
     "Electrochemistry/ElectrolyteConductivityDesign": "电解液电导率设计",
     "EvidenceSynthesis/ProspectiveMetaAnalysis": "前瞻荟萃分析",
     "Exoplanets/RadialVelocityPlanets": "视向速度找行星",
     "Physics/CriticalPhenomenaLab": "有限尺寸临界现象发现",
     "Geophysics/GravityInversion": "重力反演",
     "Glaciology/GlenFlowLawDiscovery": "冰川 Glen 流变律发现",
+    "Geophysics/UPbConcordiaInference": "铀铅谐和图事件归因",
     "Gravitation/PTAHellingsDowns": "脉冲星阵四极相关",
     "HeatTransfer/ConvectionDiffusionOpt": "对流扩散辨识与加热器设计",
     "MaterialsScience/AlloyHardnessOptimization": "合金硬度实验设计",
@@ -81,6 +83,7 @@ CHINESE_NAMES = {
     "Exoplanets/TransmissionSpectrumSpecies": "透射光谱分子判定",
     "DiscreteGeometry/SpherePackingCertificate": "球堆积上界证书",
     "QuantumFoundations/BellBoundCertificate": "贝尔不等式上界证书",
+    "InformationTheory/ShannonCapacityCertificate": "奇圈香农容量双侧证书",
     "Mathematics/NonlinearCodeRecords": "非线性码规模纪录",
     "MedicinalChemistry/MolecularLeadOptimization": "分子先导组合优化",
     "MolecularDynamics/ForceFieldCalibration": "力场假设判别",
@@ -169,6 +172,9 @@ CHINESE_BRIEFS = {
     "DynamicalSystems/ActiveLawDiscovery": (
         "自选初值与外部驱动,从候选项库里恢复二维受控系统的稀疏控制方程",
         "稀疏律恢复 + 密封轨迹外推;库不足时拒答"),
+    "Ecology/OccupancyDetectionDesign": (
+        "在漏检条件下分配站点复访与调查方法,恢复栖息地占域效应或拒绝不充分模型",
+        "效应方向、效应量与平均占域率;误发现、拒答、覆盖率和留出迁移分列"),
     "Electrochemistry/ElectrolyteConductivityDesign": (
         "在高通量电解液数据回放里分配阻抗测定预算,选出稳健的配方批次",
         "温度剖面电导率 + 批次多样性 + 重复稳健性 + 留出迁移;无上限"),
@@ -185,8 +191,11 @@ CHINESE_BRIEFS = {
         "主动布设重力测线,反演地下密度体的位置与强度;声明的源族不支持时拒答",
         "源恢复 + 外场校验 + 拒答;许多密度分布产生相似地表场"),
     "Glaciology/GlenFlowLawDiscovery": (
-        "在有限次表面流速对驱动应力测定下区分 Glen n~3 与牛顿粘性 n=1;基底滑动使双对数弯曲或塞流须拒答",
-        "指数恢复 + 滑动/塞流拒答;不是 AMOC 折叠,也不是壁面混合长闭合"),
+        "在 12 次应力和温度测定下联合恢复 Glen 连续指数、幅度和热响应;可辨滑动混合或塞流须拒答",
+        "联合参数恢复 + 滑动/塞流拒答;当前参考约 0.96,难度门未过"),
+    "Geophysics/UPbConcordiaInference": (
+        "在分析预算内选择锆石域,由两套铀铅衰变比判断单一结晶或一次铅丢失历史;可分辨的多事件历史须拒答",
+        "事件类型 + 结晶与铅丢失年龄 + 证据血缘;误发现、拒答、覆盖率和留出迁移分列"),
     "Gravitation/PTAHellingsDowns": (
         "脉冲星计时阵里区分 Hellings-Downs 四极相关(引力波背景)与钟差单极、星历偶极、共同红噪声",
         "四极 vs 单极判别与拒答;共同过程不等于引力波背景"),
@@ -280,6 +289,10 @@ CHINESE_BRIEFS = {
         "1.0 是已发表的 Cohn-Elkies 数值界,而与之等强的精确有理证书似乎在任何维度都还没有人发表过。"
         "有理数精确验证,提交浮点判零:网格线性规划这个教科书方法会给出假界(16 阶时 8 维报 0.06237,"
         "低于 E8 格实际达到的 0.0625)。"),
+    "InformationTheory/ShannonCapacityCertificate": (
+        "为奇圈的香农容量给出一段可精确验证的区间:下界交一个强积幂里的零错码(任意两码字不得在每个坐标上都相等或相邻),上界交一份有理 Lovasz 矩阵与有理界,使 b*I - A 正定。"
+        "C7 的容量自 1956 年 Shannon 提出、1979 年 Lovasz 解决 C5 之后一直未知,下端在 2026 年 7 月一个月内被改进了三次,上端 theta 自 1979 年未动过。",
+        "四个奇圈(C7/C13/C19/C23)取均值,不设上限。零点不是引用而是随包发布的显式码集,oracle 用同一套独立性检验接受它;1.0 是 2026-09-06 时的已发表最好下界,四个都不是在本题允许的幂上达到的。有理数精确验证,提交浮点判零——数值特征值不是证明。"),
     "QuantumFoundations/BellBoundCertificate": (
         "为贝尔泛函的量子最大值给出一份可精确验证的上界证明:提交一组基词与若干加权平方,"
         "使它们的和恰好等于 beta*I - B。CHSH 的答案是无理数 2√2,只能逼近;I3322 的量子值至今未知,"
