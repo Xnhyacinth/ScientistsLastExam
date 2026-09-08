@@ -11,7 +11,7 @@
 | candidate | 79 |
 | 学科 | 7(Biology 8,Chemistry 15,ComputerScience 7,EarthScience 7,Engineering 12,Mathematics 19,Physics 16) |
 
-认证描述的是证据质量,不是难度。`uncapped` 表示分数不在 reference=1 截断,不保证固定 wave 数学无界；on-ramp 已被确定性搜索或模型证据判定易饱和,不用于 hard-task 配对。
+认证描述的是证据质量,不是难度。标 on-ramp 的任务首个前沿模型提案已够到参考解,不用于配对 Δ 测量。
 
 ## Optimization(42)
 
@@ -22,7 +22,7 @@
 | [`AlloyHardnessOptimization`](benchmarks/Chemistry/AlloyHardnessOptimization/)<br>合金硬度实验设计 | Chemistry | MaterialsScience | uncapped | real_data_replay | candidate | design a study-held alloy batch | 在按论文 DOI 分组的多主元合金数据里做实验设计,选出研究外留出的硬度批次 | 留出硬度 + 多样性 + 代理失效 + 不确定性 + 来源迁移 + 稀疏独立确认;无上限 |
 | [`DistillationColumnDesign`](benchmarks/Chemistry/DistillationColumnDesign/)<br>精馏塔设计 | Chemistry | ChemicalProcess | uncapped | equilibrium_stage_process_sim | candidate | robust mixed-integer equilibrium-stage design | 混合整数精馏塔设计:塔板数与进料位置离散,兼顾纯度回收约束与再沸冷凝能耗 | 年化成本;留出迁移与密封变工况分列,无上限 |
 | [`ElectrolyteConductivityDesign`](benchmarks/Chemistry/ElectrolyteConductivityDesign/)<br>电解液电导率设计 | Chemistry | Electrochemistry | uncapped | real_data_replay | candidate | allocate EIS assays and select a robust formulation batch | 在高通量电解液数据回放里分配阻抗测定预算,选出稳健的配方批次 | 温度剖面电导率 + 批次多样性 + 重复稳健性 + 留出迁移;无上限 |
-| [`ProcessMicrostructurePropertyDesign`](benchmarks/Chemistry/ProcessMicrostructurePropertyDesign/)<br>过程-微结构-性质协同设计 | Chemistry | MaterialsScience | clipped | analytical_reduced_order_physics | candidate | Can a policy propose a *manufacturable processing archive* whose blend composition, anneal, | 联合设计共混、退火、冷却与拉伸工艺,经冻结相场和均匀化模型形成性质 Pareto 档案 | 三目标超体积;密封材料/工艺偏移决定能否进入 lifetime-credit ledger,固定 wave 仍有界但不在 reference=1 截断 |
+| [`ProcessMicrostructurePropertyDesign`](benchmarks/Chemistry/ProcessMicrostructurePropertyDesign/)<br>过程-微结构-性质协同设计 | Chemistry | MaterialsScience | clipped | analytical_reduced_order_physics | candidate | Can a policy propose a *manufacturable processing archive* whose blend composition, anneal, | 联合设计共混、退火、冷却与拉伸工艺,经冻结相场和均匀化模型形成性质 Pareto 档案 | 三目标超体积;密封材料/工艺偏移决定能否进入 lifetime-credit ledger,发布分数截断在 [0,1],原始超体积单独报告 |
 | [`SparseRecovery`](benchmarks/ComputerScience/SparseRecovery/)<br>压缩感知稀疏恢复 | ComputerScience | SignalProcessing | clipped | analytical | candidate | compressed sensing signal recovery | 从远少于奈奎斯特的测量里恢复 k 稀疏信号 | 平均恢复信噪比 |
 | [`HeatExchangerDesign`](benchmarks/Engineering/HeatExchangerDesign/)<br>换热器帕累托设计 | Engineering | Thermodynamics | uncapped | physical_sim | candidate | discover a multi-fidelity Pareto design archive | 发现换热器的多保真帕累托设计档案,权衡换热量、成本与泵功 | 成本对换热量的帕累托超体积;密封代理一致性、留出迁移与结垢/制造/堵塞稳健性分列,无上限 |
 | [`InvertedPendulumSwingUp`](benchmarks/Engineering/InvertedPendulumSwingUp/)<br>倒立摆摆起控制 | Engineering | ControlTheory | clipped | physical_sim | candidate | swing up and robustly stabilize a cart-pole | 设计小车倒立摆的摆起与稳定控制律,兼顾轨道限位与作动器约束 | 摆起效用;偏移工况稳健性分列 |
@@ -37,7 +37,7 @@
 | [`MultilayerThinFilm`](benchmarks/Physics/MultilayerThinFilm/)<br>多层减反射膜 | Physics | Photonics | clipped | physical_sim | certified | design a broadband antireflection coating | 设计可见光全谱段的多层宽带减反射膜 | 宽带减反射质量;物理下界为零平均反射 |
 | [`SuperconductorTcRecord`](benchmarks/Physics/SuperconductorTcRecord/)<br>超导临界温度纪录搜索 | Physics | Superconductivity | uncapped | allen_dynes_formula_solved_to_real_anchors | candidate | beat the published record by computing where Allen-Dynes says to look | 在真实设备压力上限下,用 Allen-Dynes 公式在五个真实超导体系间搜索已确认临界温度最高的(体系,压力)组合,并避开一个从未被实现的理论预测(隐含电子-声子耦合超过物理合理上限) | 真实Tc除以已发表记录250K的直接比值;无上限,可超过已发表记录 |
 
-### 开放组合纪录(combinatorial,reference 不截断) — 17
+### 开放组合纪录(combinatorial,无上限) — 17
 
 | 任务 | 学科 | 领域 | 打分 | oracle | 认证 | 说明 | 中文题意 | 中文评估方法 |
 |---|---|---|---|---|---|---|---|---|

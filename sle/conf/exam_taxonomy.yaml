@@ -18,7 +18,6 @@ out_of_scope:
     reason: closed exam items; SLE items are programs plus a frozen executable oracle
 
 optimization_analogue:
-  scientific_method: scientific algorithm or numerical-method design under a frozen validation panel
   engineering_design: engineering design under a frozen simulator (same form as Frontier-Eng; no task is shared with it)
   combinatorial: open-record construction with an executable mathematical verifier
   molecular_design: molecular or macromolecular design under a frozen scientific oracle

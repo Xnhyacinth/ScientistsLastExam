@@ -211,7 +211,7 @@ CHINESE_BRIEFS = {
         "相集精确门控 + 杠杆定律边界精度;两相区叠加、杂质峰、动力学冻结须区分,冻结体系须拒答"),
     "MaterialsScience/ProcessMicrostructurePropertyDesign": (
         "联合设计共混、退火、冷却与拉伸工艺,经冻结相场和均匀化模型形成性质 Pareto 档案",
-        "三目标超体积;密封材料/工艺偏移决定能否进入 lifetime-credit ledger,固定 wave 仍有界但不在 reference=1 截断"),
+        "三目标超体积;密封材料/工艺偏移决定能否进入 lifetime-credit ledger,发布分数截断在 [0,1],原始超体积单独报告"),
     "MaterialsScience/QuinaryConvexHull": (
         "五元体系里给出凸包上真正稳定的非一元相;生成焓小于零不等于新稳定相",
         "精确非一元凸包顶点;玻璃态须拒答"),
@@ -413,7 +413,7 @@ CHINESE_BRIEFS = {
 FORM_TITLES = OrderedDict([("optimization", "Optimization"), ("discovery", "Discovery")])
 ANALOGUE_TITLES = OrderedDict([
     ("engineering_design", "工程设计(engineering_design)"),
-    ("combinatorial", "开放组合纪录(combinatorial,reference 不截断)"),
+    ("combinatorial", "开放组合纪录(combinatorial,无上限)"),
     ("molecular_design", "分子与大分子设计(molecular_design)"),
 ])
 KIND_TITLES = OrderedDict([
@@ -505,10 +505,7 @@ def render(rows: list[dict]) -> str:
     lines.append("| 学科 | %d(%s) |" % (
         len(disciplines), ",".join("%s %d" % (k, v) for k, v in sorted(disciplines.items()))))
     lines.append("")
-    lines.append(
-        "认证描述的是证据质量,不是难度。`uncapped` 表示分数不在 reference=1 截断,"
-        "不保证固定 wave 数学无界；on-ramp 已被确定性搜索或模型证据判定易饱和,不用于 hard-task 配对。"
-    )
+    lines.append("认证描述的是证据质量,不是难度。标 on-ramp 的任务首个前沿模型提案已够到参考解,不用于配对 Δ 测量。")
     lines.append("")
     for form, title in FORM_TITLES.items():
         subset = [r for r in rows if r["form"] == form]
