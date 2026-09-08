@@ -1,25 +1,12 @@
-"""e_1 ranking at a token decrease.
-
-The first coordinate is a valid linear ranking on every published loop, but
-the claimed decrease is 1/10000. Searching a better direction is the work.
-"""
+"""Uniform rational ranking at a token proven decrease."""
+from fractions import Fraction
 
 
 def build_ranking(instance):
-    dimension = int(instance["dimension"])
-    n_guards = len(instance["guards"])
-    _ = instance["name"]
-    _ = instance["A"]
-    _ = instance["b"]
-    _ = instance["max_numerator"]
-    _ = instance["max_denominator"]
-    ranking = [[1, 1] if index == 0 else [0, 1] for index in range(dimension)]
-    zeros = [[0, 1] for _ in range(n_guards)]
-    lambdas = [[1, 1] if index == 0 else [0, 1] for index in range(n_guards)]
-    return {
-        "r": ranking,
-        "s": [0, 1],
-        "delta": [1, 10000],
-        "nonneg_lambdas": lambdas,
-        "decrease_lambdas": zeros,
-    }
+    n = instance["dimension"]
+    r = [Fraction(1, n)] * n
+    a = [[Fraction(*value) for value in row] for row in instance["A"]]
+    mu = [r[j] - sum(a[i][j] * r[i] for i in range(n)) for j in range(n)]
+    ratio = lambda x: [x.numerator, x.denominator]
+    return {"r": [ratio(x) for x in r], "s": [0, 1], "delta": [1, 10000],
+            "nonneg_lambdas": [ratio(x) for x in r], "decrease_lambdas": [ratio(x) for x in mu]}

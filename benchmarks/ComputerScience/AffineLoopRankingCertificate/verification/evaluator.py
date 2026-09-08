@@ -1,7 +1,7 @@
 """Hidden oracle for AffineLoopRankingCertificate.
 
 The product is not a trace of one execution. It is a linear ranking function
-with Farkas multipliers that prove every guard-satisfying integer state
+with Farkas multipliers that prove every guard-satisfying real state
 descends by a uniform rational amount.
 """
 from __future__ import annotations
@@ -9,12 +9,8 @@ from __future__ import annotations
 from fractions import Fraction
 
 DIFFICULTY = 1
-MAX_NUMERATOR = 10**6
-MAX_DENOMINATOR = 10**6
-# Clip scale, not a published record. A token delta on e_1 scores near zero;
-# putting the whole 1-norm on the fastest coordinate of cut3 proves delta = 4
-# and clips at 1.
-DELTA_UNIT = Fraction(3, 1)
+MAX_NUMERATOR = 10**18
+MAX_DENOMINATOR = 10**18
 
 
 def _ratio(numerator, denominator=1):
@@ -104,47 +100,27 @@ def _axis_guard(dimension, index):
     return {"g": slope, "d": _ratio(-1)}
 
 
-def _identity(dimension):
-    return [
-        [_ratio(1 if i == j else 0) for j in range(dimension)]
-        for i in range(dimension)
-    ]
+def _coupled_instance(dimension, optimum):
+    # Contractive rational transition with coupled coordinates; decreases depend on state.
+    update = [[_ratio(1, 2) if i == j else _ratio(1, 4) if j == (i + 1) % dimension
+               else _ratio(1, 8) if j == (i + 2) % dimension else _ratio(0)
+               for j in range(dimension)] for i in range(dimension)]
+    return {
+        "name": "coupled_%d" % dimension,
+        "dimension": dimension,
+        "guards": [_axis_guard(dimension, i) for i in range(dimension)],
+        "A": update,
+        "b": [_ratio(-12 if i == 0 else -(1 + i % 3)) for i in range(dimension)],
+        "optimal_delta": optimum,
+    }
 
 
 INSTANCES = (
-    {
-        "name": "cut_x",
-        "dimension": 2,
-        "guards": [_axis_guard(2, 0), _axis_guard(2, 1)],
-        "A": _identity(2),
-        "b": [_ratio(-2), _ratio(-1)],
-    },
-    {
-        "name": "cut_y",
-        "dimension": 2,
-        "guards": [_axis_guard(2, 0), _axis_guard(2, 1)],
-        "A": _identity(2),
-        "b": [_ratio(-1), _ratio(-3)],
-    },
-    {
-        "name": "skew",
-        "dimension": 2,
-        "guards": [
-            _axis_guard(2, 0),
-            {"g": [_ratio(2), _ratio(1)], "d": _ratio(-3)},
-        ],
-        "A": _identity(2),
-        "b": [_ratio(-1), _ratio(1)],
-    },
-    {
-        "name": "cut3",
-        "dimension": 3,
-        "guards": [_axis_guard(3, 0), _axis_guard(3, 1), _axis_guard(3, 2)],
-        "A": _identity(3),
-        "b": [_ratio(-4), _ratio(-1), _ratio(-1)],
-    },
+    _coupled_instance(8, [145031, 28536]),
+    _coupled_instance(10, [661183, 134200]),
+    _coupled_instance(12, [599934529, 123666440]),
+    _coupled_instance(16, [1280622923, 269940120]),
 )
-
 
 def public_instance(instance):
     return {
@@ -153,6 +129,7 @@ def public_instance(instance):
         "guards": instance["guards"],
         "A": instance["A"],
         "b": instance["b"],
+        "optimal_delta": instance["optimal_delta"],
         "max_numerator": MAX_NUMERATOR,
         "max_denominator": MAX_DENOMINATOR,
     }
@@ -209,7 +186,7 @@ def _score_instance(build, instance):
         )
         if not holds:
             raise ValueError("Farkas certificate fails on %s" % reason)
-        score = min(max(0.0, float((delta - BASELINE_DELTA) / DELTA_UNIT)), 1.0)
+        score = min(max(0.0, float((delta - BASELINE_DELTA) / (_fraction(instance["optimal_delta"], "optimal_delta") - BASELINE_DELTA))), 1.0)
         published.update({
             "valid": True,
             "proven_delta": [delta.numerator, delta.denominator],
