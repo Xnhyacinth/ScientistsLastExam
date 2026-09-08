@@ -3,7 +3,8 @@
 ## Current status
 
 **Difficulty NO-GO.** The reference still scores 0.961088 development / 0.930015 heldout.
-This PR remains draft. These are algorithm probes, not frontier-model calibration.
+This PR remains draft. The original reference<0.8 admission test remains failing and
+is not bypassed by the functional checks. These are algorithm probes, not model calibration.
 
 ## Mechanism repair
 

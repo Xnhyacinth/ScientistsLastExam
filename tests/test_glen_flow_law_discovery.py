@@ -85,11 +85,16 @@ class GlenFlowLawDiscoveryTests(unittest.TestCase):
         self.assertEqual(baseline["combined_score"], 0.0)
         self.assertEqual(baseline["development_false_discovery_rate"], 1.0)
         self.assertGreater(reference["combined_score"], 0.3)
-        # Scientific admission remains blocked; do not disguise the strong reference.
-        self.assertGreater(reference["combined_score"], 0.8)
         self.assertGreater(reference["development_signal_recovery_rate"], 0.5)
         self.assertEqual(reference["development_false_discovery_rate"], 0.0)
         self.assertEqual(reference["development_correct_refusal_rate"], 1.0)
+
+    def test_reference_meets_difficulty_admission_band(self):
+        # Keep the original scientific gate. The draft must remain blocked until a
+        # substantive redesign passes it, independently of functional correctness.
+        reference = self.evaluator.evaluate(self.reference.identify_flow_law)
+        self.assertGreater(reference["combined_score"], 0.3)
+        self.assertLess(reference["combined_score"], 0.8)
 
     def test_malformed_submissions_score_zero_without_raising(self):
         metrics = self.evaluator.evaluate(lambda *_args: {"abstain": True, "confidence": 1.1})
