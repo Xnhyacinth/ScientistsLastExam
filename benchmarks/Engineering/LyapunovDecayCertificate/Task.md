@@ -24,9 +24,9 @@ def build_lyapunov(instance):
 `A_i^T P + P A_i + alpha P` must be negative semidefinite. Both tests are
 Sylvester criteria in exact `Fraction` arithmetic.
 
-The score of a valid certificate is `min(alpha / (3/4), 1)`, averaged over the
+The score of a valid certificate is `min(max(0, (alpha - 1/10000) / (3/4)), 1)`, averaged over the
 four published instances. The identity Gram at `alpha = 1/10000` is valid and
-scores near zero. There is no abstain flag: a failed certificate scores that
+scores exactly zero. There is no abstain flag: a failed certificate scores that
 instance zero.
 
 ### `instance` keys
@@ -57,8 +57,12 @@ instance zero.
 - Not the retired `DynamicalSystems/LyapunovControl`: that search was a small-N
   controller, saturated, and is not this certificate.
 
+`SpherePackingCertificate` also verifies exact rational bounds; its objects are packing
+certificates, while this task proves switching-independent ODE decay.
+
 ## Scoring
 
-Mean proven `alpha` over the clip unit `3/4`. Malformed submissions, floats, or
-indefinite `P` score zero and never raise out of the evaluator. `contract_lint`
-is the exact-arithmetic rejection of floats and of a Gram that does not certify.
+Mean proven `alpha - 1/10000` over the clip unit `3/4`, clipped to [0, 1]. Malformed submissions, floats, or
+indefinite `P` score zero and never raise out of the evaluator. `sle.contract_lint`
+is importable and free to call for shape checks. The evaluator independently checks the
+certificate in exact arithmetic.

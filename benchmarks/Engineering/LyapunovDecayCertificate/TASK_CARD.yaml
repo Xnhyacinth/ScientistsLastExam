@@ -20,7 +20,11 @@ invariants:
 - a sheared Gram proves a strictly larger rate on the same modes
 - floats are rejected rather than rounded
 - malformed submissions score zero and never raise out of the evaluator
-known_shortcuts: The plants are 2-by-2, so Sylvester criteria replace a general PSD test. World matrices are repository-visible. Searching a larger rational catalog than the shipped reference is leftover headroom, not an exploit. A numerical LMI solver whose output is rounded would be rejected as floats.
+known_shortcuts: >-
+  The plants are 2-by-2, so Sylvester criteria replace a general PSD test. World matrices are repository-visible. Searching a larger rational catalog than the shipped reference is leftover headroom, not an exploit. A numerical LMI solver whose output is rounded would be rejected as floats.
+  Maintainer PR 27 probe (2026-09-08) proves alpha=3/5 on shear using
+  P=[[1,-21/37],[-21/37,442/1369]], scoring 0.799867 versus reference 0.666533
+  on that instance. Baseline combined is 0.000000 and reference 0.749867.
 review:
   domain: pending_external
   evaluator_security: automated_bad_candidate_crash_sweep_determinism_and_exact_arithmetic_checks
@@ -31,9 +35,12 @@ provenance:
   fresh_confirmation_status: not_completed
 novelty_risk:
   level: medium
-  rationale: Common quadratic Lyapunov functions for switched linear systems are textbook LMI material. What is scored is an exact rational certificate of a stated rate, which is not a recalled controller gain and cannot be read from a simulation.
+  rationale: >-
+    Common quadratic Lyapunov functions for switched linear systems are textbook LMI material. What is scored is an exact rational certificate of a stated rate, which is not a recalled controller gain and cannot be read from a simulation.
+    Nearest neighbours BellBoundCertificate and SpherePackingCertificate verify rational
+    bounds on different scientific objects; this certificate proves switched ODE decay.
 lineage:
-  status: complete
+  status: incomplete_legacy
   builder_model_ids:
   - cursor-grok-4.6
   builder_scaffolds:
@@ -54,7 +61,7 @@ long_horizon:
   material_headroom_after_2h: false
   evidence: []
 construction_audit:
-  status: builder_audited_pending_external
+  status: incomplete_legacy
   author_domain: cursor-grok-4.6
   reviewer_domain: pending_external
   expert_hours: null

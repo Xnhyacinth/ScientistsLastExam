@@ -51,11 +51,13 @@ CHINESE_NAMES = {
     "ControlTheory/InvertedPendulumSwingUp": "倒立摆摆起控制",
     "ControlTheory/LyapunovDecayCertificate": "切换系统 Lyapunov 衰减证书",
     "DynamicalSystems/ActiveLawDiscovery": "主动定律发现",
+    "Ecology/OccupancyDetectionDesign": "生态占域与探测设计",
     "Electrochemistry/ElectrolyteConductivityDesign": "电解液电导率设计",
     "EvidenceSynthesis/ProspectiveMetaAnalysis": "前瞻荟萃分析",
     "Exoplanets/RadialVelocityPlanets": "视向速度找行星",
     "Physics/CriticalPhenomenaLab": "有限尺寸临界现象发现",
     "Geophysics/GravityInversion": "重力反演",
+    "Geophysics/UPbConcordiaInference": "铀铅谐和图事件归因",
     "Gravitation/PTAHellingsDowns": "脉冲星阵四极相关",
     "HeatTransfer/ConvectionDiffusionOpt": "对流扩散辨识与加热器设计",
     "MaterialsScience/AlloyHardnessOptimization": "合金硬度实验设计",
@@ -81,6 +83,7 @@ CHINESE_NAMES = {
     "Exoplanets/TransmissionSpectrumSpecies": "透射光谱分子判定",
     "DiscreteGeometry/SpherePackingCertificate": "球堆积上界证书",
     "QuantumFoundations/BellBoundCertificate": "贝尔不等式上界证书",
+    "InformationTheory/ShannonCapacityCertificate": "奇圈香农容量双侧证书",
     "Mathematics/NonlinearCodeRecords": "非线性码规模纪录",
     "MedicinalChemistry/MolecularLeadOptimization": "分子先导组合优化",
     "MolecularDynamics/ForceFieldCalibration": "力场假设判别",
@@ -94,7 +97,6 @@ CHINESE_NAMES = {
     "Photonics/MultilayerThinFilm": "多层减反射膜",
     "Physics/ComplexBoseLaw": "复玻色占据律",
     "Physics/HiddenCouplingNetwork": "隐藏耦合网络重建",
-    "PowerSystems/GridTopologyRecovery": "电网拓扑辨识",
     "PopulationGenetics/DemographicSFS": "位点频率谱人口史反演",
     "ProteinEngineering/ProteinStabilityDesign": "蛋白稳定性批次设计",
     "QuantumDynamics/HamiltonianLearning": "哈密顿量学习",
@@ -104,7 +106,6 @@ CHINESE_NAMES = {
     "RNAEngineering/RNAInverseDesign": "RNA 约束反折叠",
     "Semiconductor/MOSFETDoping": "MOSFET 掺杂剖面",
     "Sensors/QuartzCrystalMicrobalanceLab": "石英微天平原始信号反演",
-    "Sensors/UltrasonicDefectSpecies": "超声缺陷种类判别",
     "SignalProcessing/SparseRecovery": "压缩感知稀疏恢复",
     "Spectroscopy/CrowdedSpectrumAssignment": "混叠谱物种指认",
     "StructuralEngineering/ModalDamageAttribution": "模态损伤归因",
@@ -170,10 +171,13 @@ CHINESE_BRIEFS = {
         "摆起效用;偏移工况稳健性分列"),
     "ControlTheory/LyapunovDecayCertificate": (
         "为已公布的切换线性系统提交精确有理共同二次 Lyapunov 证书,证明与切换信号无关的衰减率",
-        "所证 alpha 相对 3/4 裁剪单位的均值;单位阵小速率基线近零,浮点 LMI 直接判零"),
+        "所证 alpha 减 1/10000 后相对 3/4 裁剪单位的均值;单位阵小速率基线恰为零,浮点 LMI 直接判零"),
     "DynamicalSystems/ActiveLawDiscovery": (
         "自选初值与外部驱动,从候选项库里恢复二维受控系统的稀疏控制方程",
         "稀疏律恢复 + 密封轨迹外推;库不足时拒答"),
+    "Ecology/OccupancyDetectionDesign": (
+        "在漏检条件下分配站点复访与调查方法,恢复栖息地占域效应或拒绝不充分模型",
+        "效应方向、效应量与平均占域率;误发现、拒答、覆盖率和留出迁移分列"),
     "Electrochemistry/ElectrolyteConductivityDesign": (
         "在高通量电解液数据回放里分配阻抗测定预算,选出稳健的配方批次",
         "温度剖面电导率 + 批次多样性 + 重复稳健性 + 留出迁移;无上限"),
@@ -189,6 +193,9 @@ CHINESE_BRIEFS = {
     "Geophysics/GravityInversion": (
         "主动布设重力测线,反演地下密度体的位置与强度;声明的源族不支持时拒答",
         "源恢复 + 外场校验 + 拒答;许多密度分布产生相似地表场"),
+    "Geophysics/UPbConcordiaInference": (
+        "在分析预算内选择锆石域,由两套铀铅衰变比判断单一结晶或一次铅丢失历史;可分辨的多事件历史须拒答",
+        "事件类型 + 结晶与铅丢失年龄 + 证据血缘;误发现、拒答、覆盖率和留出迁移分列"),
     "Gravitation/PTAHellingsDowns": (
         "脉冲星计时阵里区分 Hellings-Downs 四极相关(引力波背景)与钟差单极、星历偶极、共同红噪声",
         "四极 vs 单极判别与拒答;共同过程不等于引力波背景"),
@@ -282,6 +289,10 @@ CHINESE_BRIEFS = {
         "1.0 是已发表的 Cohn-Elkies 数值界,而与之等强的精确有理证书似乎在任何维度都还没有人发表过。"
         "有理数精确验证,提交浮点判零:网格线性规划这个教科书方法会给出假界(16 阶时 8 维报 0.06237,"
         "低于 E8 格实际达到的 0.0625)。"),
+    "InformationTheory/ShannonCapacityCertificate": (
+        "为奇圈的香农容量给出一段可精确验证的区间:下界交一个强积幂里的零错码(任意两码字不得在每个坐标上都相等或相邻),上界交一份有理 Lovasz 矩阵与有理界,使 b*I - A 正定。"
+        "C7 的容量自 1956 年 Shannon 提出、1979 年 Lovasz 解决 C5 之后一直未知,下端在 2026 年 7 月一个月内被改进了三次,上端 theta 自 1979 年未动过。",
+        "四个奇圈(C7/C13/C19/C23)取均值,不设上限。零点不是引用而是随包发布的显式码集,oracle 用同一套独立性检验接受它;1.0 是 2026-09-06 时的已发表最好下界,四个都不是在本题允许的幂上达到的。有理数精确验证,提交浮点判零——数值特征值不是证明。"),
     "QuantumFoundations/BellBoundCertificate": (
         "为贝尔泛函的量子最大值给出一份可精确验证的上界证明:提交一组基词与若干加权平方,"
         "使它们的和恰好等于 beta*I - B。CHSH 的答案是无理数 2√2,只能逼近;I3322 的量子值至今未知,"
@@ -331,9 +342,6 @@ CHINESE_BRIEFS = {
     "Physics/HiddenCouplingNetwork": (
         "实验次数少于单元数,从多单元驱动的稳态里恢复带符号的直接耦合图;存在未观测单元时拒答",
         "带符号边 F1;间接路径、tanh 非线性与隐藏单元造成的稠密低秩耦合分别记误发现"),
-    "PowerSystems/GridTopologyRecovery": (
-        "用两次冻结注入下的母线相角,从五节点目录里认出在运拓扑;两个目录图电等价时须拒答",
-        "拓扑恢复 + 不可辨识拒答;不是已知拓扑下的构件损伤,也不是模拟耦合网络"),
     "PopulationGenetics/DemographicSFS": (
         "在测序预算内跨样本量分配测序,从位点频率谱恢复常量或三期人口史",
         "参数恢复 + 留出样本量预测 + 模型不足拒答 + 预算设计"),
@@ -361,9 +369,6 @@ CHINESE_BRIEFS = {
     "Sensors/QuartzCrystalMicrobalanceLab": (
         "从石英微天平的原始 I/Q 扫频里标定复增益漂移、提取谐振并反演薄膜质量与沉积速率",
         "原始 IQ 标定、BVD 谐振提取、质量与速率恢复、故障与模型判别、密封停止决策分列"),
-    "Sensors/UltrasonicDefectSpecies": (
-        "从预算内脉冲回波 A 扫认出裂纹、气孔、未熔合或无缺陷;两种缺陷同时存在或波型转换附加回波须拒答",
-        "缺陷种类恢复 + 混合/波型转换拒答;不是已知拓扑下的构件损伤,也不是石英微天平电路反演"),
     "SignalProcessing/SparseRecovery": (
         "从远少于奈奎斯特的测量里恢复 k 稀疏信号",
         "平均恢复信噪比"),

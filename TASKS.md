@@ -4,16 +4,16 @@
 
 | | |
 |---|---:|
-| 任务包 | 82 |
-| optimization | 41 |
+| 任务包 | 83 |
+| optimization | 42 |
 | discovery | 41 |
 | certified | 5 |
-| candidate | 77 |
-| 学科 | 7(Biology 7,Chemistry 13,ComputerScience 6,EarthScience 6,Engineering 15,Mathematics 19,Physics 16) |
+| candidate | 78 |
+| 学科 | 7(Biology 8,Chemistry 13,ComputerScience 7,EarthScience 7,Engineering 13,Mathematics 19,Physics 16) |
 
 认证描述的是证据质量,不是难度。标 on-ramp 的任务首个前沿模型提案已够到参考解,不用于配对 Δ 测量。
 
-## Optimization(41)
+## Optimization(42)
 
 ### 工程设计(engineering_design) — 16
 
@@ -68,11 +68,12 @@
 | [`LennardJonesCluster`](benchmarks/Chemistry/LennardJonesCluster/)<br>Lennard-Jones 团簇 | Chemistry | Chemistry | uncapped | analytical | certified | minimize the energy of atomic clusters | 求 Lennard-Jones 原子簇的最低能量几何构型 | 对全局最小的平均缺口闭合;无上限 |
 | [`MolecularLeadOptimization`](benchmarks/Chemistry/MolecularLeadOptimization/)<br>分子先导组合优化 | Chemistry | MedicinalChemistry | uncapped | rdkit_cheminformatics_property_filter | candidate | build a diverse portfolio of novel, developable leads | 构建结构多样、可开发的新颖先导化合物组合,而非单个分子 | 多样性约束下的组合价值,对标已上市药物;无上限 |
 
-### certificate_bound — 3
+### certificate_bound — 4
 
 | 任务 | 学科 | 领域 | 打分 | oracle | 认证 | 说明 | 中文题意 | 中文评估方法 |
 |---|---|---|---|---|---|---|---|---|
-| [`LyapunovDecayCertificate`](benchmarks/Engineering/LyapunovDecayCertificate/)<br>切换系统 Lyapunov 衰减证书 | Engineering | ControlTheory | clipped | analytical | candidate | prove a decay rate, do not just simulate one | 为已公布的切换线性系统提交精确有理共同二次 Lyapunov 证书,证明与切换信号无关的衰减率 | 所证 alpha 相对 3/4 裁剪单位的均值;单位阵小速率基线近零,浮点 LMI 直接判零 |
+| [`ShannonCapacityCertificate`](benchmarks/ComputerScience/ShannonCapacityCertificate/)<br>奇圈香农容量双侧证书 | ComputerScience | InformationTheory | uncapped | analytical | candidate | certify the interval, do not quote it | 为奇圈的香农容量给出一段可精确验证的区间:下界交一个强积幂里的零错码(任意两码字不得在每个坐标上都相等或相邻),上界交一份有理 Lovasz 矩阵与有理界,使 b*I - A 正定。C7 的容量自 1956 年 Shannon 提出、1979 年 Lovasz 解决 C5 之后一直未知,下端在 2026 年 7 月一个月内被改进了三次,上端 theta 自 1979 年未动过。 | 四个奇圈(C7/C13/C19/C23)取均值,不设上限。零点不是引用而是随包发布的显式码集,oracle 用同一套独立性检验接受它;1.0 是 2026-09-06 时的已发表最好下界,四个都不是在本题允许的幂上达到的。有理数精确验证,提交浮点判零——数值特征值不是证明。 |
+| [`LyapunovDecayCertificate`](benchmarks/Engineering/LyapunovDecayCertificate/)<br>切换系统 Lyapunov 衰减证书 | Engineering | ControlTheory | clipped | analytical | candidate | prove a decay rate, do not just simulate one | 为已公布的切换线性系统提交精确有理共同二次 Lyapunov 证书,证明与切换信号无关的衰减率 | 所证 alpha 减 1/10000 后相对 3/4 裁剪单位的均值;单位阵小速率基线恰为零,浮点 LMI 直接判零 |
 | [`SpherePackingCertificate`](benchmarks/Mathematics/SpherePackingCertificate/)<br>球堆积上界证书 | Mathematics | DiscreteGeometry | uncapped | analytical | candidate | prove a packing bound, exactly | 为球堆积密度给出一份可精确验证的上界证明。Cohn-Elkies 定理把上界化为分析问题:找一个函数,它在半径外非正、其傅里叶变换处处非负。除 1/2/3/8/24 维外全部开放——12 维已知最好堆积 0.03704,最好的证明只到 0.06279。取变量 w=2π‖x‖²,拉盖尔特征基的系数是有理的,两条假设都变成有理半轴上的有理多项式,而单变量多项式在半轴非负当且仅当能写成 σ₀+wσ₁,这个刻画是完备的。 | 四个维度(8/12/16/20)取均值,不设上限。零点是闭式的二项证书——这个方法不花力气就能给出的东西;1.0 是已发表的 Cohn-Elkies 数值界,而与之等强的精确有理证书似乎在任何维度都还没有人发表过。有理数精确验证,提交浮点判零:网格线性规划这个教科书方法会给出假界(16 阶时 8 维报 0.06237,低于 E8 格实际达到的 0.0625)。 |
 | [`BellBoundCertificate`](benchmarks/Physics/BellBoundCertificate/)<br>贝尔不等式上界证书 | Physics | QuantumFoundations | uncapped | analytical | candidate | prove an upper bound, do not just compute one | 为贝尔泛函的量子最大值给出一份可精确验证的上界证明:提交一组基词与若干加权平方,使它们的和恰好等于 beta*I - B。CHSH 的答案是无理数 2√2,只能逼近;I3322 的量子值至今未知,NPA 层级 1 给 0.375、层级 2 给 0.25102173、已知最好值 0.25087538 要到层级 4 以上。 | 四个实例(CHSH 与三种基词预算下的 I3322)取均值,不设上限。分数是所证界到已知量子值距离的对数进步:免费的层级 1 界记 0,已发表的层级 2 界记 1,超过则大于 1。有理数精确验证,提交浮点数直接判零——数值 SDP 解不是证明。 |
 
@@ -89,7 +90,7 @@
 | [`SequenceLawRecovery`](benchmarks/Mathematics/SequenceLawRecovery/)<br>整数序列递推恢复 | Mathematics | Mathematics | clipped | community_symbolic_sympy | candidate | Given the first terms of an integer sequence, state the linear recurrence that produced it. | 给出整数序列前若干项,说出产生它的线性递推;项数不足以定唯一最小规则时拒答 | 延续准确率;误发现率与不定性拒答分开报告 |
 | [`ComplexBoseLaw`](benchmarks/Physics/ComplexBoseLaw/)<br>复玻色占据律 | Physics | Physics | clipped | physical_sim | candidate | a mixed cavity occupancy is not textbook Planck | 在模式混合下恢复玻色占据律的移位指数;费米型世界须拒答 | 指数恢复 + 费米拒答;不是教科书普朗克曲线的直接拟合 |
 
-### 结构(structure) — 7
+### 结构(structure) — 6
 
 | 任务 | 学科 | 领域 | 打分 | oracle | 认证 | 说明 | 中文题意 | 中文评估方法 |
 |---|---|---|---|---|---|---|---|---|
@@ -97,23 +98,24 @@
 | [`GraphFromDistances`](benchmarks/ComputerScience/GraphFromDistances/)<br>距离查询重建图 | ComputerScience | Algorithm | clipped | community_graph_algorithms_networkx | candidate | A weighted network exists but you cannot see it. | 在有限次距离查询下重建加权网络的边:短距离不等于相邻,可能是两条短边的两跳路径 | 边恢复 F1;误发现率与不可辨识拒答分开报告 |
 | [`InterventionalSCM`](benchmarks/ComputerScience/InterventionalSCM/)<br>干预式结构因果模型 | ComputerScience | CausalDiscovery | clipped | physical_sim | candidate | recover hidden causal mechanisms by experimentation | 用干预实验打破马尔可夫等价,恢复隐藏线性无环结构因果模型的有向图与系数 | 有向图与结构系数恢复;观测关联不足以定向 |
 | [`SurvivorshipConfoundedDesign`](benchmarks/ComputerScience/SurvivorshipConfoundedDesign/)<br>幸存者偏差下的效应估计 | ComputerScience | CausalDiscovery | clipped | physical_sim | candidate | association among survivors is not a treatment effect | 每一行数据都已被结果相关的筛选选中,在幸存者表里估计真实处理效应 | 处理效应恢复;混杂开启的伪关联须识别,无 T→Y 边时不得宣称效应 |
-| [`GridTopologyRecovery`](benchmarks/Engineering/GridTopologyRecovery/)<br>电网拓扑辨识 | Engineering | PowerSystems | clipped | physical_sim | candidate | A five-bus DC network has unknown line status. | 用两次冻结注入下的母线相角,从五节点目录里认出在运拓扑;两个目录图电等价时须拒答 | 拓扑恢复 + 不可辨识拒答;不是已知拓扑下的构件损伤,也不是模拟耦合网络 |
 | [`BlackBoxGroupIdentification`](benchmarks/Mathematics/BlackBoxGroupIdentification/)<br>黑盒群同构辨识 | Mathematics | Mathematics | clipped | analytical | candidate | A finite set of `order` labelled elements and a black-box product: `mul(a, b)` returns the label | 只给黑盒乘法与随机标号,在查询预算内从公开构造目录里辨识群的同构类 | 目录 id 精确门控;非群与目录外两种拒答理由分开计分,阶数分布不足以辨识 |
 | [`HiddenCouplingNetwork`](benchmarks/Physics/HiddenCouplingNetwork/)<br>隐藏耦合网络重建 | Physics | Physics | clipped | physical_sim | candidate | A network of `units` observed units relaxes to a steady state under constant drive. | 实验次数少于单元数,从多单元驱动的稳态里恢复带符号的直接耦合图;存在未观测单元时拒答 | 带符号边 F1;间接路径、tanh 非线性与隐藏单元造成的稠密低秩耦合分别记误发现 |
 
-### 证据(evidence) — 7
+### 证据(evidence) — 9
 
 | 任务 | 学科 | 领域 | 打分 | oracle | 认证 | 说明 | 中文题意 | 中文评估方法 |
 |---|---|---|---|---|---|---|---|---|
+| [`OccupancyDetectionDesign`](benchmarks/Biology/OccupancyDetectionDesign/)<br>生态占域与探测设计 | Biology | Ecology | clipped | statistical_sim | candidate | A nondetection does not prove absence. | 在漏检条件下分配站点复访与调查方法,恢复栖息地占域效应或拒绝不充分模型 | 效应方向、效应量与平均占域率;误发现、拒答、覆盖率和留出迁移分列 |
 | [`ProspectiveMetaAnalysis`](benchmarks/Biology/ProspectiveMetaAnalysis/)<br>前瞻荟萃分析 | Biology | EvidenceSynthesis | clipped | prospective_evidence_synthesis | candidate | synthesize registered evidence and design confirmation | 在注册表加文献语料里筛研究、识别同一人群血缘的重复报告与换端点,做异质性荟萃回归 | 筛选、证据血缘完整性、荟萃回归、校准拒答、下一步研究信息量与前瞻确认分列 |
 | [`ForcedSignalAttribution`](benchmarks/EarthScience/ForcedSignalAttribution/)<br>强迫信号检测归因 | EarthScience | ClimateScience | clipped | statistical_sim | candidate | A regional field is observed for `years` years over `regions` regions. | 在控制年预算下判断区域记录里是否含强迫响应、估其幅度与区间;模型指纹或变率不可信时拒答 | 检测率、幅度分、区间覆盖分列;红噪声假趋势与安静模型均记误发现 |
+| [`UPbConcordiaInference`](benchmarks/EarthScience/UPbConcordiaInference/)<br>铀铅谐和图事件归因 | EarthScience | Geophysics | clipped | physical_sim | candidate | infer a zircon event history | 在分析预算内选择锆石域,由两套铀铅衰变比判断单一结晶或一次铅丢失历史;可分辨的多事件历史须拒答 | 事件类型 + 结晶与铅丢失年龄 + 证据血缘;误发现、拒答、覆盖率和留出迁移分列 |
 | [`ModalDamageAttribution`](benchmarks/Engineering/ModalDamageAttribution/)<br>模态损伤归因 | Engineering | StructuralEngineering | clipped | physical_sim | candidate | is the modal shift damage, or the weather? | 在受预算约束的测量日里判断模态频率的偏移是不是某个内部元件的刚度损伤、是哪一个、损失多少;支座变化导致的偏移须拒答 | 定位精确门控 + 严重度容差评分;温度对频率比精确抵消,健康结构误报与支座变化误判分别记误发现,分数标尺锚在全弃权为零 |
 | [`HeavyTailEvidence`](benchmarks/Mathematics/HeavyTailEvidence/)<br>重尾证据判别 | Mathematics | Mathematics | clipped | physical_sim | candidate | A positive sample is either a power law with known `xmin`, a lognormal above `xmin`, a | 在已知 xmin 下判断样本是幂律还是对数正态;指数截断或样本过短须拒答 | 家族恢复 + 截断/小样本拒答;不是质量窗口的 look-elsewhere,也不是不相容常数调和 |
 | [`DiscrepantMeasurements`](benchmarks/Physics/DiscrepantMeasurements/)<br>不相容测量调和 | Physics | ParticlePhysics | clipped | statistical_sim | candidate | Eight groups have measured the same physical constant. · on-ramp,不配对 | 八组测量同一常数但彼此不相容,诊断这批证据出了什么问题并给最佳值或判定没有最佳值 | 缺陷诊断 + 收费的内部一致性检验 + 拒答 |
 | [`LookElsewhereAnomaly`](benchmarks/Physics/LookElsewhereAnomaly/)<br>多窗口扫描的全局显著性 | Physics | ParticlePhysics | clipped | physical_sim | candidate | local 5σ is not a discovery | 一张质量谱在多个窗口里扫描,判定局域 5σ 在计入试验因子后还剩多少 | look-elsewhere 后的全局显著性;边带拒绝公开本底时须拒答 |
 | [`PTAHellingsDowns`](benchmarks/Physics/PTAHellingsDowns/)<br>脉冲星阵四极相关 | Physics | Gravitation | clipped | physical_sim | candidate | a common process is not a gravitational-wave background | 脉冲星计时阵里区分 Hellings-Downs 四极相关(引力波背景)与钟差单极、星历偶极、共同红噪声 | 四极 vs 单极判别与拒答;共同过程不等于引力波背景 |
 
-### 物质(substance) — 6
+### 物质(substance) — 5
 
 | 任务 | 学科 | 领域 | 打分 | oracle | 认证 | 说明 | 中文题意 | 中文评估方法 |
 |---|---|---|---|---|---|---|---|---|
@@ -121,7 +123,6 @@
 | [`PhaseDiagramDiscovery`](benchmarks/Chemistry/PhaseDiagramDiscovery/)<br>相图发现 | Chemistry | MaterialsScience | clipped | physical_sim | candidate | An isothermal section of a binary system A-B. | 在合成预算下测定二元等温相图:哪些平衡相存在、各占哪段成分,或该体系根本达不到平衡 | 相集精确门控 + 杠杆定律边界精度;两相区叠加、杂质峰、动力学冻结须区分,冻结体系须拒答 |
 | [`QuinaryConvexHull`](benchmarks/Chemistry/QuinaryConvexHull/)<br>五元凸包稳定相 | Chemistry | MaterialsScience | clipped | analytical | candidate | E_f < 0 is not a new stable | 五元体系里给出凸包上真正稳定的非一元相;生成焓小于零不等于新稳定相 | 精确非一元凸包顶点;玻璃态须拒答 |
 | [`MethaneSourceAttribution`](benchmarks/EarthScience/MethaneSourceAttribution/)<br>甲烷源归因 | EarthScience | AtmosphericChemistry | clipped | analytical | candidate | say which sources moved, or say the record cannot tell | 在固定观测预算下,判断二十年里哪些甲烷排放部门发生了变化——以及在记录判不了时说出判不了。2007 年后大气甲烷重新增长、δ¹³C 变轻,驱动因素至今没有定论:同位素证据被读成主要是微生物源,而这个读法又被以源signature空间变异和汇的未解问题反驳。四类世界只有两类可答:化石与生物质燃烧会让 δ¹³C 上升、乙烷能分开;单一微生物源变化足够大时部门清单能认出;而纯汇变化和两个微生物源同时小幅变化都判不了。 | 三轴分开报、永不平均:机制恢复率、假发现率(带分母)、校准拒答率,外加是否尝试过的计数。总分是三者之积,全弃权与从不弃权都恰好得零。关键在于纯汇变化能被纯源变化复现到观测噪声以内(约化失配 0.00),而它看起来最像废弃物在小幅增加——baseline 在八个纯汇案例里点名废弃物五次。出路是买废弃物清单,发现它没变,把自上而下与自下而上的矛盾当作弃权的理由。 |
-| [`UltrasonicDefectSpecies`](benchmarks/Engineering/UltrasonicDefectSpecies/)<br>超声缺陷种类判别 | Engineering | Sensors | clipped | physical_sim | candidate | A pulse-echo A-scan of a steel plate is either a **crack** (phase-inverted | 从预算内脉冲回波 A 扫认出裂纹、气孔、未熔合或无缺陷;两种缺陷同时存在或波型转换附加回波须拒答 | 缺陷种类恢复 + 混合/波型转换拒答;不是已知拓扑下的构件损伤,也不是石英微天平电路反演 |
 | [`TransmissionSpectrumSpecies`](benchmarks/Physics/TransmissionSpectrumSpecies/)<br>透射光谱分子判定 | Physics | Exoplanets | clipped | analytical | candidate | say which molecules are there, or say you cannot tell | 在固定的凌星次数预算下,判断系外行星大气里有哪些分子——以及在观测无法判定时说出无法判定。K2-18b 的 DMS 之争正是这个问题:多次重分析的结论是那些特征并非唯一可辨识。四类世界里有三类不可辨识,而且原因各不相同:灰云层一次压平所有特征;混淆对在任何预算分配下都分不开(单振幅误差是其和的 24.5 倍);暗弱系统把整个预算压在最好波段也到不了 1σ。只有第三类是噪声。 | 三轴分开报、永不平均:机制恢复率、假发现率(带分母)、校准拒答率,外加是否尝试过的计数。总分是三者之积,归一化到全弃权恰好得零——从不弃权因拒答率为零也得零,两种退化策略都是零,靠尝试率把它们区分开。点名混淆对里任何一方都算假发现,即使其中一个确实存在:世界不决定是哪一个。 |
 
 ### 参数反演(parameter_inversion) — 15
