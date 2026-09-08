@@ -48,7 +48,9 @@ This checks observable separation only; it is not independent scientific validat
 The old score reduction depended on noise-indistinguishable worlds. It is retired, not
 renamed or used as supporting evidence. The evaluator structure is adapted from
 EarthScience/AMOCTippingRefusal; the nearest research-task neighbours are ComplexBoseLaw
-and EnzymeKineticsLaw. Confidence now has an explicit calibration metric and the axes
+and EnzymeKineticsLaw. Confidence uses the world's in-family status as its Brier target,
+independent of the decision to abstain; invalid submissions receive zero calibration credit.
+Blanket refusal scores 0.625 / 0.666667 on calibration, not a perfect 1. The axes
 include their supported/unsupported denominators. Lineage remains incomplete_legacy.
 
 ## Robustness and model draws

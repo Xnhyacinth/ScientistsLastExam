@@ -59,7 +59,10 @@ Correct-family joint recovery is
 Wrong family or refusal on a supported world gives zero; correct refusal on an unsupported
 world gives one. The mean is normalized above always-abstain and clipped to [0,1].
 Mechanism, false discovery, refusal, coverage and confidence calibration are reported separately,
-with supported/unsupported counts. Always-abstain is exactly zero. Held-out metrics are evaluator-only.
+with supported/unsupported counts. Confidence is the probability that a supported flow family
+applies to the world; its calibration target is the world's in-family status. Invalid
+submissions receive zero calibration credit. Always-abstain has combined score zero.
+Held-out metrics are evaluator-only.
 `sle.contract_lint` is importable and free to call for shape checks; the evaluator validates
 submissions independently. Non-refusals require finite log_A and nonnegative activation_temperature.
 

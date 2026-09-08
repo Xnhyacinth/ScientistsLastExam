@@ -182,7 +182,8 @@ def _split_summary(records):
         "supported_count": len(supported),
         "unsupported_count": len(unsupported),
         "confidence_calibration": float(np.mean([
-            1.0 - (row["confidence"] - (row["valid"] and not row["abstained"] and row["kind"] in SUPPORTED)) ** 2
+            (1.0 - (row["confidence"] - float(row["kind"] in SUPPORTED)) ** 2)
+            if row["valid"] else 0.0
             for row in records
         ])),
     }

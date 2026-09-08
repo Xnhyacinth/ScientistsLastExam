@@ -89,6 +89,11 @@ class GlenFlowLawDiscoveryTests(unittest.TestCase):
         self.assertEqual(reference["development_false_discovery_rate"], 0.0)
         self.assertEqual(reference["development_correct_refusal_rate"], 1.0)
 
+    def test_blanket_refusal_does_not_claim_perfect_confidence_calibration(self):
+        result = self.evaluator.evaluate(lambda *_: {"abstain": True, "confidence": 0.0})
+        self.assertEqual(result["development_confidence_calibration"], 5 / 8)
+        self.assertEqual(result["heldout_confidence_calibration"], 4 / 6)
+
     def test_reference_meets_difficulty_admission_band(self):
         # Keep the original scientific gate. The draft must remain blocked until a
         # substantive redesign passes it, independently of functional correctness.
