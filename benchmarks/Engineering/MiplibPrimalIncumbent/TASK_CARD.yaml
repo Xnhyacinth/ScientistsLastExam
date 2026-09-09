@@ -35,7 +35,12 @@ known_shortcuts: >-
   in the Linux sandbox. It is retired. On queens-30, SciPy 1.11.4 / NumPy 1.26.4,
   a 240-second single-thread milp call in the same sandbox finds 35 queens, score 0.875,
   with zero constraint violation. A 60-second in-process probe also finds 35.
-  This removes near-saturation, but library reuse remains strong and calibration is pending.
+  This did not remove near-saturation: the September 9 maintainer review reports a
+  valid no-solver greedy/two-exchange candidate at 0.900 (60s) and 0.925 (240s), plus a
+  separate stricter-check script at 0.950 (7.1s) and 0.975 (44.3s). Scientific admission
+  and file-level redistribution review remain blocked; no score rescaling is claimed as a repair.
+  The new deterministic public-CSR local_search_probe.py independently finds 38 queens,
+  score 0.95 with zero violation in the real sandbox after 2500 rounds.
 review:
   status: pending_external
   domain: pending_external_operations_research

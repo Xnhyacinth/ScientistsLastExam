@@ -35,7 +35,6 @@ library baseline, not proof of model hardness or resistance to memorization.
 The old MPS parser silently ignored upper bounds and unsupported sections. The replacement
 needs binary upper bounds; they are now read and checked. RANGES, objective offsets and
 unsupported bound kinds raise errors, and all columns must be declared integer.
-FrozenKernelProofFrontier is withdrawn from the PR and retained on a separate local branch.
 
 ## Robustness
 
@@ -45,5 +44,26 @@ variation or fresh-instance generalization is claimed for this one fixed public 
 
 ## Model draws
 
-Not run. Lineage and construction status are incomplete_legacy. The remaining 0.125 gap in
-the measured library probe does not establish long-horizon difficulty. External review pending.
+Not run. Lineage and construction status are incomplete_legacy. The 0.125 gap in the library probe was superseded by stronger no-solver local search
+in the September 9 maintainer review; it does not establish long-horizon difficulty. External review pending.
+
+
+## September 9 no-solver counterexample and admission hold
+
+[Owner measurements](https://github.com/Geniusyingmanji/ScientistsLastExam/pull/31#issuecomment-5594780525)
+use greedy insertion plus two-exchange local search: a valid evaluator-tested candidate
+finds 36 queens (0.900) in 60 seconds and 37 (0.925) in 240 seconds. A separate script
+with stricter feasibility finds 38 (0.950) in 7.1 seconds and 39 (0.975) by 44.3 seconds.
+These are attributed maintainer probes, not interchangeable timing protocols or model draws.
+They supersede the claim that replacing gen-ip with queens-30 removed near-saturation.
+
+The task remains blocked by limited measured search headroom and pending file-level data
+rights. A monotone log-gap rescale would not add attainable objective levels or defeat the
+heuristic; this update does not claim it repairs scientific difficulty.
+
+
+The self-contained `references/local_search_probe.py` uses only the public CSR matrix,
+NumPy, deterministic seed 20260909 and 2500 greedy/two-exchange rounds. Independently run
+through `python -m sle eval` with a 180-second timeout, it finds **38 queens**, objective
+**-38**, score **0.95**, valid with zero constraint violation. This is an algorithm probe,
+not a model result or a timing comparison with the maintainer's different configurations.

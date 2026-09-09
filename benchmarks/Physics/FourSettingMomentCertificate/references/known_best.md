@@ -13,6 +13,10 @@ The zero anchor is the exact level-one optimum 5/8: a matching PSD unit-diagonal
 moment matrix in level_one_moment_matrix.json attains the same value. Tests verify both sides. The score-one anchor is the included
 24-word-pool certificate 0.45533067671165467, a computed witness, not a published optimum.
 The pool is 16 mixed A_i B_j words and eight explicitly listed same-party words.
+The mixed terms cover all setting pairs; the same-party terms keep both orders of the
+disjoint pairs (0,1) and (2,3) on each party. This is a builder-chosen truncation, not an
+optimal or exhaustive hierarchy. Omitted pairs are not claimed scientifically irrelevant;
+alternative pools need independent comparison before a difficulty claim.
 
 ## Ablation ladder and shortcut probes
 
@@ -20,6 +24,7 @@ A Python 3.12 / NumPy 1.26.4 / SciPy 1.14.1 builder probe gave:
 
 | basis | bound | score |
 |---|---:|---:|
+| baseline triangle SOS | 4 | 0 |
 | old pairing shortcut, no nonzero extras | 3.5 | 0 |
 | level one, no extras | 0.625 exactly | 0 |
 | k=8 reference | 0.5714453258 | 0.255848 |

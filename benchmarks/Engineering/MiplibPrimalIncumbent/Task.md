@@ -27,7 +27,7 @@ def improve_primal(problem):
     """Return one dense integer assignment in frozen MPS column order."""
 ```
 
-The same function is called once for each instance. `problem` contains:
+The same function is called once for the frozen instance. `problem` contains:
 
 | key | value |
 |---|---|
@@ -65,13 +65,16 @@ MIPLIB solufile v36; no claim is made that it is an open record.
 - Networkless, single-process, bounded by the framework timeout.
 - Only edit `solution.py`; keep `improve_primal(problem)`.
 - Do not read `verification/` or `frontier_eval/`.
-- The MPS files under `references/instances/` are the same models as the CSR payload.
+- The MPS file under `references/instances/` is the same model as the CSR payload.
 
 ## Relation to nearby tasks
 
-- **PermutationFlowShop (#54)** is Engineering × combinatorial too, but the object is a
+- **PermutationFlowShop (open PR #54)** is Engineering × combinatorial too, but the object is a
   job permutation and the check is makespan. This task checks a dense integer assignment
   against an authentic MIPLIB matrix.
+- **GraphFromDistances** reconstructs a graph from queries; **ShannonCapacityCertificate**
+  verifies information-theoretic constructions. Neither optimizes a dense integer assignment
+  against a provided MPS constraint matrix.
 - The source and redistribution-status notes are recorded in references/DATA_LICENSE.md.
 - Not a Frontier-Eng design task: the object is a general integer assignment on a
   frozen MIPLIB matrix, not a simulator-backed engineering layout.

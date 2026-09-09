@@ -1,8 +1,8 @@
 domain: DiscreteOptimization
 task: MiplibPrimalIncumbent
 scientific_role: optimization
-difficulty: hard
-tier: T2
+difficulty: unmeasured
+tier: candidate
 oracle_type: analytical
 score_mode: clipped
 gpu_required: false
