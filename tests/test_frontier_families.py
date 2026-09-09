@@ -135,6 +135,22 @@ def _record(
 
 
 class FrozenWaveTests(unittest.TestCase):
+    def test_family_audit_rejects_renamed_identical_cells(self):
+        first = _wave()
+        for source_id in ("solver", "claims"):
+            with self.subTest(kind=source_id):
+                clone = dict(first.cells[source_id], id=source_id + "_clone")
+                if source_id == "claims":
+                    clone["novelty_namespace"] += "-clone"
+                second = FrozenWave(first.task_family_id, "wave-2", "f" * 64,
+                                    first.manifest_sha256,
+                                    {**first.cells, clone["id"]: clone})
+                specs = [SimpleNamespace(task_id="a"), SimpleNamespace(task_id="b")]
+                with patch("sle.frontier.load_frozen_wave", side_effect=[first, second]):
+                    issues = validate_family_waves(specs)
+                self.assertTrue(any("duplicates cell semantics" in issue for issue in issues), issues)
+
+
     def _spec(self, root: Path):
         eval_dir = root / "frontier_eval"
         eval_dir.mkdir(parents=True)

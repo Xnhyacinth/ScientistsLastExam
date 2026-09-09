@@ -257,7 +257,7 @@ class BatchAggregationTests(unittest.TestCase):
         )
         frozen = MODULE._frozen_task_bindings([spec])[spec.task_id]
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             work_root = root / "runs"
             outside = root / "outside"
             cell = (
@@ -330,7 +330,7 @@ class BatchAggregationTests(unittest.TestCase):
                         "seed": 0,
                         "feedback_modes": feedback_modes,
                         "llm_config": self.Config(),
-                        "work_root": temporary,
+                        "work_root": str(Path(temporary).resolve()),
                         "budget": 1,
                         "timeout_s": 1.0,
                         "resume": False,
@@ -359,7 +359,7 @@ class BatchAggregationTests(unittest.TestCase):
         )
         frozen = MODULE._frozen_task_bindings([spec])[spec.task_id]
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             outside = root / "outside"
             outside.mkdir()
             cell = (
@@ -374,7 +374,7 @@ class BatchAggregationTests(unittest.TestCase):
                 "seed": 0,
                 "feedback_modes": ["normal"],
                 "llm_config": self.Config(),
-                "work_root": temporary,
+                "work_root": str(Path(temporary).resolve()),
                 "budget": 1,
                 "timeout_s": 1.0,
                 "resume": False,
@@ -418,7 +418,7 @@ class BatchAggregationTests(unittest.TestCase):
             "seed": 0,
             "feedback_modes": ["normal"],
             "llm_config": self.Config(),
-            "work_root": temporary.name,
+            "work_root": str(Path(temporary.name).resolve()),
             "budget": 1,
             "timeout_s": 1.0,
             "resume": False,
@@ -453,7 +453,7 @@ class BatchAggregationTests(unittest.TestCase):
             "seed": 0,
             "feedback_modes": ["normal"],
             "llm_config": self.Config(),
-            "work_root": temporary.name,
+            "work_root": str(Path(temporary.name).resolve()),
             "budget": 1,
             "timeout_s": 1.0,
             "resume": False,
@@ -499,7 +499,7 @@ class BatchAggregationTests(unittest.TestCase):
             "seed": 0,
             "feedback_modes": ["normal"],
             "llm_config": self.Config(),
-            "work_root": temporary.name,
+            "work_root": str(Path(temporary.name).resolve()),
             "budget": 1,
             "timeout_s": 1.0,
             "resume": False,
@@ -582,7 +582,7 @@ class BatchAggregationTests(unittest.TestCase):
     def test_completed_report_entry_requires_verified_underlying_run(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        work_root = Path(temporary.name)
+        work_root = Path(temporary.name).resolve()
         run_path = (
             work_root / "T__X" / "greedy_rewrite" / "normal" / "seed_0"
         )
@@ -615,7 +615,7 @@ class BatchAggregationTests(unittest.TestCase):
     def test_completed_report_entry_cannot_claim_a_different_seed(self):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
-        work_root = Path(temporary.name)
+        work_root = Path(temporary.name).resolve()
         descriptor = current_runtime_descriptor(())
         bindings = {"T/X": {
             "trusted_evaluator_runtime": descriptor,
@@ -659,7 +659,7 @@ class BatchAggregationTests(unittest.TestCase):
             "trusted_evaluator_runtime_sha256": descriptor["fingerprint_sha256"],
         }
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             work_root = root / "current-runs"
             other_root = root / "other-runs"
             work_root.mkdir()
@@ -749,7 +749,7 @@ class BatchAggregationTests(unittest.TestCase):
             timeout_seconds=1,
         )
         with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
+            root = Path(temporary).resolve()
             payload = {
                 "block_index": 1,
                 "task": task,
@@ -999,7 +999,7 @@ class BatchAggregationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.object(
             MODULE, "load_llm_client", return_value=client
         ), patch.object(MODULE, "source_provenance", return_value=clean):
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             output = root / "report.json"
             # Budget zero keeps this fixture offline, while run-role exercises
             # the same evidence-scope branch used by a nonzero protocol smoke.
@@ -1027,7 +1027,7 @@ class BatchAggregationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, patch.object(
             MODULE, "load_llm_client", return_value=client
         ), patch.object(MODULE, "source_provenance", return_value=clean):
-            root = Path(tmp)
+            root = Path(tmp).resolve()
             preregistration = root / "prereg.json"
             preregistration.write_text('{"version":3}\n', encoding="utf-8")
             output = root / "report.json"
@@ -1038,7 +1038,7 @@ class BatchAggregationTests(unittest.TestCase):
             ]), 0)
             report = json.loads(output.read_text(encoding="utf-8"))
             bound = report["config"]["preregistration"]
-            self.assertEqual(bound["path"], str(preregistration.resolve()))
+            self.assertEqual((MODULE.ROOT / bound["path"]).resolve(), preregistration.resolve())
             self.assertEqual(bound["bytes"], len(preregistration.read_bytes()))
             self.assertEqual(len(bound["sha256"]), 64)
 

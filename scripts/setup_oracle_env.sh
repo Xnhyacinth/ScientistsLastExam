@@ -23,6 +23,11 @@
 # Full oracle setup is certified only for Python 3.8 and fails before resolution otherwise.
 set -euo pipefail
 
+if (( BASH_VERSINFO[0] < 4 )); then
+  printf '%s\n' 'setup_oracle_env.sh requires Bash 4 or newer (mapfile and associative arrays).' >&2
+  exit 2
+fi
+
 ORACLE_PYTHON="${ORACLE_PYTHON:-/usr/bin/python3}"
 BOOTSTRAP_VENV="${BOOTSTRAP_VENV:-$HOME/.cache/sle-bootstrap-venv}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"

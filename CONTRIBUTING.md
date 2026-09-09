@@ -138,6 +138,9 @@ normalized = (raw_mechanism - always_abstain) / (1.0 - always_abstain)
 
 ---
 
+`difficulty: unmeasured` / `tier: candidate` 记录尚未完成难度标定的状态,不是降低准入目标。
+新投稿仍以 hard/flagship 为目标;生成器和结构审计通过不代表难度准入通过。
+
 ## 打分模式
 
 | 模式 | 何时使用 | 分数范围 |
@@ -154,7 +157,9 @@ normalized = (raw_mechanism - always_abstain) / (1.0 - always_abstain)
 截断的模型分数，其任务空间、资源包络与可达效用仍可能有界；
 后者是同一 task family 跨不可变 waves 的科学前沿账本。优化记录只累计超过 incumbent 与
 `minimum_delta` 的边际增益;发现记录只累计 trusted evaluator 产生的唯一 canonical claim。
-账本不能把候选提交次数、置信度、重复结构或新增容易 cell 当成进步。具体 manifest schema、
+账本代码在同一 cell/namespace 内去重,贡献门要求 baseline/有效全弃权不发 frontier records。
+跨契约的语义重复、新增容易 cell 与 surrogate-only 确认要求由 wave 评审把关。
+credit 不含假发现/弃权惩罚,不能作为综合提交质量分。具体 manifest schema、
 链式账本和 threat model 见 [`docs/frontier_families.md`](docs/frontier_families.md)。
 
 ---
@@ -295,13 +300,15 @@ CI 其余部分对 PR 一视同仁:审计、卡片校验、沙箱测试全部要
 |---|---|---|
 | 笔记本(macOS / Windows) | 改代码;`python -m pytest tests/ -q`(需要沙箱的测试自动 skip);写任务文档 | 跑 `sle eval / run`、标定、Δ 阶梯、任何要进仓库的证据 |
 | Linux 主机(bubblewrap + util-linux flock) | 以上全部;`refresh_global_evidence.py`;恢复审计;`rebind_measurement_health_spec.py` | 在脏树上生成证据 |
-| CI(GitHub Actions,ubuntu-22.04) | 全量测试 + 审计,合并前唯一算数的绿灯 | 生成证据(runner 不是可信来源) |
+| CI(GitHub Actions,ubuntu-22.04 / ubuntu-24.04) | 全量测试 + 审计,合并前唯一算数的绿灯 | 生成证据(runner 不是可信来源) |
 
 原因写在沙箱里:候选代码在 bubblewrap 中由启动测试的同一 CPython ABI 执行。沙箱只读挂载该
 解释器、标准库、显式允许的包入口和解析出的共享库闭包,不会整体暴露 `/usr /lib /lib64`。
 因此依赖必须安装到启动测试的解释器可见的位置;CI 使用 `/usr/bin/python3`,维护者的完整 oracle
 环境则必须显式设置 `ORACLE_PYTHON=/path/to/python3.8`。其他 Python 版本可运行其已固定的基础
-candidate 包组合,但完整 oracle 安装目前只认证 Python 3.8并会对其他版本提前 fail closed。
+candidate 包组合,但完整 oracle 安装目前只认证 Python 3.8 并会对其他版本提前 fail closed。
+安装脚本需要 Bash 4+。Ubuntu 24.04 的 CI 显式关闭 AppArmor 对非特权 user namespace 的限制;
+这验证的是完成该主机配置后的沙箱,不是出厂配置的兼容性。基准主机也须配置该限制或使用经过审计的 setuid bwrap。
 macOS 没有 bubblewrap,沙箱路径一律不可用。
 
 证据文档(`experiments/*.json`、`.research/*_spec_*.json`)都带 `source_provenance`:git 修订、

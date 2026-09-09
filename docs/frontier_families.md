@@ -8,7 +8,8 @@ evidence produced by an earlier release. SLE therefore keeps two quantities sepa
 
 - `combined_score` belongs to one frozen task package and is used for model comparison;
 - `lifetime_frontier_credit` belongs to a stable task family and is an append-only record of
-  independently verified frontier gains.
+  independently verified frontier gains. The stored/CLI field is `lifetime_credit`;
+  `lifetime_frontier_credit` is the descriptive name of the quantity.
 
 An `uncapped` release score may exceed its score-one reference. It does not by itself prove that
 the task will remain scientifically productive forever. Lifetime credit can grow across waves,
@@ -108,11 +109,16 @@ credit = weight * scientific_improvement / credit_scale
 ```
 
 A discovery record contains a frozen cell ID and evaluator-derived canonical claim ID. Deduplication
-uses `task_family_id + novelty_namespace + canonical_id`, not the cell ID, so overlapping cells
-cannot count the same scientific claim twice. The first verified occurrence earns
+uses `task_family_id + novelty_namespace + canonical_id`. It prevents a repeated claim
+within the same family/namespace, not semantic duplication under a different namespace. The first verified occurrence earns
 `weight * credit_per_claim`; repetitions earn zero. Discovery
 mechanism recovery, false-discovery rate, calibrated refusal, and attempted-discovery coverage
-remain separate release metrics. Lifetime credit must not average or hide any of those axes.
+remain separate release metrics. Lifetime credit is nonnegative, cumulative, and does not
+include false-discovery or refusal penalties; optimization record credit has no generic upper
+bound. It is not an overall submission-quality score. The task evaluator must verify claims
+and the contribution gate requires baseline/valid blanket-abstention results to emit no records.
+Any family-level FDR eligibility policy or credit cap requires explicit maintainer approval;
+this implementation does not silently introduce either policy.
 
 ## Integrity properties
 
@@ -128,12 +134,17 @@ repository and every external receipt is outside this module's trust boundary.
 The following never earns credit:
 
 - an invalid or unverified evaluator result;
-- a repeated canonical artifact or discovery;
+- a repeated canonical artifact within one cell or discovery within one family/namespace;
 - an optimization smaller than the frozen minimum scientific delta;
 - a candidate-created cell or weight;
 - a changed cell definition under an existing cell ID;
-- a wave that does not extend the recorded predecessor chain;
-- a surrogate-only claim lacking the task's required high-fidelity or fresh confirmation.
+- a wave that does not extend the recorded predecessor chain.
+
+The repository family audit also rejects literally identical cell semantics under renamed IDs
+or namespaces. It cannot decide whether differently encoded contracts represent the same
+science. Wave review must reject renamed scientific claims, easy added cells, and surrogate-only
+claims lacking required high-fidelity or fresh confirmation. These are task/review obligations,
+not generic ledger invariants.
 
 The same evaluation request is idempotent. A repeated request returns its original decision; a
 different metrics receipt for that request is rejected. Within one wave, the same candidate artifact

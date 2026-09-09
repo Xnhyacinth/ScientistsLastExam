@@ -121,6 +121,7 @@ def check_task(task_id: str, timeout_s: float = 180.0, *, skip_eval: bool = Fals
     else:
         _ok(rows, "metadata", spec.metadata.get("scientific_role", ""))
 
+    wave = None
     try:
         wave = load_frozen_wave(spec)
     except ValueError as exc:
@@ -176,6 +177,8 @@ def check_task(task_id: str, timeout_s: float = 180.0, *, skip_eval: bool = Fals
             _ok(rows, "discovery_axes", "skipped")
             _ok(rows, "degenerate_candidates_score_zero", "skipped")
         _ok(rows, "bad_candidates_score_zero", "skipped")
+        if wave is not None:
+            _ok(rows, "frontier_degenerate_credit_zero", "skipped")
     else:
         baseline = evaluate_candidate(spec, spec.initial_program_path, timeout_s=timeout_s)
         score = float(baseline.get("combined_score", -1e18))
@@ -191,11 +194,19 @@ def check_task(task_id: str, timeout_s: float = 180.0, *, skip_eval: bool = Fals
             _ok(rows, "baseline_eval", "combined_score=%s" % score)
 
         repeat = evaluate_candidate(spec, spec.initial_program_path, timeout_s=timeout_s)
-        if repeat != baseline:
+        if baseline.get("infrastructure_failure") or repeat.get("infrastructure_failure"):
+            _fail(rows, "deterministic_baseline", "infrastructure failure is not a science result")
+        elif repeat != baseline:
             _fail(rows, "deterministic_baseline",
                   "full metric payload changed between identical evaluations")
         else:
             _ok(rows, "deterministic_baseline", "")
+
+        frontier_offenders = []
+        if wave is not None:
+            for label, metrics in (("baseline", baseline), ("repeat_baseline", repeat)):
+                if metrics.get("infrastructure_failure") or metrics.get("frontier_records") != []:
+                    frontier_offenders.append(label + ": expected empty frontier_records")
 
         if role == "discovery":
             has_mechanism = any(key in baseline for key in DISCOVERY_MECHANISM)
@@ -235,15 +246,19 @@ def check_task(task_id: str, timeout_s: float = 180.0, *, skip_eval: bool = Fals
                         metrics = evaluate_candidate(spec, candidate, timeout_s=timeout_s)
                     except Exception as exc:  # noqa: BLE001
                         offenders.append("%s:%s" % (kind, exc))
+                        frontier_offenders.append("%s:evaluation failed" % kind)
                         continue
                     if metrics.get("infrastructure_failure"):
                         offenders.append("%s:infrastructure_failure" % kind)
+                        frontier_offenders.append("%s:infrastructure_failure" % kind)
                         continue
                     degenerate_score = float(metrics.get("combined_score", INVALID_SCORE))
                     # Scoring zero is the requirement. Being rejected outright is acceptable too:
                     # a task whose contract has no abstain key simply cannot be gamed this way.
                     if float(metrics.get("valid", 0.0)) == 0.0:
                         continue
+                    if wave is not None and metrics.get("frontier_records") != []:
+                        frontier_offenders.append(kind + ": expected empty frontier_records")
                     if abs(degenerate_score) > BASELINE_ZERO_TOLERANCE:
                         offenders.append("%s scores %s, not zero" % (kind, degenerate_score))
             if offenders:
@@ -251,6 +266,12 @@ def check_task(task_id: str, timeout_s: float = 180.0, *, skip_eval: bool = Fals
             else:
                 _ok(rows, "degenerate_candidates_score_zero",
                     "blanket abstention earns nothing")
+
+        if wave is not None:
+            if frontier_offenders:
+                _fail(rows, "frontier_degenerate_credit_zero", "; ".join(frontier_offenders))
+            else:
+                _ok(rows, "frontier_degenerate_credit_zero", "baseline and valid abstentions emit no records")
 
         crashes = []
         for kind, template in BAD_CANDIDATES.items():

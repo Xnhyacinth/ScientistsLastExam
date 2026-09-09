@@ -85,7 +85,8 @@ discovery(32 个):从受预算约束的观测里恢复一个机制,或判断根�
 `task_family_id` 下的每个 `wave_id` 都有冻结的 `frontier_eval/wave.yaml`；运行清单同时绑定
 wave、task package 与 runtime hash。固定 wave 的 `combined_score` 用于公平比较，跨 wave 的
 `lifetime_frontier_credit` 只累计通过 trusted evaluator 规范化、去重且超过最小科学增量的记录。
-新增容易实例、重复 artifact 或候选自己定义的 cell 都不能增加 lifetime credit。完整契约见
+代码拒绝候选自造 cell,并在同一 cell/namespace 内去重;跨契约的语义重复、新增容易 cell 与高保真确认由 wave 评审把关。
+credit 不包含假发现/弃权惩罚,不是提交质量综合分。完整契约见
 [`docs/frontier_families.md`](docs/frontier_families.md)。
 `python -m sle list --all` 是权威的实时清单。
 

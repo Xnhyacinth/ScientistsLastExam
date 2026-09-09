@@ -330,6 +330,7 @@ def validate_family_waves(specs: list[Any]) -> list[str]:
         by_hash: dict[str, tuple[str, FrozenWave]] = {}
         cell_definitions: dict[str, str] = {}
         novelty_cells: dict[str, str] = {}
+        semantic_cells: dict[str, str] = {}
         for task_id, wave in rows:
             if wave.wave_id in by_id:
                 issues.append("family %s repeats wave_id %s" % (family, wave.wave_id))
@@ -343,6 +344,15 @@ def validate_family_waves(specs: list[Any]) -> list[str]:
             else:
                 by_hash[wave.manifest_sha256] = (task_id, wave)
             for cell_id, cell in wave.cells.items():
+                # Renaming an otherwise identical cell/namespace does not create new science.
+                # Changed contracts still require scientific review; this detects literal clones.
+                semantics = _sha256({key: value for key, value in cell.items()
+                                     if key not in {"id", "definition_sha256", "novelty_namespace"}})
+                prior_id = semantic_cells.get(semantics)
+                if prior_id is not None and prior_id != cell_id:
+                    issues.append("family %s duplicates cell semantics %s as %s" %
+                                  (family, prior_id, cell_id))
+                semantic_cells[semantics] = cell_id
                 prior = cell_definitions.get(cell_id)
                 if prior is not None and prior != cell["definition_sha256"]:
                     issues.append(
