@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "evidence_scope": "LOCAL_MODEL_COMPATIBILITY_CALIBRATION_NOT_POPULATION_PERFORMANCE",
+  "task": "Sensors/IMUBiasCalibration",
+  "created_at": "2026-09-07",
+  "source_revision": "ab207d845df0530f6d18ee376a78328b672bbb78",
+  "source_tree_dirty": false,
+  "trusted_secure_eval": false,
+  "evaluation_environment": "Windows in-process replay; final Linux sandbox checks remain required",
+  "algorithm": "direct_first_proposal",
+  "proposal_budget": 1,
+  "replicate_identifier": "unseeded-1",
+  "temperature": 0.7,
+  "wire": "chat",
+  "chat_thinking": "disabled",
+  "baseline": {
+    "development_combined_score": 0.0,
+    "heldout_combined_score": 0.0,
+    "valid": 1.0
+  },
+  "reference": {
+    "development_combined_score": 0.988562,
+    "heldout_combined_score": 0.987844,
+    "development_correct_refusal_rate": 1.0,
+    "heldout_correct_refusal_rate": 1.0,
+    "development_false_discovery_rate": 0.0,
+    "heldout_false_discovery_rate": 0.0
+  },
+  "runs": [
+    {
+      "model": "deepseek-v4-flash",
+      "valid_proposal_count": 1,
+      "development_combined_score": 0.461999,
+      "heldout_combined_score": 0.647238,
+      "development_correct_refusal_rate": 0.333333,
+      "heldout_correct_refusal_rate": 0.5,
+      "development_false_discovery_rate": 0.666667,
+      "heldout_false_discovery_rate": 0.5
+    },
+    {
+      "model": "deepseek-v4-pro",
+      "valid_proposal_count": 1,
+      "development_combined_score": 0.59913,
+      "heldout_combined_score": 0.733479,
+      "development_correct_refusal_rate": 0.333333,
+      "heldout_correct_refusal_rate": 0.5,
+      "development_false_discovery_rate": 0.0,
+      "heldout_false_discovery_rate": 0.0
+    }
+  ],
+  "admission_result": "pass: both valid first proposals scored above baseline and below the frozen truth-blind reference on both splits",
+  "notes": "The record excludes prompts, generated programs, endpoints, credentials, request logs and local output paths. No evaluator or public-contract change followed these runs."
+}
