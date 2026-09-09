@@ -8,6 +8,7 @@ are published as discoveries on the unsupported set too.
 from __future__ import annotations
 
 import importlib.util
+import math
 import sys
 import unittest
 from pathlib import Path
@@ -74,14 +75,28 @@ class UnimolecularFalloffLawTests(unittest.TestCase):
         self.assertEqual(metrics["valid"], 0.0)
         self.assertEqual(metrics["combined_score"], 0.0)
 
-    def test_this_is_not_a_reaction_network_or_enzyme_on_ramp(self):
-        from sle.registry import find_task
-        spec = find_task("ChemicalKinetics/UnimolecularFalloffLaw", include_uncertified=True)
-        network = find_task("ChemicalKinetics/ReactionMechanismFitting", include_uncertified=True)
-        enzyme = find_task("SystemsBiology/EnzymeKineticsLaw", include_uncertified=True)
-        self.assertEqual(spec.entrypoint, "identify_falloff")
-        self.assertNotEqual(spec.entrypoint, network.entrypoint)
-        self.assertNotEqual(spec.task_dir, enzyme.task_dir)
+    def test_reference_fits_fcent_from_noiseless_pressure_observations(self):
+        base = next(w for w in self.evaluator.DEVELOPMENT_WORLDS if w["kind"] == "troe")
+        for fcent in (0.25, 0.65):
+            with self.subTest(fcent=fcent):
+                world = dict(base, Fcent=fcent)
+                calls = []
+                def measure(temperature, pressure):
+                    calls.append((temperature, pressure))
+                    return math.log(self.evaluator.true_k(world, temperature, pressure))
+                result = self.reference.identify_falloff(self.evaluator.public_problem(), measure)
+                self.assertFalse(result["abstain"])
+                self.assertAlmostEqual(result["Fcent"], fcent, places=3)
+                self.assertLessEqual(len(calls), self.evaluator.MEASURE_BUDGET)
+
+    def test_full_curve_fit_beats_the_three_assay_counterexample_on_both_splits(self):
+        probe = _load(TASK / "references/three_assay_probe.py", "three_assay_probe")
+        cheap = self.evaluator.evaluate(probe.identify_falloff)
+        full = self.evaluator.evaluate(self.reference.identify_falloff)
+        for key in ("combined_score", "heldout_mechanism_score"):
+            self.assertGreater(full[key], cheap[key] + 0.05)
+        self.assertEqual(full["development_false_discovery_rate"], 0.0)
+        self.assertEqual(full["heldout_false_discovery_rate"], 0.0)
 
 
 if __name__ == "__main__":

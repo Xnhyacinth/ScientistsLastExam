@@ -1,58 +1,67 @@
-"""Truth-blind Lindemann/Troe scan. Does not import the evaluator."""
+"""Truth-blind pressure-curve fit of the public reduced Lindemann/Troe laws."""
 from __future__ import annotations
 
 import math
+
+import numpy as np
+from scipy.optimize import least_squares
+
+
+def _log_rate(log_pressure, parameters):
+    log_kinf, log_pr = parameters[:2]
+    reduced = log_pr + log_pressure
+    result = log_kinf + reduced - np.logaddexp(0.0, reduced)
+    if len(parameters) == 3:
+        log_fcent = parameters[2]
+        width = 0.75 - 1.27 * log_fcent / math.log(10.0)
+        result += log_fcent / (1.0 + (reduced / math.log(10.0) / width) ** 2)
+    return result
 
 
 def identify_falloff(problem, measure):
     lo_t, hi_t = problem["temperature_bounds_K"]
     lo_p, hi_p = problem["pressure_bounds_bar"]
-    _ = problem["measure_budget_calls"]
-    _ = problem["family_names"]
-    _ = problem["rate_law"]
-    _ = problem["measurement_model"]
-    _ = problem["abstain_when"]
+    budget = int(problem["measure_budget_calls"])
     temperature = min(max(300.0, lo_t), hi_t)
-    pressures = (0.001, 0.003, 0.01, 0.03, 0.1, 1.0, 10.0, 100.0)
-    table = {}
-    for pressure in pressures:
-        table[pressure] = float(measure(temperature, min(max(pressure, lo_p), hi_p)))
-    high_t = min(max(600.0, lo_t), hi_t)
-    hotter = min(max(900.0, lo_t), hi_t)
-    t_high_lo = float(measure(high_t, lo_p))
-    t_high_hi = float(measure(high_t, hi_p))
-    t_hot_lo = float(measure(hotter, lo_p))
-    t_hot_hi = float(measure(hotter, hi_p))
-    slope_300 = table[100.0] - table[0.001]
-    if slope_300 < -0.1 or t_high_hi < t_high_lo - 0.1 or t_hot_hi < t_hot_lo - 0.1:
-        return {"abstain": True, "confidence": 0.86}
-    order_close = (table[0.003] - table[0.001]) / math.log(0.003 / 0.001)
-    order_decade = (table[0.01] - table[0.001]) / math.log(0.01 / 0.001)
-    if order_close < 0.35 or order_decade < 0.42:
+    # Four additional-temperature observations test whether pressure order reverses.
+    pressure_count = budget - 4
+    if pressure_count < 4:
+        return {"abstain": True, "confidence": 0.0}
+    pressures = np.geomspace(lo_p, hi_p, pressure_count)
+    values = np.array([float(measure(temperature, float(p))) for p in pressures])
+    for target in (600.0, 900.0):
+        hot = min(max(target, lo_t), hi_t)
+        low = float(measure(hot, lo_p))
+        high = float(measure(hot, hi_p))
+        if high < low - 0.1:
+            return {"abstain": True, "confidence": 0.86}
+    order = (values[2] - values[0]) / math.log(pressures[2] / pressures[0])
+    if values[-1] < values[0] - 0.1 or order < 0.42:
         return {"abstain": True, "confidence": 0.82}
 
-    kinf = math.exp(table[100.0])
-    k0_1bar = math.exp(table[0.001]) / 0.001
-    p_star = kinf / max(k0_1bar, 1e-30)
-    p_star = min(max(p_star, lo_p), hi_p)
-    nearest = min(pressures, key=lambda pressure: abs(pressure - p_star))
-    if abs(nearest - p_star) > 0.25 * max(p_star, 1e-6):
-        ln_star = float(measure(temperature, p_star))
-    else:
-        ln_star = table[nearest]
-    pr_star = k0_1bar * p_star / max(kinf, 1e-30)
-    lindemann = kinf * pr_star / (1.0 + pr_star)
-    f_obs = math.exp(ln_star) / max(lindemann, 1e-30)
-    log_pr = math.log(max(k0_1bar / kinf, 1e-12))
-    if f_obs < 0.82:
-        family, fcent = "troe", 0.40
-    else:
-        family, fcent = "lindemann", 1.0
-    return {
-        "abstain": False,
-        "family": family,
-        "log_k_inf_300K": table[100.0],
-        "log_Pr_300K_1bar": log_pr,
-        "Fcent": fcent,
-        "confidence": 0.72,
-    }
+    log_pressure = np.log(pressures)
+    initial = [float(values[-1]), float(values[0] - math.log(lo_p) - values[-1])]
+    fits = []
+    for family in ("lindemann", "troe"):
+        starts = [initial] if family == "lindemann" else [
+            initial + [math.log(fcent)] for fcent in (0.2, 0.7)
+        ]
+        lower = [-50.0, -30.0] + ([math.log(0.05)] if family == "troe" else [])
+        upper = [50.0, 30.0] + ([0.0] if family == "troe" else [])
+        candidates = [least_squares(
+            lambda params: _log_rate(log_pressure, params) - values,
+            np.clip(start, lower, upper), bounds=(lower, upper),
+            ftol=1e-12, xtol=1e-12, gtol=1e-12,
+        ) for start in starts]
+        result = min(candidates, key=lambda fit: float(np.dot(fit.fun, fit.fun)))
+        residual = float(np.dot(result.fun, result.fun))
+        # BIC compares the two public model families rather than fixing Fcent a priori.
+        criterion = pressure_count * math.log(max(residual / pressure_count, 1e-24))
+        criterion += len(result.x) * math.log(pressure_count)
+        fits.append((criterion, family, result.x))
+    _, family, parameters = min(fits, key=lambda fit: fit[0])
+    return {"abstain": False, "family": family,
+            "log_k_inf_300K": float(parameters[0]),
+            "log_Pr_300K_1bar": float(parameters[1]),
+            "Fcent": math.exp(float(parameters[2])) if family == "troe" else 1.0,
+            "confidence": 0.72}

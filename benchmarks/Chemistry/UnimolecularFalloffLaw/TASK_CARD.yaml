@@ -7,7 +7,7 @@ oracle:
   deterministic: true
 normalization:
   baseline: always publish a pressure-independent Arrhenius law as Lindemann
-  reference: P-scan at 300 K for reaction order and Fcent, plus a high-T slope check for negative order
+  reference: public reduced-law pressure-curve fit for log k_inf, log Pr and Fcent, BIC family comparison, and high-temperature pressure-order refusal
   score: development mechanism recovery normalized above always-abstain; signal recovery, false discovery, refusal, coverage and the held-out split stay separate
 citations:
 - id: doi:10.1002/bbpc.19830870218
@@ -20,9 +20,11 @@ invariants:
 - measure calls are charged and overspend fails closed; malformed submissions score zero and never raise out of the evaluator
 - held-out split, per-world rows and the discovery axes remain evaluator-only
 known_shortcuts: >-
-  The laboratory is a reduced Troe Fcent, not a full master-equation RRKM solve. World seeds are repository-visible and require a future server-held split. Fitting the full T-dependence of k0 and k_inf is leftover headroom, not an exploit.
-  Maintainer PR 26 probe on 2026-09-08 scores 0.565 development / 0.698 heldout
-  with three assays versus reference 0.731992 / 0.776873. No hardness claim follows.
+  The three-assay probe with the original reference family predicate scores 0.746885
+  development / 0.808437 heldout, exceeding the old scan's 0.731992/0.776872. The repaired
+  full-pressure-curve fit estimates Fcent and scores 0.936433/0.953523; 16 fresh-noise panels
+  retain positive full-minus-three-assay gaps on both splits. That stronger witness nearly
+  saturates the task, so scientific admission and model difficulty remain unproven.
 
 review:
   domain: pending_external
