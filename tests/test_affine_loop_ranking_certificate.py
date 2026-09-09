@@ -4,7 +4,6 @@ from __future__ import annotations
 import importlib.util
 import sys
 import unittest
-import json
 from fractions import Fraction
 from pathlib import Path
 
@@ -30,6 +29,10 @@ class AffineLoopRankingCertificateTests(unittest.TestCase):
             TASK / "verification/reference_ranking.py", "ranking_reference"
         )
 
+    def test_public_instances_do_not_disclose_the_score_one_optimum(self):
+        for instance in self.evaluator.INSTANCES:
+            self.assertNotIn("optimal_delta", self.evaluator.public_instance(instance))
+
     def test_instances_require_state_dependent_decrease(self):
         for instance in self.evaluator.INSTANCES:
             n = instance["dimension"]
@@ -49,7 +52,9 @@ class AffineLoopRankingCertificateTests(unittest.TestCase):
                 self.assertFalse(holds)
 
     def test_exact_optima_have_nonzero_decrease_certificates(self):
-        witnesses = json.loads((TASK / "references/known_optima.json").read_text())
+        probe = _load(TASK / "references/inverse_column_probe.py", "inverse_probe")
+        witnesses = {p["name"]: probe.build_ranking(self.evaluator.public_instance(p))
+                     for p in self.evaluator.INSTANCES}
         metrics = self.evaluator.evaluate(lambda p: witnesses[p["name"]])
         self.assertEqual(metrics["feasibility_rate"], 1.0)
         self.assertEqual(metrics["combined_score"], 1.0)

@@ -36,7 +36,7 @@ so the decrease depends on the state and the second multiplier vector is necessa
 For a valid certificate the score is
 `min(max(0,(delta-1/10000)/(optimal_delta-1/10000)),1)`, averaged over the loops.
 The uniform ranking at delta=1/10000 is valid and scores exactly zero. `optimal_delta`
-is the exactly verified Farkas LP optimum for each instance, not an arbitrary clip unit.
+is the evaluator-only exactly verified Farkas LP optimum for each instance, not an arbitrary clip unit.
 A failed certificate scores zero. Rational transitions are checked over all real states;
 no claim is made that the update maps every integer vector to another integer vector.
 
@@ -49,7 +49,6 @@ no claim is made that the update maps every integer vector to another integer ve
 | `guards` | list of `{g, d}` with `g·x + d ≥ 0`; each entry `[numerator, denominator]` |
 | `A` | affine update matrix, same rational encoding |
 | `b` | affine update offset |
-| `optimal_delta` | exact rational optimum used for score one |
 | `max_numerator` | 10**18 |
 | `max_denominator` | 10**18 |
 

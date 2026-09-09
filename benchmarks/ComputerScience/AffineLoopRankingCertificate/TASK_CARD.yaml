@@ -21,10 +21,11 @@ invariants:
 - floats are rejected rather than rounded
 - malformed submissions score zero and never raise out of the evaluator
 known_shortcuts: >-
-  The old A=I coordinate enumeration equalled reference 0.749975 and is retired. On the
-  coupled 8/10/12/16-dimensional instances, coordinate-axis enumeration has no valid
-  certificate and scores 0; local pair-coordinate ascent scores 0.765824. Full exact
-  Farkas LP/ray solution attains 1.0. This is not a claim of resistance to general LP solvers.
+  Scientific admission blocked: the public-input inverse_column_probe.py attains score one
+  on all four instances. Nonnegative (I-A^T)^-1 makes the feasible rankings a simplex with
+  at most n known vertices; coupled A did not remove the original degeneracy. Hiding the
+  evaluator optimum and removing stored full certificates do not repair search difficulty.
+  A general exact LP also reaches the optimum. No model-hardness claim is supported.
 
 review:
   domain: pending_external

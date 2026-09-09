@@ -129,7 +129,6 @@ def public_instance(instance):
         "guards": instance["guards"],
         "A": instance["A"],
         "b": instance["b"],
-        "optimal_delta": instance["optimal_delta"],
         "max_numerator": MAX_NUMERATOR,
         "max_denominator": MAX_DENOMINATOR,
     }

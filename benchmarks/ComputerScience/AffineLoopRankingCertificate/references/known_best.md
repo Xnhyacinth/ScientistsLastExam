@@ -11,7 +11,8 @@ Let M=I-A^T and B=M^-1. Since A is nonnegative and contractive, B is nonnegative
 Writing r=B*mu, mu>=0, sum(r)=1 expresses every feasible ranking as a convex combination
 of normalized columns of B. Therefore the maximum decrease is the largest value of
 c^T B[:,j]/sum(B[:,j]), where c_i=1-sum(A[i,:])-b_i. Tests recompute these ratios in
-exact Fraction arithmetic and verify matching certificates in known_optima.json.
+exact Fraction arithmetic and generate matching certificates from public inputs using
+`references/inverse_column_probe.py`; no complete instance-answer table is shipped.
 This establishes the score-one LP optimum, not merely a numerical lower witness.
 
 | dimension | optimal delta | local reference delta | reference score |
@@ -47,3 +48,17 @@ Fractions are checked exactly, including both Farkas identities and unit 1-norm.
 caps are 10^18 to admit these higher-dimensional exact witnesses. Malformed/float certificates
 fail closed. No model draws, fresh program corpus or long-horizon calibration has been run.
 Lineage is incomplete_legacy and the task remains a candidate.
+
+
+## September 9 scientific admission hold
+
+The [owner review](https://github.com/Geniusyingmanji/ScientistsLastExam/pull/30#issuecomment-5594780400)
+correctly identifies the remaining simplex degeneracy. `references/inverse_column_probe.py`
+computes the inverse columns in exact rationals using only public A and b, generates the
+Farkas multipliers, and reaches score one on every instance. Hiding optimal_delta from the
+candidate input and deleting the full-answer JSON do not defeat this algorithm.
+
+The current instance family is not admitted as a hard search benchmark. A larger guard set
+alone would still leave generic linear programming available. A materially different family,
+such as sourced multi-branch programs needing lexicographic ranking, requires independent
+synthesis/verification and shortcut evidence; no toy replacement is claimed here.
