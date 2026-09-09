@@ -1,4 +1,4 @@
-# ProcessMicrostructurePropertyDesign
+# ProcessMicrostructurePropertyDesign — design the processing schedule, not the microstructure
 
 ## Scientific question
 

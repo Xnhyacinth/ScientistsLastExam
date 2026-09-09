@@ -1,101 +1,68 @@
-# Current revision and superseded measurements
-
-The 2026-09-08 revision clips release scores to [0,1]. Earlier uncapped scores below
-are historical diagnostics, not current release scores. No model calibration has been run.
-
-Process reference-search controls and proxy coefficients are no longer sent in the public problem.
-The policy now uses explicitly builder-chosen approximate coefficients, not the oracle coefficient
-mapping. Current development baseline/reference raw HV: 0.03655170742063612 /
-0.055564306822422194; shifted 0.032344076195489124 / 0.049579047191111676.
-Heldout baseline/reference raw HV: 0.03945024971536756 / 0.06109601978858342;
-shifted 0.035306255126056375 / 0.05514273018591831. Old reference/ablation numbers
-are superseded where the policy changed. The promotion gate now requires development score >=0.1.
-
-# Known witnesses and limits
+# ProcessMicrostructurePropertyDesign — witnesses and limits
 
 ## Reproducing
 
-Run `python -m unittest tests.test_process_microstructure_property_design`. All probes use the
-deterministic CPU evaluator; no model, network service or stochastic optimizer is required.
+`uv run python -m pytest tests/test_process_microstructure_property_design.py -q`
+checks the independent reference, baseline, shortcut families, shifts and runner boundary.
+Use `NPY_DISABLE_CPU_FEATURES=AVX512F,AVX512CD,AVX512_SKX,AVX2,FMA3` for the
+SIMD-downgraded check. Aggregate nominal/shifted hypervolumes and their normalization
+anchors are rounded to 12 decimal places at the same publication boundary. This preserves
+exact baseline zero, reference one and equality with the wave's starting incumbent.
+It is not a proof that every per-world physical diagnostic is bit-identical across architectures.
 
 ## Reference
 
-`verification/reference_process_archive.py` independently generates a 1024-point Latin hypercube,
-scores it with the declared public low-fidelity mixture/crystallization proxy, greedily selects 20
-proxy-hypervolume increments, and performs two deterministic 11-point-per-axis coordinate-exchange
-passes. It imports neither the panel nor the scored oracle and runs as an ordinary isolated
-candidate. It scores `1.0`: development raw/shifted hypervolumes are
-`0.05589055199212832` and `0.05004532824833629`; held-out raw/shifted values are
-`0.06125903702179302` and `0.055433072836922594`.
+The independent public-input policy constructs a 1024-point Latin hypercube, ranks points
+with its own approximate low-fidelity coefficients, greedily selects a 20-row archive and
+performs two coordinate-exchange passes. It does not read the oracle coefficient mapping.
+Release scores are clipped; above-reference raw hypervolume remains a separate quantity.
+
+| split | baseline raw | reference raw | baseline shifted | reference shifted |
+|---|---:|---:|---:|---:|
+| development | 0.036551707421 | 0.055564306822 | 0.032344076195 | 0.049579047191 |
+| heldout | 0.039450249715 | 0.061096019789 | 0.035306255126 | 0.055142730186 |
 
 ## Baseline
 
-The shipped shortest, hottest, fastest-cooled, undrawn four-row archive is legal and scores `0.0`.
-Its development raw/shifted hypervolumes are `0.03655170742063612` and
-`0.032344076195489124`.
+Four shortest, hottest, fastest-cooled, undrawn schedules are legal and score exactly zero.
+The public problem contains bounds and units, not the reference recipe or oracle parameters.
 
-## Difficulty ladder
+## Shortcut and ablation evidence
 
-The deterministic ladder is baseline `0.0`, greedy 441-point blend-temperature shortcut
-`0.24854152762865947`, the three greedy 343-point subspace probes at `0.6919779457497287`,
-`0.2987325943208072`, and `0.4519928224629508`, independent reference `1.0`, and evaluator-aware
-coordinate exchange at `1.0050830170752605`. A 2048-point public-only pool followed by the same
-refinement scores `1.00037415439912`. This establishes measured shortcut separation, reference-
-platform stability and uncapped headroom, not HY3 or long-horizon difficulty.
+[Maintainer measurements on 2026-09-09](https://github.com/Geniusyingmanji/ScientistsLastExam/pull/16#issuecomment-5594778785)
+use the current approximate reference, before the 12-decimal aggregate publication repair:
 
-## Shortcut probe
+| probe | development score |
+|---|---:|
+| public-only blind three-coordinate 18-point archive | 0.606300 |
+| public-only blind two-coordinate 20-point archive | 0.599213 |
+| 441-point blend/temperature grid | 0.252806355974678 |
+| 343-point blend/time/draw | 0.7038518856341829 |
+| 343-point blend/cooling/draw | 0.3038586722374222 |
+| 343-point blend/temperature/draw | 0.4597487569332539 |
+| 2048-point public pool with reference refinement | 0.9994508031927263 |
+| no-draw reference ablation | 0.5338287052189218 |
+| shortest-time ablation | 0.7130298217545511 |
+| fastest-cooling ablation | 0.782188606082588 |
+| one low-temperature ablation | 0.6711731931367305 |
 
-The 441-point shortcut varies only blend fraction and anneal temperature while pinning shortest
-time, fastest cooling and no draw; its raw development hypervolume is
-`0.041358213393008`. Three 343-point grids vary blend plus two other coordinates while holding the
-remaining pair at the original review constants: blend-time-draw, blend-cooling-draw, and
-blend-temperature-draw now score `0.6919779457497287`, `0.2987325943208072`, and
-`0.4519928224629508`. Before hardening those same grids scored `1.20449`, `1.00999`, and
-`1.01105`. All four probes are below the independent reference, but they do not exhaust other
-analytic shortcuts.
+These are attributed algorithm probes, not fresh model calibration. Some grid archive
+selection uses evaluator objectives; it is an offline upper-envelope diagnostic, not a
+candidate-executable method. Evaluator-aware coordinate exchange reaches raw HV
+0.055931851484335146 and is likewise not a blind baseline. Near-one 2048-pool performance
+does not establish long-horizon separation or resistance to other low-dimensional searches.
 
-## Construction history
+## Superseded construction measurements
 
-Review found a high-B corner, strong two- and three-coordinate shortcuts, instantaneous-style
-crystallinity, an overly loose energy scale, and a fixed-bin reference whose bins had been selected
-with the private oracle. The repair keeps mobility-limited crystallization and the explicit `0.35`
-draw modulus gain versus `0.20` permeability penalty, increases reduced kinetic selectivity to
-`Ec=7, k=700`, increases cooling sensitivity to `0.30`, and aligns the energy scale to the reachable
-`7.5` envelope. The reference now performs its own candidate-equivalent public proxy search over
-1024 points plus two coordinate-exchange passes. Increasing the otherwise identical public pool to
-2048 changes the normalized score by only `0.00037415439912`. A separate evaluator-aware
-coordinate-exchange red team finds raw development hypervolume `0.055988851669301024`, so score
-remains uncapped.
+The former oracle-aligned reference scored raw 0.05589055199212832 development and
+0.06125903702179302 heldout. Its old ladder and unclipped >1 values are superseded by
+both the approximate-proxy reference and clipped release contract. They must not be
+presented as current headroom measurements. Earlier scalar pool-size and subspace
+shortcuts motivated the existing process law; their removal did not certify hardness.
 
-## Robustness and model draw pending
+## Robustness and remaining work
 
-Reference-archive ablations score `0.5240992860282923` without draw, `0.7647896745827635` at
-shortest time, `0.7708825121464876` at fastest cooling, and `0.6727115591109907` at one low
-temperature.
-Held-out worlds, three sealed shifts, malformed artifacts and runner isolation are tested. HY3
-draws, real polymers, higher-dimensional morphology, manufacturing validation and experiments
-remain pending.
-
-## Historical recipe and measurements removed from the candidate prompt
-
-`1.0`. That witness performs greedy proxy-hypervolume selection over a declared deterministic
-1024-point Latin hypercube, followed by two deterministic 11-point-per-axis coordinate-exchange
-passes, using only the problem mapping. It neither imports nor queries the scored phase-field
-model. The score is uncapped: a better archive can exceed the witness.
-
-The executable deterministic ladder is baseline `0.0`; a 441-point blend--temperature shortcut
-`0.24854152762865947`; three 343-point coordinate-subspace shortcuts `0.6919779457497287`,
-`0.2987325943208072`, and `0.4519928224629508`; reference `1.0`; and an evaluator-aware
-coordinate-exchange red team `1.0050830170752605`. A public-only 2048-point pool with the same
-refinement scores `1.00037415439912`, showing that scalar pool-size inflation is on the reference
-platform rather than an easy improvement. Reference-archive ablations score
-`0.5240992860282923` without draw, `0.7647896745827635` at shortest time,
-`0.7708825121464876` at fastest cooling, and `0.6727115591109907` at one low temperature. These
-tests establish local separation and uncapped headroom, not model-level or long-horizon hardness.
-
-Sealed-shift measured anchors (evaluator-side; they do not enter `combined_score`):
-
-| archive | development raw HV | development shifted HV | held-out raw HV | held-out shifted HV |
-|---|---:|---:|---:|---:|
-| baseline | 0.03655170742063612 | 0.032344076195489124 | — | — |
-| reference | 0.05589055199212832 | 0.05004532824833629 | 0.06125903702179302 | 0.055433072836922594 |
+Three sealed process/material shifts and heldout worlds are separately reported. Promotion
+requires development score >=0.1 and transfer retention; record emission is not ledger
+admission. No model calibration, long-horizon evidence, manufacturing validation or
+independent real-polymer experiment has been supplied. Lineage remains incomplete_legacy.

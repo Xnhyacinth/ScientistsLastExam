@@ -1,4 +1,4 @@
-# OpenVocabularyReactionNetworkDiscovery
+# OpenVocabularyReactionNetworkDiscovery — construct the species and the edges, or decline
 
 ## Scientific question
 

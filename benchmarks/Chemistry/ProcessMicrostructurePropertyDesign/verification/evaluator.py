@@ -475,7 +475,7 @@ def _anchors():
         }
     for split, worlds in (("development", DEVELOPMENT_WORLDS), ("heldout", HELDOUT_WORLDS)):
         result[split] = {
-            key: float(np.mean([result[world["seed"]][key] for world in worlds]))
+            key: round(float(np.mean([result[world["seed"]][key] for world in worlds])), 12)
             for key in ("weak", "reference", "weak_shifted", "reference_shifted")
         }
         if result[split]["reference"] <= (
@@ -502,8 +502,8 @@ def _normalized(value, weak, reference):
 
 def _summary(records, split):
     anchor = _anchors()[split]
-    raw = float(np.mean([row["raw_hypervolume"] for row in records]))
-    shifted = float(np.mean([row["raw_shifted_hypervolume"] for row in records]))
+    raw = round(float(np.mean([row["raw_hypervolume"] for row in records])), 12)
+    shifted = round(float(np.mean([row["raw_shifted_hypervolume"] for row in records])), 12)
     return {
         "score": _normalized(raw, anchor["weak"], anchor["reference"]),
         "shifted_score": _normalized(

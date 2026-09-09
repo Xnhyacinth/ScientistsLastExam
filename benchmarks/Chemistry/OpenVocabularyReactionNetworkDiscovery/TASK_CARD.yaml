@@ -29,7 +29,15 @@ invariants:
 - declining every development world and the shipped confidently wrong edge are valid and normalized to exactly zero
 - malformed graphs, invalid transformations, over-budget probes, caught callback violations and malformed artifacts score zero without escaping the evaluator
 - held-out worlds change catalyst selectivity and refusal case placement while preserving the public graph grammar
-known_shortcuts: The frozen cell has only four heavy atoms, single bonds, unimolecular bond exchanges and exact noiseless probes, so exhaustive enumeration is feasible and chemistry is highly abstract. Hydrogens, charge, stereochemistry, bond orders, conformers, thermodynamics, kinetics and electronic-structure uncertainty are absent. Scaling those axes requires a new frozen wave and an oracle-cost policy; this cell alone cannot support a real mechanism claim.
+known_shortcuts: >-
+  Scientific admission blocked: the public-only signature_probe.py reaches development and
+  heldout 1.0 with at most 13 paid probes (mean development 8.833333). Additive bond energy
+  makes all 72 legal edges depend on only 13 broken/formed channel signatures, so the 24-query
+  budget does not bind. The prior budget reduction and ordering sweeps did not repair this.
+  Four heavy atoms and noiseless synthetic chemistry still lack hydrogens, charge,
+  stereochemistry, conformers and electronic-structure uncertainty; a graph-dependent
+  mechanism and descriptor-fit shortcut audit are required before any hardness claim.
+
 review:
   domain: pending_external_chemical_kinetics
   evaluator_security: automated_determinism_open_vocabulary_isomorphism_duplicate_budget_bad_candidate_and_abstention_normalization_tests
@@ -64,7 +72,7 @@ lineage:
   remediation:
   - reduce the charged budget to 24 and resolve ambiguous graph-pair barriers as the minimum over all valid atom-map channels
   - replace node-local BFS with novelty-first active-frontier acquisition, a qualitative chemical barrier surrogate, and a public grammar-branching information-gain tie-break
-  - normalize to that incomplete independent witness without an upper clip, leaving complete recovery above one
+  - historical witness normalization was later clipped; the complete public-input signature-cache recovery now saturates it, so this did not restore admission
   - ship a legal confidently wrong edge while retaining blanket abstention as an independent zero-score control
   frozen_before_eval: false
   freeze_timestamp: null

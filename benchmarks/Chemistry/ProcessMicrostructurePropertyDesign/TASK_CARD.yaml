@@ -8,7 +8,7 @@ oracle:
 normalization:
   baseline: Four shortest, hottest, fastest-cooled, undrawn schedules spread across the legal blend range.
   reference: An independent candidate-equivalent 20-schedule witness performs greedy low-fidelity proxy-hypervolume selection over a declared 1024-point Latin hypercube, followed by two deterministic 11-point-per-axis coordinate-exchange passes, using only the public problem; it is not a global optimum.
-  score: Exact three-objective development hypervolume normalized above the baseline and left clipped; shifted hypervolume, held-out transfer, feasibility and physical summary axes remain separate.
+  score: Three-objective development hypervolume with split aggregates and anchors rounded to 12 decimals, normalized above the baseline and clipped; shifted hypervolume, held-out transfer, feasibility and physical summary axes remain separate.
 citations:
 - id: doi:10.1146/annurev.matsci.32.112001.132041
   title: Phase-field models for microstructure evolution
@@ -39,6 +39,8 @@ invariants:
 - nonfinite, out-of-bounds, duplicate, image-like, malformed and exception-producing candidates score zero without escaping the evaluator
 known_shortcuts: >-
   The model is a 48-cell one-dimensional surrogate, not a real material oracle. Current
+  Maintainer September 9 public-only blind archives score 0.606300 (three-coordinate,
+  18 points) and 0.599213 (two-coordinate, 20 points); these are attributed measurements.
   441-point and three 343-point coordinate-subspace probes stay below the reference;
   a 2048-point policy and evaluator-aware refinement are checked separately. Historical
   numeric results under the old policy are marked superseded in references/known_best.md.

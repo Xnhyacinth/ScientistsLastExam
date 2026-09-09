@@ -7,7 +7,7 @@ cells:
   kind: optimization
   weight: 1
   objective: maximize
-  reference_value: 0.055564306822422194
+  reference_value: 0.055564306822
   credit_scale: 0.01
   minimum_delta: 0.0001
   semantic_contract:
@@ -20,5 +20,5 @@ cells:
     evaluation_panel_path: frontier_eval/contracts/evaluation_panel_v1.json
     evaluation_panel_sha256: e3cd2a4fac9a49072bcf7fd73f4ffc9008578fc8d6f9f136609b6e71184ea3da
     oracle_path: verification/evaluator.py
-    oracle_sha256: e7089b46af879eb11b36d61781779017e5f49536d28737fbd10c7b10c61df6a2
-  definition_sha256: c6bbd13e4400da14ead8f8d7a0fbd1985f1b0d919bdc686e416fc1d8d3525df8
+    oracle_sha256: 05a51aa1e114271b5942622c3825f73234294cac5b4f0777f90352cff7ce4596
+  definition_sha256: dc32ed0002def3c9ebcbae7b6d27c7dcf55d5adf321d08c03bf6b615a3c4d206
