@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import difflib
 from pathlib import Path
 
 from .spec import TaskSpec, load_task_spec
@@ -51,5 +52,34 @@ def find_task(name: str, include_uncertified: bool = False) -> TaskSpec:
     for spec in specs:
         if spec.task_id.lower() == name_l or spec.task_dir.name.lower() == name_l:
             return spec
-    avail = ", ".join(s.task_id for s in specs) or "(none)"
-    raise KeyError(f"Unknown task '{name}'. Available: {avail}")
+    # Name the closest matches, not the whole inventory. The full list is 80+ ids and it
+    # travels inside a single exception message: any caller that tail-slices the text (the
+    # frontier_eval wrappers keep the last 500 characters of stderr) ends up reporting a
+    # fragment of the task list instead of the actual error. Below ~8 candidates the ids are
+    # cheap enough to name outright, which is what the old message did well.
+    by_id = {s.task_id.lower(): s.task_id for s in specs}
+    by_dir = {s.task_dir.name.lower(): s.task_id for s in specs}
+    close = [task_id for key, task_id in by_id.items() if name_l in key]
+    close += [task_id for key, task_id in by_dir.items()
+              if name_l in key and task_id not in close]
+    if not close:
+        # Match on the bare directory name, but report the stable public id either way, so a
+        # reader never has to guess which of the two forms they were handed.
+        close = [by_dir[key] for key in difflib.get_close_matches(
+            name_l, list(by_dir), n=8, cutoff=0.5)]
+    if close:
+        hint = "Closest: %s." % ", ".join(sorted(close)[:8])
+    else:
+        hint = "No close match."
+    # The count has to come from the inventory, not from `specs`: on the default path `specs`
+    # holds only the certified tasks, so reporting its length states that the repository has
+    # five tasks while the caller is asking about one of the other seventy-odd.
+    total = len(specs) if include_uncertified else len(list_tasks(None))
+    scope = ("" if include_uncertified else
+             " This lookup covered certified tasks only; pass --allow-uncertified"
+             " (or include_uncertified=True) to search all of them.")
+    raise KeyError(
+        f"Unknown task '{name}'. {hint}"
+        f" {total} tasks are registered; run `python -m sle list --all` for the full list."
+        f"{scope}"
+    )
