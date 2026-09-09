@@ -107,6 +107,7 @@ CHINESE_NAMES = {
     "RNAEngineering/RNAInverseDesign": "RNA 约束反折叠",
     "Semiconductor/MOSFETDoping": "MOSFET 掺杂剖面",
     "Sensors/QuartzCrystalMicrobalanceLab": "石英微天平原始信号反演",
+    "Sensors/IMUBiasCalibration": "惯性传感器偏置温漂校准",
     "SignalProcessing/SparseRecovery": "压缩感知稀疏恢复",
     "Spectroscopy/CrowdedSpectrumAssignment": "混叠谱物种指认",
     "StructuralEngineering/ModalDamageAttribution": "模态损伤归因",
@@ -373,6 +374,9 @@ CHINESE_BRIEFS = {
     "Sensors/QuartzCrystalMicrobalanceLab": (
         "从石英微天平的原始 I/Q 扫频里标定复增益漂移、提取谐振并反演薄膜质量与沉积速率",
         "原始 IQ 标定、BVD 谐振提取、质量与速率恢复、故障与模型判别、密封停止决策分列"),
+    "Sensors/IMUBiasCalibration": (
+        "在观测预算内选择姿态与温度,恢复偏置、温漂和尺度非正交矩阵,并定位非仿射故障轴",
+        "十二参数校准与迁移预测、故障类型及轴定位、误发现、拒答与覆盖率分列"),
     "SignalProcessing/SparseRecovery": (
         "从远少于奈奎斯特的测量里恢复 k 稀疏信号",
         "平均恢复信噪比"),
