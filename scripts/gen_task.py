@@ -34,21 +34,71 @@ sys.path.insert(0, str(REPO))
 
 from sle.benchmark_layout import discipline_for_domain  # noqa: E402
 
-RUN_EVAL_TEMPLATE = '''from __future__ import annotations
-import argparse, importlib.util, json, sys
+DEFAULT_EVAL_TIME_SECONDS = 100
+
+RUN_EVAL_TEMPLATE = '''"""Black-box eval entrypoint for {task}.
+
+A thin wrapper over the trusted evaluation path (`python -m sle eval`), which loads the oracle in
+a supervised trusted subprocess and runs the candidate in the Bubblewrap sandbox over a typed
+JSON-RPC boundary. Do NOT import the candidate into this process: the oracle lives here, so an
+in-process import is a way for candidate code to run unsandboxed whenever anyone reaches for the
+convenience. The harness never uses this file; external harnesses do, through `eval_command.txt`,
+so it keeps that contract and loses the shortcut.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
 from pathlib import Path
-INVALID = -1e18; TASK_DIR = Path(__file__).resolve().parent.parent
-def _load(p, n):
-    s=importlib.util.spec_from_file_location("c",p); m=importlib.util.module_from_spec(s); s.loader.exec_module(m); return getattr(m,n)
-def main():
-    ap=argparse.ArgumentParser(); ap.add_argument("--candidate",required=True); ap.add_argument("--metrics-out",required=True); args=ap.parse_args()
-    metrics={{"combined_score":INVALID,"valid":0.0}}
+
+INVALID = -1e18
+TASK_ID = "{task_id}"
+ROOT = Path(__file__).resolve().parents[4]
+EVAL_TIMEOUT_S = {eval_timeout}
+
+# The task id is written in, where the previous template derived everything from __file__.
+# That is deliberate - `sle eval` needs the registered id, not a path - but it means a wrapper
+# copied to a neighbouring task keeps pointing at the task it came from, and scores the new
+# candidate against the old oracle without complaining. The directory name is the second half
+# of the id, so the copy is cheap to catch here rather than in whoever reads the numbers.
+_expected_task = Path(__file__).resolve().parents[1].name
+if TASK_ID.split("/")[-1] != _expected_task:
+    raise SystemExit(
+        "TASK_ID %r does not name this directory (%r); this wrapper was copied from another"
+        " task and would score against that task's oracle" % (TASK_ID, _expected_task))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--candidate", required=True)
+    parser.add_argument("--metrics-out", required=True)
+    parser.add_argument("--timeout", type=float, default=EVAL_TIMEOUT_S)
+    args = parser.parse_args()
+    metrics = {{"combined_score": INVALID, "valid": 0.0}}
     try:
-        sys.path.insert(0,str(TASK_DIR/"verification")); import evaluator as o
-        f=_load(Path(args.candidate).resolve(),"{entrypoint}"); r=o.evaluate(f); metrics.update(r); metrics["raw_score"]=r.get("combined_score")
-    except Exception as e: metrics["error_message"]=f"{{type(e).__name__}}: {{e}}"
-    Path(args.metrics_out).write_text(json.dumps(metrics,indent=2,default=str)); print(json.dumps({{k:metrics.get(k) for k in ("combined_score","valid")}})); return 0
-if __name__=="__main__": raise SystemExit(main())
+        completed = subprocess.run(
+            [sys.executable, "-m", "sle", "eval", "--task", TASK_ID, "--allow-uncertified",
+             "--candidate", str(Path(args.candidate).resolve()), "--timeout", str(args.timeout)],
+            cwd=str(ROOT), capture_output=True, text=True, timeout=args.timeout + 120,
+            env={{**os.environ, "PYTHONPATH": str(ROOT)}})
+        if completed.returncode != 0:
+            raise RuntimeError("sle eval exited %d: %s" % (
+                completed.returncode, (completed.stderr or "").strip()[-500:]))
+        result = json.loads(completed.stdout)
+        metrics.update(result)
+        metrics.setdefault("raw_score", result.get("combined_score"))
+    except Exception as exc:  # noqa: BLE001 - a broken evaluation is reported, not raised
+        metrics["error_message"] = "%s: %s" % (type(exc).__name__, exc)
+    Path(args.metrics_out).write_text(json.dumps(metrics, indent=2, default=str), encoding="utf-8")
+    print(json.dumps({{k: metrics.get(k) for k in ("combined_score", "valid")}}))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
 '''
 
 METADATA_TEMPLATE = """domain: {domain}
@@ -99,8 +149,20 @@ def create_task(spec: dict, repo: Path = REPO) -> Path:
 
     # frontier_eval contract files
     entrypoint = spec.get("entrypoint", "solve")
+    # The wrapper timeout is a review quantity set by how hard the task is, so a spec may name
+    # it outright. The fallback reproduces what the 66 existing wrappers already do (64 of them
+    # exactly): three times the expected evaluation, floored at the repository's usual 300 s.
+    # `eval_time_seconds` is defaulted once, here, so metadata.yaml and run_eval.py cannot
+    # disagree about it - an earlier draft let one fall back to empty and the other to 300.
+    eval_time_seconds = int(spec.get("eval_time_seconds") or DEFAULT_EVAL_TIME_SECONDS)
+    spec = {**spec, "eval_time_seconds": eval_time_seconds}
+    eval_timeout = int(spec.get("eval_timeout_s")
+                       or max(300, 3 * eval_time_seconds))
     (eval_dir / "run_eval.py").write_text(
-        RUN_EVAL_TEMPLATE.format(entrypoint=entrypoint), encoding="utf-8")
+        RUN_EVAL_TEMPLATE.format(
+            task=task, task_id="%s/%s" % (domain, task),
+            eval_timeout=eval_timeout,
+        ), encoding="utf-8")
     (eval_dir / "metadata.yaml").write_text(
         METADATA_TEMPLATE.format(**{k: spec.get(k, "") for k in
             ["domain","task","difficulty","oracle_type","score_mode",
