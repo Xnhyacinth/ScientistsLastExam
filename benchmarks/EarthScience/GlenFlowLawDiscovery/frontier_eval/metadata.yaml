@@ -9,5 +9,5 @@ gpu_required: false
 eval_time_seconds: 8
 science_metric: glen_exponent_recovery_with_sliding_refusal
 reference_baseline: always publish Newtonian n=1
-reference_sota: joint stress-temperature log-linear fit; current algorithm score about 0.96, difficulty admission remains blocked
-citation: "Glen, Proc. R. Soc. Lond. A 228, 519 (1955); Weertman, J. Glaciol. 3, 33 (1957)"
+reference_sota: joint stress-temperature log-linear fit with repeated assays and curvature refusal
+citation: "Glen, Proc. R. Soc. Lond. A 228, 519 (1955); Weertman, J. Glaciol. 3, 33 (1957); Paterson and Budd (1982), doi:10.1016/0165-232X(82)90010-6"

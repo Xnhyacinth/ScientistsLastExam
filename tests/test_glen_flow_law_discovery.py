@@ -106,6 +106,23 @@ class GlenFlowLawDiscoveryTests(unittest.TestCase):
         self.assertEqual(metrics["valid"], 0.0)
         self.assertEqual(metrics["combined_score"], 0.0)
 
+    def test_published_mechanism_scores_have_six_decimal_precision(self):
+        result = self.evaluator.evaluate(self.reference.identify_flow_law)
+        for key in ("combined_score", "development_mechanism_score", "heldout_mechanism_score"):
+            self.assertEqual(result[key], round(result[key], 6))
+
+    def test_one_malformed_development_world_invalidates_submission(self):
+        calls = 0
+        def candidate(problem, measure):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return {"abstain": True, "confidence": 1.1}
+            return self.reference.identify_flow_law(problem, measure)
+        result = self.evaluator.evaluate(candidate)
+        self.assertEqual(result["valid"], 0.0)
+        self.assertEqual(result["combined_score"], 0.0)
+
     def test_this_is_not_an_amoc_fold_or_a_wall_closure(self):
         from sle.registry import find_task
         spec = find_task("Glaciology/GlenFlowLawDiscovery", include_uncertified=True)

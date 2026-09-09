@@ -10,8 +10,9 @@ is not bypassed by the functional checks. These are algorithm probes, not model 
 
 Glen n now varies across worlds (2.65,3.45; heldout 3.15); A and thermal activation Q/R
 are jointly unknown and scored. The candidate can select stress and temperature with the
-same 12-call budget and unchanged log-noise sigma=0.03. Sliding worlds have overlapping
-thermal responses, so temperature alone does not reveal the supported/unsupported label.
+same 12-call budget and unchanged log-noise sigma=0.03. The creep components of sliding worlds have overlapping thermal coefficients, but the
+added C*tau term itself is temperature-independent. Its apparent activation energy can
+therefore expose the mixture; this synthetic simplification has not been scientifically validated.
 The reference fits the joint model from public inputs and charged assays.
 
 The prior two weak sliding worlds had true curvatures 0.007/0.006 under a noise floor about
@@ -58,3 +59,16 @@ include their supported/unsupported denominators. Lineage remains incomplete_leg
 Functional tests check continuous exponents, temperature response, budget/shape handling,
 separable intermediate sliding and baseline zero. No LLM calibration or long-horizon evidence
 exists. The new contract invalidates prior candidate scores; it does not repair old runs.
+
+
+## September 9 maintainer audit and remaining redesign
+
+[Owner review](https://github.com/Geniusyingmanji/ScientistsLastExam/pull/29#issuecomment-5594780263)
+confirms saturated refusal on the current worlds. Its reference ablations (development / heldout)
+are: no refusal 0/0; no temperature arm 0.658965/0.649475; six unreplicated assays
+0.880940/0.467374; curvature threshold 0.05 gives 0.312411/0.456301; threshold 0.50
+still gives 0.961088/0.930015. These are attributed maintainer algorithm measurements.
+The response now rejects any malformed development world and publishes normalized mechanism
+scores at six-decimal precision; neither repair changes the scientific admission failure.
+A larger identifiable mechanism family with a competent nonlinear reference and independent
+shortcut/noise checks is needed. The existing <0.8 test remains active and failing.

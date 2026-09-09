@@ -172,7 +172,7 @@ def _split_summary(records):
     always_abstain = len(unsupported) / len(records)
     normalized = float(np.clip((raw - always_abstain) / (1.0 - always_abstain), 0.0, 1.0))
     return {
-        "normalized_mechanism": normalized,
+        "normalized_mechanism": round(normalized, 6),
         "signal_recovery_rate": float(np.mean([row["mechanism_score"] for row in supported])),
         "false_discovery_rate": float(np.mean([row["false_discovery"] for row in unsupported])),
         "correct_refusal_rate": float(np.mean([row["correct_refusal"] for row in unsupported])),
@@ -203,9 +203,10 @@ def evaluate(identify_flow_law):
     heldout = _run(identify_flow_law, HELDOUT_WORLDS, "heldout", reset_before_first=True)
     dev = _split_summary(development)
     held = _split_summary(heldout)
+    complete = dev["valid_count"] == dev["world_count"]
     return {
-        "combined_score": dev["normalized_mechanism"],
-        "valid": 1.0 if dev["valid_count"] > 0 else 0.0,
+        "combined_score": dev["normalized_mechanism"] if complete else 0.0,
+        "valid": float(complete),
         "feasibility_rate": dev["valid_count"] / dev["world_count"],
         "raw_score": dev["normalized_mechanism"],
         "development_mechanism_score": dev["normalized_mechanism"],

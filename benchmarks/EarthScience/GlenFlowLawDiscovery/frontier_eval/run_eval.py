@@ -11,10 +11,11 @@ from sle.secure_eval import CandidateProxy
 INVALID = -1e18
 TASK_DIR = Path(__file__).resolve().parent.parent
 ENTRYPOINT = "identify_flow_law"
+EVAL_TIMEOUT_S = 300
 
 
 def _load(path, name):
-    return CandidateProxy(path, name, timeout_s=300)
+    return CandidateProxy(path, name, timeout_s=EVAL_TIMEOUT_S)
 
 
 def main():
