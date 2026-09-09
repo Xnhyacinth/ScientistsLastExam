@@ -96,7 +96,8 @@ The shipped baseline is exactly 0. A design with `L` closer to 0 than `-0.001` s
 reports the mean of the two held-out instance scores. Feasibility, predicted fidelity and
 chosen condition remain separate. Invalid submissions score zero for that target.
 `development_complete`, `development_valid_count`, `development_invalid_count` and
-`development_feasibility_rate` describe the public panel. The parallel `heldout_complete`,
+`development_feasibility_rate` describe the public panel. The search-visible `feasibility_rate`
+is also development-only. The parallel `heldout_complete`,
 `heldout_valid_count`, `heldout_invalid_count` and `heldout_feasibility_rate` fields are computed
 from held-out calls regardless of development validity; failure on one split cannot erase or
 upgrade the other split's execution record.
@@ -115,9 +116,8 @@ DOI `10.1371/journal.pone.0238592`, CC BY 4.0.
 
 ## Relationship to nearby tasks
 
-`OrthogonalDNACodewords` packs abstract oligonucleotide words under sequence-distance and
-hybridization constraints. This task must choose boundaries in a supplied construct, return the
-actual overlapping DNA fragments, avoid internal restriction sites, reconstruct the target exactly,
-and optimize the measured pairwise ligation matrix for only the junctions used. `RNAInverseDesign`
-and `RNAEnsembleDesign` optimize folding of one RNA sequence; neither performs multi-fragment DNA
-assembly or uses measured ligation crosstalk.
+`RNAInverseDesign` and `RNAEnsembleDesign` optimize folding of one RNA sequence;
+`ProteinStabilityDesign` selects mutations from measured protein assays. This task instead
+chooses boundaries in a supplied DNA construct, returns the actual overlapping fragments,
+avoids restriction sites, reconstructs the target exactly, and scores measured ligation
+crosstalk for the junctions used.

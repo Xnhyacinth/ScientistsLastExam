@@ -250,6 +250,7 @@ print(json.dumps({{'combined_score': result['combined_score'], 'valid': result['
 
         invalid_heldout = EVALUATOR.evaluate(candidate_with_invalid_heldout)
         self.assertEqual(invalid_heldout["valid"], 1.0)
+        self.assertEqual(invalid_heldout["feasibility_rate"], 1.0)
         self.assertEqual(invalid_heldout["development_valid_count"], 3)
         self.assertEqual(invalid_heldout["heldout_complete"], 1.0)
         self.assertEqual(invalid_heldout["heldout_valid_count"], 0)

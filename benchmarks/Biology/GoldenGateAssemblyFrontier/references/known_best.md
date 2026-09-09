@@ -75,6 +75,20 @@ Source: PR #18 comment by Geniusyingmanji, 2026-09-08, head f3e553d.
 Greedy: infeasible, 0.000000. Beam width 2: 0.078686 development.
 Beam width 8 without refinement: 0.429900 development / 0.130161 heldout.
 Reference: 0.536922 / 0.501698. Refinement adds about 0.11 development and 0.37 heldout.
-A wider search previously measured 1.014924 / 0.660575. These are algorithm measurements,
+Superseded scale: a wider search previously measured 1.014924 / 0.660575; those values
+are not measurements on the current scale. These are algorithm measurements,
 not model draws or proof of difficulty. The score-one target is an engineering target, not a
 published experimental record.
+
+
+## 9. Current scientific admission hold
+
+The [maintainer review of 2026-09-09](https://github.com/Geniusyingmanji/ScientistsLastExam/pull/18#issuecomment-5594779111)
+reports exhaustive ceilings 0.685658 development / 0.512899 heldout for the 24-class panel.
+A public-only ten-start local search scores 0.675263 in 8.6 seconds in the sandbox;
+60 starts reach both ceilings in 75.5 seconds in-process. These are attributed maintainer
+measurements, not independent model calibration. They supersede any implication that the
+current score-one target is reachable or that substantial long-horizon headroom is established.
+The maintainer explicitly reserved the choice among expanding the panel, clipping to an
+attainable anchor, and introducing a position-dependent objective. This repair changes only
+search-visible feasibility and neighbor descriptions; that scientific decision remains open.

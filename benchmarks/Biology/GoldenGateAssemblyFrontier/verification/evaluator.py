@@ -518,7 +518,7 @@ def evaluate(design_assembly) -> dict:
         "robustness_score": sum(row["instance_score"] for row in heldout)
         / len(heldout),
         "valid": 1.0 if development_valid == len(development) else 0.0,
-        "feasibility_rate": sum(row["valid"] for row in all_rows) / len(all_rows),
+        "feasibility_rate": development_valid / len(development),
         "development_complete": 1.0,
         "development_complete_count": len(development),
         "development_valid_count": development_valid,
