@@ -7,6 +7,7 @@ proves in exact rational arithmetic.
 from __future__ import annotations
 
 from fractions import Fraction
+from copy import deepcopy
 
 DIFFICULTY = 1
 MAX_NUMERATOR = 10**6
@@ -133,7 +134,7 @@ INSTANCES = (
 def public_instance(instance):
     return {
         "name": instance["name"],
-        "mode_matrices": instance["mode_matrices"],
+        "mode_matrices": deepcopy(instance["mode_matrices"]),
         "state_dimension": 2,
         "max_numerator": MAX_NUMERATOR,
         "max_denominator": MAX_DENOMINATOR,

@@ -7,7 +7,7 @@ oracle:
   deterministic: true
 normalization:
   baseline: the identity Gram at alpha = 1/10000, which is a valid common Lyapunov function on every instance and scores exactly zero
-  reference: a finite catalog of sheared rational quadratics, each checked exactly, taking the largest feasible catalog rate
+  reference: a finite catalog of sheared rational quadratics with exact rational bisection of each feasible rate to the public magnitude resolution
   score: mean of min(max(0, (alpha - 1/10000) / (3/4)), 1) over four instances; the unit 3/4 is a clip, not a published record
 citations:
 - id: doi:10.1137/1.9781611970777
@@ -21,10 +21,13 @@ invariants:
 - floats are rejected rather than rounded
 - malformed submissions score zero and never raise out of the evaluator
 known_shortcuts: >-
-  The plants are 2-by-2, so Sylvester criteria replace a general PSD test. World matrices are repository-visible. Searching a larger rational catalog than the shipped reference is leftover headroom, not an exploit. A numerical LMI solver whose output is rounded would be rejected as floats.
-  Maintainer PR 27 probe (2026-09-08) proves alpha=3/5 on shear using
-  P=[[1,-21/37],[-21/37,442/1369]], scoring 0.799867 versus reference 0.666533
-  on that instance. Baseline combined is 0.000000 and reference 0.749867.
+  Scientific admission blocked: a fixed P=[[1,-3/5],[-3/5,1]], alpha=59/100
+  scores 0.786533 without reading the instance. It exceeded the old coarse-rate reference
+  0.7498665. The repaired bisection reference scores 0.8496395, already near the approximately
+  0.849900 attainable mean ceiling. Maintainer low-dimensional grid/bisection probes also
+  approach that ceiling. Rational reconstruction of numerical solutions is possible; only raw
+  floating submissions are rejected. These fixed 2-by-2 instances require substantive redesign.
+
 review:
   domain: pending_external
   evaluator_security: automated_bad_candidate_crash_sweep_determinism_and_exact_arithmetic_checks

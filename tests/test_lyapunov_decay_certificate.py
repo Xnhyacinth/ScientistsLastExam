@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import copy
 import sys
 import unittest
 from fractions import Fraction
@@ -43,6 +44,25 @@ class LyapunovDecayCertificateTests(unittest.TestCase):
         ]
         better, _ = self.evaluator.certificate_holds(modes, sheared, Fraction(1, 2))
         self.assertTrue(better)
+
+    def test_reference_optimizes_rate_for_its_returned_gram(self):
+        instance = self.evaluator.INSTANCES[0]
+        result = self.reference.build_lyapunov(self.evaluator.public_instance(instance))
+        modes = self.evaluator._parse_modes(instance["mode_matrices"])
+        gram = [[Fraction(*result["p11"]), Fraction(*result["p12"])],
+                [Fraction(*result["p12"]), Fraction(*result["p22"])]]
+        rate = Fraction(*result["alpha"])
+        self.assertFalse(self.evaluator.certificate_holds(modes, gram, rate + Fraction(1, 10000))[0])
+
+    def test_public_modes_do_not_alias_the_oracle_instances(self):
+        instance = self.evaluator.INSTANCES[0]
+        original = copy.deepcopy(instance["mode_matrices"])
+        try:
+            public = self.evaluator.public_instance(instance)
+            public["mode_matrices"][0][0][0][0] = 99999
+            self.assertEqual(instance["mode_matrices"], original)
+        finally:
+            instance["mode_matrices"] = original
 
     def test_floats_are_rejected_and_score_zero(self):
         def floats(_instance):

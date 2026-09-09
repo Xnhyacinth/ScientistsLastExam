@@ -1,7 +1,7 @@
 """Truth-blind catalog search for a common quadratic Lyapunov certificate.
 
 Does not import the evaluator. Each catalog Gram matrix is tested against the
-public modes in exact rationals; the largest feasible catalog rate is returned.
+public modes in exact rationals; bisection maximizes the rate for each Gram.
 """
 from fractions import Fraction
 
@@ -77,16 +77,6 @@ CATALOG = (
     [[Fraction(3, 2), Fraction(-1)], [Fraction(-1), Fraction(9, 4)]],
 )
 
-RATES = (
-    Fraction(3, 4),
-    Fraction(1, 2),
-    Fraction(2, 5),
-    Fraction(1, 4),
-    Fraction(1, 10),
-    Fraction(1, 100),
-    Fraction(1, 10000),
-)
-
 
 def build_lyapunov(instance):
     _ = instance["state_dimension"]
@@ -95,12 +85,24 @@ def build_lyapunov(instance):
     _ = instance["name"]
     modes = [_matrix(mode) for mode in instance["mode_matrices"]]
     best = None
+    # alpha <= -trace(A) for a Hurwitz 2x2 mode, so this is a public spectral bound.
+    upper = min(-mode[0][0] - mode[1][1] for mode in modes)
+    magnitude = max(1, -(-upper.numerator // upper.denominator))
+    denominator = min(int(instance["max_denominator"]),
+                      int(instance["max_numerator"]) // magnitude)
     for gram in CATALOG:
-        for alpha in RATES:
-            if _holds(modes, gram, alpha):
-                if best is None or alpha > best[1]:
-                    best = (gram, alpha)
-                break
+        if not _holds(modes, gram, Fraction(0)):
+            continue
+        low, high = 0, int(upper * denominator) + 1
+        while high - low > 1:
+            middle = (low + high) // 2
+            if _holds(modes, gram, Fraction(middle, denominator)):
+                low = middle
+            else:
+                high = middle
+        alpha = Fraction(low, denominator)
+        if alpha > 0 and (best is None or alpha > best[1]):
+            best = (gram, alpha)
     if best is None:
         gram = [[Fraction(1), Fraction(0)], [Fraction(0), Fraction(1)]]
         alpha = Fraction(1, 10000)

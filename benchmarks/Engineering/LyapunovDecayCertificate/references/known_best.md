@@ -1,54 +1,43 @@
-# LyapunovDecayCertificate — reference results
+# LyapunovDecayCertificate — scientific admission hold
 
-Every number here is produced by running code in this directory. Nothing is copied from a table.
+## Reference
 
-## Reproducing
+`verification/reference_lyapunov.py` uses only public modes. It retains the eight rational
+Gram candidates but replaces the seven-rate table with exact rational bisection. The public
+trace bound brackets feasible alpha and the public numerator/denominator cap sets precision.
+The returned rate cannot be increased by 1e-4 while keeping the same Gram feasible.
 
-```
-python3 frontier_eval/run_eval.py --candidate verification/reference_lyapunov.py \
-    --metrics-out /tmp/metrics.json
-```
+Current in-process reference score: **0.8496395**, all four instances valid. Proven rates:
+shear 119999/200000; pair 59961/100000; three 28553/47619; mid 199903/250000.
+This fixes an incomplete reference search, not the scientific difficulty of the instance family.
 
-## Reference - `verification/reference_lyapunov.py`
+## Baseline
 
-Truth-blind: it reads only the published modes and searches a catalog of rational Gram matrices, keeping the largest exact-feasible rate.
+The identity Gram at alpha=1/10000 is legal and scores exactly zero.
 
-| metric | value |
-|---|---|
-| combined score | **0.749867** |
-| instances with a valid certificate | 4 / 4 |
-| shear / pair / three proven alpha | 1/2 |
-| mid proven alpha | 3/4 |
+## Shortcut probes
 
-A larger rational catalog, or a better-conditioned Gram than the eight catalog entries, is leftover headroom, not an exploit. No frontier draw has been run yet.
+`references/constant_probe.py` does no instance-dependent work and scores **0.786533**
+on every instance. It exceeded the former coarse reference **0.7498665**. These two
+numbers were independently reproduced in-process on September 9.
 
-## Baseline - `solution.py`
-
-The identity Gram at `alpha = 1/10000`, which is a valid common Lyapunov function because every published mode has a negative numerical abscissa.
-
-| metric | value |
-|---|---|
-| combined score | **0.000000** |
-| instances with a valid certificate | 4 / 4 |
-
-## Ablation ladder and shortcut probes
-
-Maintainer PR #27, 2026-09-08, f2f1dcc: identity baseline 0.000000, reference
-0.749867. On shear, P=[[1,-21/37],[-21/37,442/1369]] proves alpha=3/5 exactly,
-for instance score 0.799867 versus reference alpha=1/2 and score 0.666533.
-Increasing alpha by 1e-6 fails the exact inequality. This is an algorithmic witness,
-not a frontier-model draw.
+The [owner review](https://github.com/Geniusyingmanji/ScientistsLastExam/pull/27#issuecomment-5594779605)
+reports a 0.1-second coarse grid at 0.799867 and a 1.7-second grid plus rational bisection
+at 0.849180. These timings are maintainer measurements. The repaired reference is itself
+near the approximately 0.849900 mean ceiling, leaving no demonstrated frontier-search margin.
+A larger rational catalog is therefore not established as meaningful long-horizon headroom.
 
 ## Construction errors
 
-Task.md and the Chinese inventory had retained the old alpha/(3/4) formula and
-near-zero claim. Both now state the baseline subtraction and exact zero.
-GridTopologyRecovery and UltrasonicDefectSpecies are removed from this PR pending redesign;
-their original source is retained on review/grid-ultrasonic-redesign-20260908.
+The former reference already had useful Gram matrices but suppressed its rate through a
+coarse table. That omission is repaired without changing the score scale or reducing witness
+capability. Baseline prose now says exactly zero; runtime timeout is explicitly declared.
 
-## Robustness and limits
+## Robustness and required redesign
 
-These are four fixed rational instances, not a distributional robustness result. The 3/4
-unit is an engineering clip, not a theorem or published record; the slow eigenvalue limits
-shear/pair/three to about 0.8 on this scale. No perfect-score attainability is claimed.
-No model draws or long-horizon calibration have been performed. Lineage is incomplete_legacy.
+These are four fixed 2-by-2 rational systems. Floats and malformed certificates fail closed;
+numerically found matrices converted to exact rational witnesses are not inherently forbidden.
+A genuinely coupled higher-dimensional family and independent identity, single-mode,
+averaged-mode and low-dimensional-grid probes are needed before a hardness claim. No padded
+old instance or change of basis is claimed as that redesign. The PR remains Draft; no model
+calibration or long-horizon evidence was created.

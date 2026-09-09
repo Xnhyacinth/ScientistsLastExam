@@ -1,7 +1,7 @@
 """Identity quadratic at a token decay rate.
 
 P = I is a common Lyapunov function on every published instance, but the
-numerical abscissa is small. Proving only alpha = 1/10000 scores near zero.
+numerical abscissa is small. Proving only alpha = 1/10000 scores exactly zero.
 """
 
 
