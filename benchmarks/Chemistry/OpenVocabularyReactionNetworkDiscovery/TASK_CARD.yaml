@@ -30,13 +30,13 @@ invariants:
 - malformed graphs, invalid transformations, over-budget probes, caught callback violations and malformed artifacts score zero without escaping the evaluator
 - held-out worlds change catalyst selectivity and refusal case placement while preserving the public graph grammar
 known_shortcuts: >-
-  Scientific admission blocked: the public-only signature_probe.py reaches development and
-  heldout 1.0 with at most 13 paid probes (mean development 8.833333). Additive bond energy
-  makes all 72 legal edges depend on only 13 broken/formed channel signatures, so the 24-query
-  budget does not bind. The prior budget reduction and ordering sweeps did not repair this.
-  Four heavy atoms and noiseless synthetic chemistry still lack hydrogens, charge,
-  stereochemistry, conformers and electronic-structure uncertainty; a graph-dependent
-  mechanism and descriptor-fit shortcut audit are required before any hardness claim.
+  Channel-type lookup is no longer exact: activation depends on reactant/product
+  cycle counts and the reactant's degree second moment, so the same broken/formed
+  bond-type signature is not a constant barrier. The public-only signature_probe.py
+  that previously reached development and heldout 1.0 with at most 13 probes is
+  retained as a regression. Four heavy atoms and noiseless synthetic chemistry still
+  lack hydrogens, charge, stereochemistry, conformers and electronic-structure
+  uncertainty; descriptor-fit shortcut audit remains required before any hardness claim.
 
 review:
   domain: pending_external_chemical_kinetics
@@ -67,12 +67,13 @@ lineage:
   - 80-query exhaustive grammar enumeration recovered the complete small-network oracle and exhausted meaningful score headroom.
   - blanket abstention occupied the original shipped baseline and did not exercise false-discovery scoring.
   - repeated C atoms allowed multiple bond-exchange channels whose barriers differed, while the original oracle selected one by lexicographic atom-map order.
-  - a 1024-seed deterministic BFS neighbour-order sweep reached development raw score 0.946080715974333, above the first 24-query lexicographic BFS anchor.
-  - a 1024-seed final-tie-order sweep around the first novelty-first reference reached raw 0.9730176503033645, exposing a coarse-surrogate tie-break weakness.
+  - historically, a 1024-seed BFS neighbour-order sweep reached development raw 0.946080715974333 on the additive-energy oracle.
+  - historically, a public-only 13-signature cache reached development/heldout 1.0 with at most 13 probes (mean 8.833333).
+  - after graph-dependent barriers, the same signature_probe.py scores combined 0.880621 / development raw 0.860243 against reference 1.000000 / 0.931672.
   remediation:
   - reduce the charged budget to 24 and resolve ambiguous graph-pair barriers as the minimum over all valid atom-map channels
   - replace node-local BFS with novelty-first active-frontier acquisition, a qualitative chemical barrier surrogate, and a public grammar-branching information-gain tie-break
-  - historical witness normalization was later clipped; the complete public-input signature-cache recovery now saturates it, so this did not restore admission
+  - add reactant/product cycle counts, degree second moment, and spectator-bond energy so a broken/formed channel table is not the oracle
   - ship a legal confidently wrong edge while retaining blanket abstention as an independent zero-score control
   frozen_before_eval: false
   freeze_timestamp: null

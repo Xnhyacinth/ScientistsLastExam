@@ -26,7 +26,13 @@
     "uphill_energy_coefficient": 0.16,
     "favoured_formed_offset": -7.0,
     "other_formed_offset": 2.0,
-    "favoured_broken_offset": 3.0
+    "favoured_broken_offset": 3.0,
+    "reactant_cycle_coefficient": 5.5,
+    "product_cycle_coefficient": 2.5,
+    "reactant_degree_moment_coefficient": 0.7,
+    "topology_moment_origin": 10.0,
+    "spectator_bond_coefficient": 0.22,
+    "spectator_bond_origin": 140.0
   },
   "scoring": {
     "edge_f1_weight": 0.65,
@@ -35,15 +41,15 @@
     "barrier_error_scale": 8.0
   },
   "worlds": [
-    {"split": "development", "kind": "supported", "favoured_pair": ["C", "N"], "barrier_offset": -2.0, "barrier_limit": 56.0, "seed_index": 0},
-    {"split": "development", "kind": "supported", "favoured_pair": ["C", "O"], "barrier_offset": 1.0, "barrier_limit": 58.0, "seed_index": 3},
-    {"split": "development", "kind": "supported", "favoured_pair": ["N", "O"], "barrier_offset": -1.0, "barrier_limit": 55.0, "seed_index": 7},
-    {"split": "development", "kind": "supported", "favoured_pair": ["C", "C"], "barrier_offset": 2.0, "barrier_limit": 59.0, "seed_index": 11},
+    {"split": "development", "kind": "supported", "favoured_pair": ["C", "N"], "barrier_offset": -2.0, "barrier_limit": 58.0, "seed_index": 0},
+    {"split": "development", "kind": "supported", "favoured_pair": ["C", "O"], "barrier_offset": 1.0, "barrier_limit": 60.0, "seed_index": 3},
+    {"split": "development", "kind": "supported", "favoured_pair": ["N", "O"], "barrier_offset": -1.0, "barrier_limit": 57.0, "seed_index": 7},
+    {"split": "development", "kind": "supported", "favoured_pair": ["C", "C"], "barrier_offset": 2.0, "barrier_limit": 61.0, "seed_index": 8},
     {"split": "development", "kind": "null", "favoured_pair": ["C", "N"], "barrier_offset": 0.0, "barrier_limit": 0.0, "seed_index": 2},
     {"split": "development", "kind": "model_inadequate", "favoured_pair": ["C", "O"], "barrier_offset": 0.0, "barrier_limit": 0.0, "seed_index": 5},
-    {"split": "heldout", "kind": "supported", "favoured_pair": ["N", "O"], "barrier_offset": 3.0, "barrier_limit": 60.0, "seed_index": 1},
-    {"split": "heldout", "kind": "supported", "favoured_pair": ["C", "C"], "barrier_offset": -3.0, "barrier_limit": 54.0, "seed_index": 6},
-    {"split": "heldout", "kind": "supported", "favoured_pair": ["C", "N"], "barrier_offset": 0.0, "barrier_limit": 57.0, "seed_index": 10},
+    {"split": "heldout", "kind": "supported", "favoured_pair": ["N", "O"], "barrier_offset": 3.0, "barrier_limit": 62.0, "seed_index": 1},
+    {"split": "heldout", "kind": "supported", "favoured_pair": ["C", "C"], "barrier_offset": -3.0, "barrier_limit": 56.0, "seed_index": 6},
+    {"split": "heldout", "kind": "supported", "favoured_pair": ["C", "N"], "barrier_offset": 0.0, "barrier_limit": 59.0, "seed_index": 10},
     {"split": "heldout", "kind": "null", "favoured_pair": ["N", "O"], "barrier_offset": 0.0, "barrier_limit": 0.0, "seed_index": 4},
     {"split": "heldout", "kind": "model_inadequate", "favoured_pair": ["C", "C"], "barrier_offset": 0.0, "barrier_limit": 0.0, "seed_index": 8}
   ],

@@ -73,6 +73,8 @@ fails closed rather than earning duplicate credit. Directed edges are canonicali
 canonical reactant and product graphs; duplicate edges also fail closed. When repeated elements
 admit several valid one-delete/one-add atom maps for the same canonical graph pair, the edge has
 the minimum activation barrier across those channels. The output does not select a hidden atom map.
+The barrier also depends on rings and crowding on the rest of each graph, not only the two
+exchanging bond types, so a table over broken/formed channel signatures is not the oracle.
 
 Every claimed reaction indexes two different submitted species. It must obey the public
 `elementary_edge_rule`: delete one single heavy-atom bond and form one different single bond while

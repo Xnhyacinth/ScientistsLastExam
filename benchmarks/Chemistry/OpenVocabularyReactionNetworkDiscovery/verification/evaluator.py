@@ -248,6 +248,28 @@ def _species_energy(key):
     )
 
 
+def _graph_topology(key):
+    """Cycle count and degree second moment of one canonical species graph.
+
+    Additive bond energy differences cancel for a one-bond exchange, so a barrier
+    that used only that difference was a function of the two exchanging bond types.
+    Rings and crowding on the rest of the graph do not cancel.
+    """
+    atoms = key.split("|", 1)[0].split(",")
+    bits = key.split("|", 1)[1]
+    n = len(atoms)
+    degrees = [0] * n
+    edges = 0
+    for index, (left, right) in enumerate(itertools.combinations(range(n), 2)):
+        if bits[index] != "1":
+            continue
+        edges += 1
+        degrees[left] += 1
+        degrees[right] += 1
+    cycles = edges - n + 1
+    return cycles, sum(degree * degree for degree in degrees)
+
+
 def _activation_energy(left_key, right_key, spec):
     allowed, removed_channels, formed_channels = _bond_exchange(left_key, right_key)
     if not allowed:
@@ -255,6 +277,8 @@ def _activation_energy(left_key, right_key, spec):
     if len(removed_channels) != len(formed_channels):
         raise RuntimeError("bond-exchange channel counts differ")
     uphill = max(_species_energy(right_key) - _species_energy(left_key), 0.0)
+    left_cycles, left_moment = _graph_topology(left_key)
+    right_cycles, _right_moment = _graph_topology(right_key)
     barriers = []
     for removed, formed in zip(removed_channels, formed_channels):
         broken_pair = _pair_for_bit(removed)
@@ -266,6 +290,17 @@ def _activation_energy(left_key, right_key, spec):
         )
         if broken_pair == spec["favoured_pair"]:
             selectivity += _ACTIVATION_MODEL["favoured_broken_offset"]
+        spectator = -_species_energy(left_key) - PAIR_STRENGTH[broken_pair]
+        environment = (
+            _ACTIVATION_MODEL["reactant_cycle_coefficient"] * left_cycles
+            + _ACTIVATION_MODEL["product_cycle_coefficient"] * right_cycles
+            + _ACTIVATION_MODEL["reactant_degree_moment_coefficient"] * (
+                left_moment - _ACTIVATION_MODEL["topology_moment_origin"]
+            )
+            + _ACTIVATION_MODEL["spectator_bond_coefficient"] * (
+                spectator - _ACTIVATION_MODEL["spectator_bond_origin"]
+            )
+        )
         barriers.append(
             _ACTIVATION_MODEL["intercept"]
             + _ACTIVATION_MODEL["broken_bond_coefficient"] * PAIR_STRENGTH[broken_pair]
@@ -273,6 +308,7 @@ def _activation_energy(left_key, right_key, spec):
             + _ACTIVATION_MODEL["uphill_energy_coefficient"] * uphill
             + selectivity
             + spec["barrier_offset"]
+            + environment
         )
     return float(min(barriers))
 

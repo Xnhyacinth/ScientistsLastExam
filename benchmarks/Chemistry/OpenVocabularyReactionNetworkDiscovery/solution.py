@@ -8,11 +8,11 @@ def discover_reaction_network(problem, probe):
         "species": [
             {
                 "atoms": ["C", "C", "N", "O"],
-                "bonds": [[0, 3, 1], [1, 2, 1], [2, 3, 1]],
+                "bonds": [[0, 2, 1], [1, 2, 1], [1, 3, 1], [2, 3, 1]],
             },
             {
                 "atoms": ["C", "C", "N", "O"],
-                "bonds": [[0, 1, 1], [1, 2, 1], [2, 3, 1]],
+                "bonds": [[0, 2, 1], [0, 3, 1], [1, 2, 1], [1, 3, 1]],
             },
         ],
         "reactions": [
