@@ -94,7 +94,7 @@ class ExamTaxonomyTests(unittest.TestCase):
         )
         self.assertEqual(
             tax["tasks"]["Glaciology/GlenFlowLawDiscovery"].get("note"),
-            "joint_glen_thermal_recovery_not_complex_bose_or_enzyme_rate_law",
+            "glen_gbs_newtonian_thermal_recovery_not_complex_bose_or_enzyme_rate_law",
         )
 
 

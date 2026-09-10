@@ -1,4 +1,10 @@
-"""Frozen Glen-flow oracle: recover n, or refuse when sliding mixes the slope."""
+"""Frozen Glen-flow oracle: recover n, or refuse when the log-log slope is not a named power.
+
+Citations that the oracle actually uses:
+Glen (1955) doi:10.1098/rspa.1955.0066; Weertman (1957) doi:10.3189/S0022143000024709;
+Paterson and Budd (1982) doi:10.1016/0165-232X(82)90010-6 for the Arrhenius thermal factor;
+Goldsby and Kohlstedt (2001) doi:10.1029/2000JB900336 for grain-boundary sliding with n around 1.8.
+"""
 from __future__ import annotations
 
 import math
@@ -9,24 +15,28 @@ MEASURE_BUDGET = 12
 TAU_BOUNDS = (20.0, 200.0)
 TEMPERATURE_BOUNDS = (245.0, 265.0)
 REFERENCE_TEMPERATURE = 255.0
-SUPPORTED = {"glen", "newtonian"}
+SUPPORTED = {"glen", "newtonian", "gbs"}
+GBS_EXPONENT_BOUNDS = (1.65, 2.05)
 
 PUBLIC_PROBLEM = {
     "stress_bounds_kPa": list(TAU_BOUNDS),
     "temperature_bounds_K": list(TEMPERATURE_BOUNDS),
     "reference_temperature_K": REFERENCE_TEMPERATURE,
     "glen_exponent_bounds": [2.6, 3.6],
+    "gbs_exponent_bounds": list(GBS_EXPONENT_BOUNDS),
     "measure_budget_calls": MEASURE_BUDGET,
-    "family_names": ["glen", "newtonian"],
+    "family_names": ["glen", "newtonian", "gbs"],
     "rate_law": (
         "v = A * tau^n * exp(-activation_temperature*(1/T - 1/255)); "
-        "Glen n is in [2.6,3.6]; Newtonian n=1; A and activation_temperature are unknown"
+        "Glen n is in [2.6,3.6]; Newtonian n=1; GBS (grain-boundary sliding) n is in [1.65,2.05]; "
+        "A and activation_temperature are unknown"
     ),
     "measurement_model": (
         "measure(stress_kPa, temperature_K=255) returns ln speed plus Gaussian noise (sigma=0.03)"
     ),
     "abstain_when": (
-        "basal sliding makes the log-log slope curved or puts n outside the family"
+        "basal sliding or a stress-dependent exponent curves the log-log slope, "
+        "a plug is stress-independent, or n is outside the named families"
     ),
 }
 
@@ -35,18 +45,34 @@ def public_problem():
     return dict(PUBLIC_PROBLEM)
 
 
+def _thermal(spec, temperature):
+    activation = float(spec.get("activation_temperature", 0.0))
+    return math.exp(-activation * (1.0 / temperature - 1.0 / REFERENCE_TEMPERATURE))
+
+
 def true_speed(spec, stress, temperature=REFERENCE_TEMPERATURE):
     stress = max(float(stress), 1e-6)
     kind = spec["kind"]
-    thermal = math.exp(-float(spec.get("activation_temperature", 0.0)) * (1.0 / temperature - 1.0 / REFERENCE_TEMPERATURE))
+    thermal = _thermal(spec, temperature)
     if kind == "glen":
         return float(spec["A"]) * stress ** float(spec.get("n", 3.0)) * thermal
     if kind == "newtonian":
         return float(spec["A"]) * stress * thermal
+    if kind == "gbs":
+        return float(spec["A"]) * stress ** float(spec.get("n", 1.8)) * thermal
     if kind == "sliding":
-        return float(spec["A"]) * stress ** float(spec.get("n", 3.0)) * thermal + float(spec["C"]) * stress
+        # Same Arrhenius factor on the Weertman sliding term as on the creep term.
+        creep = float(spec["A"]) * stress ** float(spec.get("n", 3.0))
+        sliding = float(spec["C"]) * stress
+        return (creep + sliding) * thermal
     if kind == "plug":
         return float(spec["C"])
+    if kind == "variable_n":
+        n0 = float(spec["n0"])
+        k = float(spec["k"])
+        tau0 = float(spec.get("tau0", math.sqrt(TAU_BOUNDS[0] * TAU_BOUNDS[1])))
+        exponent = n0 + k * math.log10(stress / tau0)
+        return float(spec["A"]) * stress ** exponent * thermal
     raise ValueError("unknown family")
 
 
@@ -97,6 +123,15 @@ def _validate(submission):
     return False, family, exponent, confidence, log_a, activation
 
 
+def _true_n(spec):
+    kind = spec["kind"]
+    if kind == "newtonian":
+        return 1.0
+    if kind == "gbs":
+        return float(spec.get("n", 1.8))
+    return float(spec.get("n", 3.0))
+
+
 def _mechanism(spec, abstain, family, exponent, log_a, activation):
     if spec["kind"] not in SUPPORTED:
         return (1.0 if abstain else 0.0), bool(abstain), (not abstain)
@@ -104,9 +139,7 @@ def _mechanism(spec, abstain, family, exponent, log_a, activation):
         return 0.0, False, False
     if family != spec["kind"]:
         return 0.0, False, False
-    true_n = float(spec.get("n", 3.0)) if spec["kind"] == "glen" else 1.0
-    # Continuous joint recovery; the widths state parameter resolution, not a noise change.
-    error = (abs(exponent - true_n) / 0.1
+    error = (abs(exponent - _true_n(spec)) / 0.1
              + abs(log_a - math.log(spec["A"])) / 0.3
              + abs(activation - spec["activation_temperature"]) / 1000.0) / 3.0
     return math.exp(-error), False, False
@@ -121,6 +154,10 @@ DEVELOPMENT_WORLDS = (
     {"kind": "sliding", "seed": 72003, "A": 2.0e-7, "C": 3.6e-5, "activation_temperature": 6500.0},
     {"kind": "plug", "seed": 73001, "C": 0.45},
     {"kind": "plug", "seed": 73002, "C": 1.2},
+    {"kind": "gbs", "seed": 74001, "A": 1.0e-5, "n": 1.72, "activation_temperature": 5100.0},
+    {"kind": "gbs", "seed": 74002, "A": 4.0e-6, "n": 1.98, "activation_temperature": 8000.0},
+    {"kind": "variable_n", "seed": 75001, "A": 1.5e-7, "n0": 3.0, "k": 0.20,
+     "tau0": 63.245553203367585, "activation_temperature": 5600.0},
 )
 HELDOUT_WORLDS = (
     {"kind": "glen", "seed": 81001, "A": 3.4e-7, "n": 3.15, "activation_temperature": 6100.0},
@@ -129,6 +166,9 @@ HELDOUT_WORLDS = (
     {"kind": "plug", "seed": 83001, "C": 0.7},
     {"kind": "sliding", "seed": 82002, "A": 3.0e-5, "C": 0.2, "activation_temperature": 5100.0},
     {"kind": "sliding", "seed": 82003, "A": 3.4e-7, "C": 5.1e-5, "activation_temperature": 7500.0},
+    {"kind": "gbs", "seed": 84001, "A": 8.0e-6, "n": 1.85, "activation_temperature": 6400.0},
+    {"kind": "variable_n", "seed": 85001, "A": 2.8e-7, "n0": 3.25, "k": 0.22,
+     "tau0": 63.245553203367585, "activation_temperature": 6900.0},
 )
 
 

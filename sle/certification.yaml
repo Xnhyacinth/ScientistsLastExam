@@ -508,12 +508,14 @@ tasks:
   Glaciology/GlenFlowLawDiscovery:
     status: candidate
     reason: >-
-      Draft candidate with continuous exponent and joint amplitude/thermal recovery.
-      Former noise-indistinguishable sliding worlds are removed. Current reference scores
-      0.961088 development / 0.930015 heldout; difficulty admission remains blocked.
+      Draft candidate with Glen, Newtonian and GBS viscous families plus joint amplitude/thermal
+      recovery. Sliding mixtures, plugs and stress-dependent n(τ) must be refused. The two-window
+      log-linear reference does not label GBS. Candidate, not certified. No frontier searcher draw.
     citation_ids:
       - doi:10.1098/rspa.1955.0066
       - doi:10.3189/S0022143000024709
+      - doi:10.1016/0165-232X(82)90010-6
+      - doi:10.1029/2000JB900336
   Mathematics/RamseyLowerBound:
     status: candidate
     reason: >-

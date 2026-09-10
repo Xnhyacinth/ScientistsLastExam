@@ -7,6 +7,7 @@ def identify_flow_law(problem, measure):
     lo, hi = problem["stress_bounds_kPa"]
     _ = problem["measure_budget_calls"]
     _ = problem["family_names"]
+    _ = problem["gbs_exponent_bounds"]
     _ = problem["rate_law"]
     _ = problem["measurement_model"]
     _ = problem["abstain_when"]

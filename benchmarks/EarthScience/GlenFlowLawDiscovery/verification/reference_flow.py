@@ -1,4 +1,8 @@
-"""Public-input stress/temperature design and joint log-linear fit."""
+"""Public-input stress/temperature design and joint log-linear fit.
+
+Labels only Glen and Newtonian windows. A third supported power-law family
+(GBS, n around 1.8) falls between those windows and is abstained.
+"""
 from __future__ import annotations
 import math
 import numpy as np

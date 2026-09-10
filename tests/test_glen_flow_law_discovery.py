@@ -50,6 +50,28 @@ class GlenFlowLawDiscoveryTests(unittest.TestCase):
             0.4,
         )
 
+    def test_gbs_is_a_supported_power_law_near_n_1_8(self):
+        spec = {"kind": "gbs", "A": 1.0e-5, "n": 1.8}
+        observed = math.log(self.evaluator.true_speed(spec, 200) / self.evaluator.true_speed(spec, 20)) / math.log(10)
+        self.assertAlmostEqual(observed, 1.8)
+        self.assertIn("gbs", self.evaluator.SUPPORTED)
+        self.assertIn("gbs", self.evaluator.PUBLIC_PROBLEM["family_names"])
+
+    def test_stress_dependent_n_curves_log_log_for_a_different_reason_than_sliding(self):
+        spec = {
+            "kind": "variable_n", "A": 1.5e-7, "n0": 3.0, "k": 0.20,
+            "tau0": 63.245553203367585, "activation_temperature": 5600.0,
+        }
+        lo, hi = self.evaluator.TAU_BOUNDS
+        mid = math.sqrt(lo * hi)
+        y = [math.log(self.evaluator.true_speed(spec, tau)) for tau in (lo, mid, hi)]
+        curvature = (y[2] - 2 * y[1] + y[0]) / math.log(mid / lo)
+        self.assertGreater(curvature, 0.1)
+        self.assertLess(curvature, 0.3)
+        self.assertNotIn("variable_n", self.evaluator.SUPPORTED)
+        local = math.log(self.evaluator.true_speed(spec, 200) / self.evaluator.true_speed(spec, 80)) / math.log(200 / 80)
+        self.assertGreater(abs(local - 3.0), 0.1)
+
     def test_former_weak_sliding_worlds_have_resolvable_curvature(self):
         lo, hi = self.evaluator.TAU_BOUNDS
         mid = math.sqrt(lo * hi)
@@ -60,10 +82,22 @@ class GlenFlowLawDiscoveryTests(unittest.TestCase):
             self.assertGreater(curvature, 0.1)
             self.assertLess(curvature, 0.3)
 
+    def test_sliding_carries_the_same_arrhenius_factor_as_creep(self):
+        spec = {"kind": "sliding", "A": 1.0e-5, "C": 0.05, "activation_temperature": 4800.0}
+        ratio_low = self.evaluator.true_speed(spec, 20, 265) / self.evaluator.true_speed(spec, 20, 245)
+        ratio_high = self.evaluator.true_speed(spec, 200, 265) / self.evaluator.true_speed(spec, 200, 245)
+        self.assertAlmostEqual(ratio_low, ratio_high, places=12)
+        glen = {"kind": "glen", "A": 2.0e-7, "n": 3.0, "activation_temperature": 4800.0}
+        self.assertAlmostEqual(
+            ratio_low,
+            self.evaluator.true_speed(glen, 100, 265) / self.evaluator.true_speed(glen, 100, 245),
+            places=12,
+        )
+
     def test_temperature_response_and_parameter_denominators_are_reported(self):
         metrics = self.evaluator.evaluate(self.reference.identify_flow_law)
-        self.assertEqual(metrics["development_supported_count"], 3)
-        self.assertEqual(metrics["development_unsupported_count"], 5)
+        self.assertEqual(metrics["development_supported_count"], 5)
+        self.assertEqual(metrics["development_unsupported_count"], 6)
         spec = self.evaluator.DEVELOPMENT_WORLDS[0]
         self.assertGreater(self.evaluator.true_speed(spec,100,265), self.evaluator.true_speed(spec,100,245))
 
@@ -88,11 +122,20 @@ class GlenFlowLawDiscoveryTests(unittest.TestCase):
         self.assertGreater(reference["development_signal_recovery_rate"], 0.5)
         self.assertEqual(reference["development_false_discovery_rate"], 0.0)
         self.assertEqual(reference["development_correct_refusal_rate"], 1.0)
+        self.assertLess(reference["development_discovery_coverage"], 1.0)
+
+    def test_two_window_reference_does_not_label_gbs(self):
+        reference = self.evaluator.evaluate(self.reference.identify_flow_law)
+        gbs_rows = [row for row in reference["per_instance"] if row["kind"] == "gbs"]
+        self.assertGreaterEqual(len(gbs_rows), 3)
+        for row in gbs_rows:
+            self.assertEqual(row["mechanism_score"], 0.0)
+            self.assertTrue(row["abstained"])
 
     def test_blanket_refusal_does_not_claim_perfect_confidence_calibration(self):
         result = self.evaluator.evaluate(lambda *_: {"abstain": True, "confidence": 0.0})
-        self.assertEqual(result["development_confidence_calibration"], 5 / 8)
-        self.assertEqual(result["heldout_confidence_calibration"], 4 / 6)
+        self.assertEqual(result["development_confidence_calibration"], 6 / 11)
+        self.assertEqual(result["heldout_confidence_calibration"], 5 / 8)
 
     def test_reference_meets_difficulty_admission_band(self):
         # Keep the original scientific gate. The draft must remain blocked until a
