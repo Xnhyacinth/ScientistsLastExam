@@ -48,16 +48,19 @@ and missing entries are rejected rather than rounded.
 
 ## Scoring
 
-For a feasible minimization objective `z`, with weak-feasible baseline `b` and frozen
-MIPLIB optimum `r`,
+For a feasible minimization objective `z`, with weak-feasible baseline `b=0` and frozen
+MIPLIB optimum `r=-40`,
 
 ```text
-clip01( (b - z) / (b - r) )
+clip01( log((b - r + 1) / (z - r + 1)) / log(b - r + 1) )
 ```
 
 The empty baseline scores zero; a feasible 40-queen assignment scores one. A feasible
-assignment with q queens scores q/40, clipped to [0,1]. The optimum is sourced from
-MIPLIB solufile v36; no claim is made that it is an open record.
+assignment with q queens scores `log(41/(41-q))/log(41)`, clipped to [0,1]. Linear
+`q/40` is retired: it made the whole 0→0.95 range cheap. The last queens are the
+expensive increments. Score-mode remains clipped at the proven optimum; this is not
+an uncapped scale. The optimum is sourced from MIPLIB solufile v36; no claim is made
+that it is an open record.
 
 ## Tools and scope
 

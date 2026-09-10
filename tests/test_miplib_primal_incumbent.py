@@ -49,7 +49,28 @@ class MiplibPrimalTests(unittest.TestCase):
     def test_one_queen_is_a_feasible_improvement(self):
         result = EVALUATOR.evaluate(lambda p: [1] + [0] * (p["n_variables"] - 1))
         self.assertEqual(result["valid"], 1.0)
-        self.assertEqual(result["combined_score"], 0.025)
+        self.assertAlmostEqual(result["combined_score"], 0.006649, places=6)
+
+    def test_log_gap_scale_from_measured_objectives(self):
+        row = EVALUATOR.INSTANCES[0]
+        expected = {
+            0: 0.0,
+            1: 0.006649288648997573,
+            35: 0.5175105162781473,
+            36: 0.5666065223658276,
+            37: 0.6266951775221132,
+            38: 0.7041629275170906,
+            39: 0.8133475887610566,
+            40: 1.0,
+        }
+        for queens, want in expected.items():
+            with self.subTest(queens=queens):
+                got = EVALUATOR._instance_score(row, float(-queens))
+                self.assertAlmostEqual(got, want, places=9)
+        self.assertLess(EVALUATOR._instance_score(row, -36.0), 0.70)
+        last_queen = EVALUATOR._instance_score(row, -40.0) - EVALUATOR._instance_score(row, -39.0)
+        first_queen = EVALUATOR._instance_score(row, -1.0)
+        self.assertGreater(last_queen, first_queen)
 
     def test_malformed_submissions_score_zero_without_raising(self):
         cases = {

@@ -294,7 +294,7 @@ CHINESE_BRIEFS = {
         "低于 E8 格实际达到的 0.0625)。"),
     "DiscreteOptimization/MiplibPrimalIncumbent": (
         "在 MIPLIB-hard queens-30 上改进空的二元可行赋值;官方 checker 只查原可行,不是排列调度。",
-        "已证明最优故分数夹到 1。从空向量到 solufile v36 最优 -40 的进度。"),
+        "已证明最优故分数夹到 1。从空向量到 solufile v36 最优 -40 的对数缺口进度。"),
     "InformationTheory/ShannonCapacityCertificate": (
         "为奇圈的香农容量给出一段可精确验证的区间:下界交一个强积幂里的零错码(任意两码字不得在每个坐标上都相等或相邻),上界交一份有理 Lovasz 矩阵与有理界,使 b*I - A 正定。"
         "C7 的容量自 1956 年 Shannon 提出、1979 年 Lovasz 解决 C5 之后一直未知,下端在 2026 年 7 月一个月内被改进了三次,上端 theta 自 1979 年未动过。",

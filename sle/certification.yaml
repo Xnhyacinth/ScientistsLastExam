@@ -613,8 +613,9 @@ tasks:
     status: candidate
     reason: >-
       Candidate queens-30 primal assignment task with proven optimum -40. Replaces three
-      near-saturated gen-ip models; a 240-second sandbox milp probe scores 0.875.
-      Calibration and external data review remain pending.
+      near-saturated gen-ip models. Score is clipped log-gap from the empty vector to -40;
+      a 240-second sandbox milp probe scores 0.517511, owner greedy+2-swap reaches 0.566607
+      at 60s and 0.626695 at 240s. Calibration and external data review remain pending.
     citation_ids: [doi:10.1007/s12532-020-00194-3, web:miplib2017-v36]
   QuantumFoundations/FourSettingMomentCertificate:
     status: candidate

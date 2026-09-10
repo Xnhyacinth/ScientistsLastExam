@@ -229,12 +229,21 @@ def _objective(assignment: list[int], model: dict[str, Any]) -> float:
 
 
 def _instance_score(row: dict[str, Any], objective: float) -> float:
+    """Log-gap progress from the empty assignment to the proven MIPLIB optimum.
+
+    ``clip01(log((b-r+1)/(z-r+1)) / log(b-r+1))`` with baseline ``b=0`` and
+    reference ``r=-40``. Linear ``q/40`` made the first 36 queens almost free; the
+    last queen is the expensive increment. The proven optimum still clips at one.
+    """
     baseline = row["baseline_objective"]
     reference = row["reference_objective"]
-    span = baseline - reference
-    if span <= 0:
+    easy = baseline - reference + 1.0
+    current = objective - reference + 1.0
+    if easy <= 1.0:
         return 0.0
-    progress = (baseline - objective) / span
+    if current <= 0.0:
+        return 1.0
+    progress = math.log(easy / current) / math.log(easy)
     return max(0.0, min(1.0, progress))
 
 

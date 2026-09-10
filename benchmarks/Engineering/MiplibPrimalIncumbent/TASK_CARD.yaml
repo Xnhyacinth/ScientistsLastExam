@@ -17,7 +17,7 @@ oracle:
 normalization:
   baseline: the feasible all-zero binary vector, objective 0
   reference: official MIPLIB solufile v36 proven optimum -40 for queens-30
-  score: clip01(-objective/40); proven optimum, not an open-incumbent record
+  score: clip01(log((b-r+1)/(z-r+1))/log(b-r+1)) with b=0, r=-40; proven optimum, not an open-incumbent record
 citations:
   - id: doi:10.1007/s12532-020-00194-3
     title: "MIPLIB 2017: Data-Driven Compilation of the 6th Mixed-Integer Programming Library"
@@ -31,16 +31,19 @@ invariants:
   - Malformed submissions score zero and never raise out of the evaluator.
   - The model is MIPLIB-hard and proven optimal; score one is not a new library record.
 known_shortcuts: >-
-  The former gen-ip trio scores 0.996066 under a 60-second-per-model SciPy milp probe
-  in the Linux sandbox. It is retired. On queens-30, SciPy 1.11.4 / NumPy 1.26.4,
-  a 240-second single-thread milp call in the same sandbox finds 35 queens, score 0.875,
-  with zero constraint violation. A 60-second in-process probe also finds 35.
-  This did not remove near-saturation: the September 9 maintainer review reports a
-  valid no-solver greedy/two-exchange candidate at 0.900 (60s) and 0.925 (240s), plus a
-  separate stricter-check script at 0.950 (7.1s) and 0.975 (44.3s). Scientific admission
-  and file-level redistribution review remain blocked; no score rescaling is claimed as a repair.
-  The new deterministic public-CSR local_search_probe.py independently finds 38 queens,
-  score 0.95 with zero violation in the real sandbox after 2500 rounds.
+  The former gen-ip trio saturated a 60-second-per-model SciPy milp probe in the Linux
+  sandbox. It is retired. Scores below are log-gap clip01(log((0-(-40)+1)/(z+41))/log(41)),
+  recomputed from the same measured objectives; they are not the retired linear q/40 scale.
+  On queens-30, SciPy 1.11.4 / NumPy 1.26.4, a 240-second single-thread milp call in the same
+  sandbox finds 35 queens, objective -35, score 0.517511, with zero constraint violation.
+  A 60-second in-process probe also finds 35. A valid no-solver greedy/two-exchange
+  candidate finds 36 queens, objective -36, score 0.566607 in 60s and 37 queens, -37,
+  0.626695 in 240s. A separate stricter-check script of the same heuristic finds 38 queens,
+  -38, 0.704163 in 7.1s and 39 queens, -39, 0.813348 in 44.3s. The deterministic public-CSR
+  local_search_probe.py independently finds 38 queens, objective -38, score 0.704163
+  with zero violation in the real sandbox after 2500 rounds. No claim is made that a
+  solver was blocked by seccomp. Scientific admission and file-level redistribution review
+  remain blocked.
 review:
   status: pending_external
   domain: pending_external_operations_research
@@ -67,8 +70,8 @@ lineage:
   calibration_runs: []
   calibration_evidence_status: missing
   edits_triggered_by_model: >-
-    Maintainer reproduced near-saturation by HiGHS. Replaced the gen-ip trio with queens-30
-    and added upper-bound enforcement plus fail-closed rejection of unsupported MPS sections.
+    Maintainer found queens-30 still near-saturated on linear q/40 by greedy+2-swap.
+    Score is now clipped log-gap from the empty vector to the proven optimum.
   shortcut_discoverer: builder_self_audit
   frozen_before_eval: false
   freeze_timestamp: null
