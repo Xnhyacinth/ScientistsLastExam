@@ -115,6 +115,68 @@ class GeneratedRunEvalTests(unittest.TestCase):
         self.assertNotEqual(done.returncode, 0)
         self.assertIn("does not name this directory", done.stderr)
 
+    def test_generated_wrapper_writes_only_search_visible_keys(self):
+        """Issue #14: the metrics file is what an external harness reads back.
+
+        `sle eval` prints everything the evaluator returned, which for a discovery task includes
+        the held-out scores, the per-instance rows and the discovery axes. Measured across the
+        frozen baseline document, all 82 tasks return at least one key outside the whitelist and
+        1200 in total, 444 of them `heldout_*`. This repository's own loop never sees them, but a
+        harness that feeds this file back into its own loop would be selecting on the sealed
+        split. New tasks are generated correct; the 84 wrappers already in the tree are a
+        separate migration, because changing them moves their task package hashes.
+        """
+        rendered = _render()
+        self.assertIn("from sle.metric_visibility import SEARCH_VISIBLE_KEYS", rendered)
+        self.assertIn("if key in SEARCH_VISIBLE_KEYS", rendered)
+        # Imported, not restated: a second copy of the list is how two paths diverge.
+        self.assertNotIn('"combined_score",\n    "valid",', rendered)
+
+    def test_generated_wrapper_filters_a_real_metrics_dictionary(self):
+        """The property, exercised end to end rather than read off the source."""
+        import json
+        import subprocess
+        import sys as _sys
+        import tempfile
+
+        from sle.metric_visibility import SEARCH_VISIBLE_KEYS
+
+        rendered = _render(task="Bar", task_id="Physics/Bar")
+        leaky = {
+            "combined_score": 0.5, "valid": 1.0, "raw_score": 0.5,
+            "heldout_combined_score": 0.9, "development_mechanism_score": 1.0,
+            "per_instance": [{"kind": "supported", "units": 3}],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            wrapper = root / "benchmarks" / "Physics" / "Bar" / "frontier_eval" / "run_eval.py"
+            wrapper.parent.mkdir(parents=True)
+            wrapper.write_text(rendered, encoding="utf-8")
+            # `sle` must be importable from the fake root, and the subprocess the wrapper shells
+            # out to is replaced by a stub that prints the leaky dictionary `sle eval` would.
+            (root / "sle").mkdir()
+            (root / "sle" / "__init__.py").write_text("", encoding="utf-8")
+            (root / "sle" / "metric_visibility.py").write_text(
+                "SEARCH_VISIBLE_KEYS = %r\n" % (tuple(SEARCH_VISIBLE_KEYS),), encoding="utf-8")
+            (root / "sle" / "__main__.py").write_text(
+                "import json, sys\nprint(json.dumps(%r))\n" % (leaky,), encoding="utf-8")
+            candidate = root / "candidate.py"
+            candidate.write_text("", encoding="utf-8")
+            out = root / "metrics.json"
+            done = subprocess.run(
+                [_sys.executable, str(wrapper), "--candidate", str(candidate),
+                 "--metrics-out", str(out), "--timeout", "30"],
+                capture_output=True, text=True, timeout=120, cwd=str(root))
+            self.assertEqual(done.returncode, 0, done.stderr)
+            # Read inside the block: the directory goes away when it closes.
+            written = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual(set(written) - set(SEARCH_VISIBLE_KEYS), set())
+        self.assertEqual(written["combined_score"], 0.5)
+        for hidden in ("heldout_combined_score", "development_mechanism_score", "per_instance"):
+            with self.subTest(key=hidden):
+                self.assertNotIn(hidden, written)
+        self.assertNotIn("heldout", done.stdout)
+
     def test_no_shipped_wrapper_carries_an_unrendered_placeholder(self):
         offenders = []
         for path in sorted((REPO / "benchmarks").glob("*/*/frontier_eval/run_eval.py")):
