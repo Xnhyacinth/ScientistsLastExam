@@ -21,6 +21,22 @@ from .runtime_identity import (
 from .secure_eval import INVALID_SCORE, validate_metrics
 from .spec import TaskSpec
 
+# Substrings that mark an environment variable as a credential. `verification/evaluator.py` is
+# code an external contributor submits, it runs in the trusted parent rather than the sandbox,
+# and it needs no environment at all - a sweep of every evaluator in the tree finds not one
+# `os.environ` or `getenv` call. `sle/upstream_evaluator.py` already dropped these before
+# evaluating for exactly that reason; the main path did not, so every `sle eval`, every cohort
+# run and every calibration handed the parent's full environment, API keys included, to
+# contributor code. One list, used by both, so the two cannot drift apart again.
+CREDENTIAL_MARKERS = ("API_KEY", "AUTHORIZATION", "TOKEN")
+
+
+def without_credentials(environment: dict[str, str]) -> dict[str, str]:
+    """Return `environment` without the variables whose names look like credentials."""
+    return {key: value for key, value in environment.items()
+            if not any(marker in key.upper() for marker in CREDENTIAL_MARKERS)}
+
+
 
 MAX_TRUSTED_CONTEXT_BYTES = 1024 * 1024
 
@@ -135,7 +151,7 @@ def evaluate_candidate(
             context_path = Path(tmp) / "trusted_context.json"
             context_path.write_bytes(context_payload)
             cmd += ["--trusted-context", str(context_path)]
-        trusted_environment = dict(os.environ)
+        trusted_environment = without_credentials(dict(os.environ))
         trusted_environment.update({
             "OPENBLAS_NUM_THREADS": "1",
             "OMP_NUM_THREADS": "1",

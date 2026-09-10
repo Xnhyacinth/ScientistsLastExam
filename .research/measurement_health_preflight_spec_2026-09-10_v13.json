@@ -2,19 +2,19 @@
   "schema_version": 2,
   "purpose": "Rebind the frozen cohort after current-runtime evidence remeasurement or a verified non-behavioural hash change. Each binding records the measurement or comparison that justifies it.",
   "supersedes": {
-    "path": ".research/measurement_health_preflight_spec_2026-09-05_v10.json",
-    "sha256": "0f6af856eadbbfd348e517c6e7339249c6bcec0a93944516e175c92ef7b0fcdb"
+    "path": ".research/measurement_health_preflight_spec_2026-09-06_v12.json",
+    "sha256": "5a81b66c8d8d2fb2443b1b888f9d7e101ff4a7f13ada3ac514799ad7935398cf"
   },
   "base_spec": {
     "path": ".research/measurement_health_preflight_spec_2026-07-27_v1.json",
     "sha256": "674192b55f49460cad23f9e2b48c8f4ae054aa63c4a2fe2f1b2934eff5d5e4f7"
   },
   "source_provenance": {
-    "git_revision": "75826dba820f650d3bae65981d7ddfc6202a117d",
+    "git_revision": "128e5813da3bd7b5b0f3ddb7555e50489aad66c9",
     "source_tree_dirty": false
   },
   "top_level_overrides": {
-    "cohort_manifest_sha256": "9baa2366b48da7fd82ef35b28965faf47f7226dd56b0d71cc914868cb3b01e34"
+    "cohort_manifest_sha256": "634b62af2327dcb6d94d90d0f914a793e8fe2dd410976ab7bc4664b76404df05"
   },
   "shared_task_overrides": {
     "scientific_materiality": {
@@ -25,8 +25,8 @@
     },
     "exactly_once_recovery": {
       "evidence": {
-        "path": "experiments/evaluation_recovery_fault_audit_2026-09-06_v6.json",
-        "sha256": "acc1249b5f8cece26237c70dfe23f240bf74f3ef01e07d6e299673fda0334134"
+        "path": "experiments/evaluation_recovery_fault_audit_2026-09-10_v8.json",
+        "sha256": "7ce2fd2a783ad47179d8fdf1d6230d8ec131c633204219a05b8f1a33bc76b2fb"
       },
       "predicates": [
         {
@@ -76,8 +76,8 @@
     },
     "portable_artifact": {
       "evidence": {
-        "path": ".research/measurement_health_preflight_artifacts_2026-09-06_v8.json",
-        "sha256": "1ab07c1190ea6986e68086c1fb9e0b9592ae590c6ce074c4890f36836271d874"
+        "path": ".research/measurement_health_preflight_artifacts_2026-09-10_v10.json",
+        "sha256": "f79a97237f7d2284e7218a3a2916594b4c35d8176d28ac7ff81f75029ac8fbd0"
       }
     }
   },

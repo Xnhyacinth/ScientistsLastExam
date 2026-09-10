@@ -19,7 +19,7 @@
       "/usr/bin/python3",
       "scripts/audit_evaluation_recovery.py",
       "--output",
-      "experiments/evaluation_recovery_fault_audit_2026-09-06_v6.json"
+      "experiments/evaluation_recovery_fault_audit_2026-09-06_v7.json"
     ]
   },
   "environment": {

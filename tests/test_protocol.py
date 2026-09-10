@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -611,6 +612,88 @@ class GreedyRewriteTests(unittest.TestCase):
         self.assertIn("operational safety bound", llm.prompts[0])
         self.assertNotIn("proposal 1 of 1", llm.prompts[0])
 
+    def test_wall_fields_share_one_clock_read(self):
+        """Both wall fields must come from one clock read, on a real clock.
+
+        Two independent reads leave a window whose sign depends on which read feeds which
+        field, and either choice breaks an invariant somewhere:
+
+          published from the earlier read -> `_validate_pending_proposal` rejects the record
+              whenever `active_wall` is below the cost of building it, which is what happens
+              when `evaluate_candidate` returns instantly.
+          published from the later read -> `sle.sentinels` rejects the artifact as
+              "published after it is recorded" whenever the gap between the two reads exceeds
+              the evaluation wall, which one scheduler preemption is enough to cause.
+
+        No single configuration exposes both: the first needs `active_wall` near zero, the
+        second needs it large enough that the first cannot fire. So both are run. The real
+        clock is deliberate - a stubbed sequence cannot express a gap the implementation
+        never asks for, which is why this flake survived a fixture that stubs
+        `time.monotonic` with a fixed list.
+        """
+        spec = find_task("LennardJonesCluster")
+        improved = "def optimize_cluster(n_atoms):\n    return []\n"
+        # (baseline evaluation cost, delay per record-building hash, delay between wall reads)
+        configs = (
+            (0.0, 0.02, 0.0),
+            (0.30, 0.0, 0.02),
+        )
+        for baseline_cost, hash_cost, preemption in configs:
+            with self.subTest(baseline_cost=baseline_cost, hash_cost=hash_cost,
+                              preemption=preemption):
+                calls = []
+
+                def timed_eval(*_args, **_kwargs):
+                    calls.append(1)
+                    if len(calls) == 1:
+                        time.sleep(baseline_cost)
+                        return {"combined_score": 0.1, "valid": 1.0}
+                    return {"combined_score": 0.9, "valid": 1.0}
+
+                real_monotonic = time.monotonic
+                reads = []
+
+                def preempting_clock():
+                    reads.append(1)
+                    if preemption and len(reads) == 5:
+                        time.sleep(preemption)
+                    return real_monotonic()
+
+                def slow_hash(text):
+                    from sle.protocol import sha256_text as unpatched
+                    if hash_cost:
+                        time.sleep(hash_cost)
+                    return unpatched(text)
+
+                with tempfile.TemporaryDirectory() as tmp, patch(
+                    "sle.algorithms.evolve.evaluate_candidate", side_effect=timed_eval
+                ), patch(
+                    "sle.algorithms.evolve.time.monotonic", side_effect=preempting_clock
+                ), patch(
+                    "sle.algorithms.evolve.sha256_text", side_effect=slow_hash
+                ):
+                    result = greedy_rewrite(
+                        spec,
+                        FakeLLM(["```python\n%s\n```" % improved]),
+                        budget=1,
+                        timeout_s=20,
+                        workdir=Path(tmp),
+                        active_wall_horizon_s=10.0,
+                        sentinel_interval_s=2.0,
+                        log_fn=lambda _: None,
+                    )
+                    events = load_trajectory(Path(tmp) / "trajectory.jsonl")
+
+                # Reaching here is already most of the assertion: the first shape raises out
+                # of `_validate_pending_proposal` and the second out of the sentinel ledger,
+                # which is on. The invariant is also checked numerically so the test keeps
+                # its meaning if either guard moves.
+                step = events[1]
+                published = step["algorithm_metadata"]["proposal_published_wall_seconds"]
+                self.assertGreaterEqual(published, 0.0)
+                self.assertLessEqual(published, step["cumulative_wall_seconds"])
+                self.assertEqual(result.evaluated, 2)  # the baseline plus this proposal
+
     def test_late_result_is_retained_but_cannot_update_incumbent(self):
         spec = find_task("LennardJonesCluster")
         improved = "def optimize_cluster(n_atoms):\n    return []\n"
@@ -619,7 +702,9 @@ class GreedyRewriteTests(unittest.TestCase):
             {"combined_score": 0.1, "valid": 1.0},
             {"combined_score": 0.9, "valid": 1.0},
         ]
-        clock = iter([0.0, 0.1, 0.1, 0.2, 0.3, 2.0])
+        # One element shorter than it used to be: the step now reads the clock once, so a
+        # sequence sized for two reads would shift every later value by one position.
+        clock = iter([0.0, 0.1, 0.1, 0.2, 0.2, 2.0])
         with tempfile.TemporaryDirectory() as tmp, patch(
             "sle.algorithms.evolve.evaluate_candidate",
             side_effect=metrics,

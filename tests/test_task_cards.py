@@ -56,6 +56,7 @@ RECORDED_LINEAGE = {
     "Superconductivity/SuperconductorTcRecord",
     "Geophysics/UPbConcordiaInference",
     "Sensors/IMUBiasCalibration",
+    "Microbiology/MetagenomeCompositionAssignment",
 }
 
 
