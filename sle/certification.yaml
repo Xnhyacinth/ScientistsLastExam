@@ -809,3 +809,21 @@ tasks:
       - doi:10.1103/PhysRevLett.93.165501
       - doi:10.1016/0375-9601(74)90847-0
       - doi:10.1063/1.1723844
+  QuantumFoundations/FourSettingMomentCertificate:
+    status: candidate
+    reason: >-
+      Candidate exact rational SOS on I_4422^13 with a 24-word mixed moment pool.
+      Zero is the exact level-one optimum 5/8 and one is an included full-pool rational
+      witness about 0.455331, not a published optimum. Reference about 0.58 genuinely
+      uses extra moments; numerical repair solver and algebra derive from BellBoundCertificate.
+      No frontier-model calibration; external quantum-information review pending.
+    citation_ids: [arxiv:0711.3362, arxiv:1811.11820, doi:10.1103/PhysRevLett.98.010401]
+  Microbiology/MetagenomeCompositionAssignment:
+    status: candidate
+    reason: Charged conditional marker-mixture reconstruction with design-dependent near-alias groups,
+      shared-marker library residuals and separate discovery axes. Construction probes and repeated-noise
+      checks are recorded; frontier calibration and independent domain review remain pending.
+    citation_ids:
+    - doi:10.1038/nmeth.2066
+    - doi:10.1038/s41467-017-02209-5
+    - doi:10.1371/journal.pone.0027992
