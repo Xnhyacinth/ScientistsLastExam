@@ -1,14 +1,14 @@
 schema_version: 2
 scientific_question: Produce an exact rational common quadratic Lyapunov certificate that proves a uniform exponential decay rate for a published switched linear system, independently of the switching signal.
-artifact: A 2-by-2 rational Gram matrix P and a positive rational rate alpha such that P is positive definite and A_i^T P + P A_i + alpha P is negative semidefinite on every published mode.
+artifact: A 3-by-3 rational Gram matrix P and a positive rational rate alpha such that P is positive definite and A_i^T P + P A_i + alpha P is negative semidefinite on every published mode.
 oracle:
-  model: exact rational Sylvester criteria on 2-by-2 matrices; no floating-point SDP
+  model: exact rational principal-minor criteria on 3-by-3 matrices; no floating-point SDP
   feasibility: integer or [numerator, denominator] entries inside the public magnitude cap; floats, indefinite P, non-positive alpha, or a mode that violates the LMI each score that instance zero
   deterministic: true
 normalization:
   baseline: the identity Gram at alpha = 1/10000, which is a valid common Lyapunov function on every instance and scores exactly zero
-  reference: a finite catalog of sheared rational quadratics with exact rational bisection of each feasible rate to the public magnitude resolution
-  score: mean of min(max(0, (alpha - 1/10000) / (3/4)), 1) over four instances; the unit 3/4 is a clip, not a published record
+  reference: a finite catalog of 3-by-3 rational quadratics with exact rational bisection of each feasible rate to the public magnitude resolution
+  score: mean of min(max(0, (alpha - 1/10000) / (3/4)), 1) over four 3-by-3 instances; the unit 3/4 is a clip, not a published record
 citations:
 - id: doi:10.1137/1.9781611970777
   title: "Linear Matrix Inequalities in System and Control Theory"
@@ -17,23 +17,27 @@ citations:
 invariants:
 - a valid certificate is a proof, not a simulation of one switching path
 - the identity Gram is a Lyapunov function because every published mode has a negative numerical abscissa, but the proven rate is small
-- a sheared Gram proves a strictly larger rate on the same modes
+- a 3-by-3 Gram with couplings in every plane proves a strictly larger rate on the same modes
 - floats are rejected rather than rounded
 - malformed submissions score zero and never raise out of the evaluator
 known_shortcuts: >-
-  Scientific admission blocked: a fixed P=[[1,-3/5],[-3/5,1]], alpha=59/100
-  scores 0.786533 without reading the instance. It exceeded the old coarse-rate reference
-  0.7498665. The repaired bisection reference scores 0.8496395, already near the approximately
-  0.849900 attainable mean ceiling. Maintainer low-dimensional grid/bisection probes also
-  approach that ceiling. Rational reconstruction of numerical solutions is possible; only raw
-  floating submissions are rejected. These fixed 2-by-2 instances require substantive redesign.
+  After the 3-by-3 redesign, checkpoint-12 probes sit below the reference.
+  Identity Gram with exact bisection of alpha: 0.176288. Owner-style 2-parameter
+  block-diagonal grid P=[[1,b,0],[b,d,0],[0,0,1]] with 725 Grams and rational
+  bisection: 0.206533 in 2.0s (1178 (b,d) pairs in the denser scan, same score).
+  The September 9 constant certificate p11=1, p12=-3/5, p22=1, alpha=59/100,
+  padded with p13=p23=0, p33=1, is infeasible on every instance and scores 0.
+  Reference catalog plus Boyd bisection: 0.366560. A 5488-point 5-DOF rational
+  scan reaches 0.458200 in 15s; that gap is leftover catalog headroom, not a
+  2-parameter exploit. Spectral mean ceiling if every instance hit 2|Re λ_max|
+  is about 0.511.
 
 review:
   domain: pending_external
   evaluator_security: automated_bad_candidate_crash_sweep_determinism_and_exact_arithmetic_checks
 provenance:
   class: procedural
-  target_source: Repository-visible switched linear plants with exact rational certificates.
+  target_source: Repository-visible 3-by-3 switched linear plants with exact rational certificates.
   task_contract_public_before_evaluation: true
   fresh_confirmation_status: not_completed
 novelty_risk:
@@ -54,7 +58,8 @@ lineage:
   edits_triggered_by_model: >-
     None. No frontier searcher draw has been run. In-process pins are
     tests/test_lyapunov_decay_certificate.py (identity token rate below the catalog
-    reference; floats rejected).
+    reference; 2-parameter block-diagonal grid and the padded constant certificate
+    cannot beat the reference; floats and 2-by-2 key sets rejected).
   shortcut_discoverer: builder_self_audit
   frozen_before_eval: false
   freeze_timestamp: null
@@ -70,4 +75,4 @@ construction_audit:
   expert_hours: null
   red_team_rounds: 1
   oracle_disagreement_status: not_quantified
-  independent_recomputation_status: the reference, the baseline, the exact Sylvester check and the three bad-candidate shapes are all runnable from this directory
+  independent_recomputation_status: the reference, the baseline, the exact principal-minor check and the three bad-candidate shapes are all runnable from this directory

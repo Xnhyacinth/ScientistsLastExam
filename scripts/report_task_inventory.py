@@ -171,7 +171,7 @@ CHINESE_BRIEFS = {
         "设计小车倒立摆的摆起与稳定控制律,兼顾轨道限位与作动器约束",
         "摆起效用;偏移工况稳健性分列"),
     "ControlTheory/LyapunovDecayCertificate": (
-        "为已公布的切换线性系统提交精确有理共同二次 Lyapunov 证书,证明与切换信号无关的衰减率",
+        "为已公布的三维切换线性系统提交精确有理共同二次 Lyapunov 证书,证明与切换信号无关的衰减率",
         "所证 alpha 减 1/10000 后相对 3/4 裁剪单位的均值;单位阵小速率基线恰为零,浮点 LMI 直接判零"),
     "DynamicalSystems/ActiveLawDiscovery": (
         "自选初值与外部驱动,从候选项库里恢复二维受控系统的稀疏控制方程",

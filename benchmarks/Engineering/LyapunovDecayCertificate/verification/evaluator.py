@@ -6,16 +6,26 @@ proves in exact rational arithmetic.
 """
 from __future__ import annotations
 
-from fractions import Fraction
 from copy import deepcopy
+from fractions import Fraction
+from itertools import combinations
 
 DIFFICULTY = 1
+STATE_DIMENSION = 3
 MAX_NUMERATOR = 10**6
 MAX_DENOMINATOR = 10**6
 # Clip scale. Not a published record: a development unit chosen so that the
 # identity certificate at the shipped token rate scores exactly zero and a
 # sheared quadratic that proves alpha = 1/2 scores about 2/3.
 ALPHA_UNIT = Fraction(3, 4)
+GRAM_KEYS = (
+    ("p11", 0, 0),
+    ("p12", 0, 1),
+    ("p13", 0, 2),
+    ("p22", 1, 1),
+    ("p23", 1, 2),
+    ("p33", 2, 2),
+)
 
 
 def _ratio(numerator, denominator=1):
@@ -43,89 +53,141 @@ def _fraction(value, name):
     return result
 
 
-def _matrix(raw, name):
-    if not isinstance(raw, (list, tuple)) or len(raw) != 2:
-        raise ValueError("%s must be a 2x2 matrix" % name)
+def _matrix(raw, name, dimension):
+    if not isinstance(raw, (list, tuple)) or len(raw) != dimension:
+        raise ValueError("%s must be a %dx%d matrix" % (name, dimension, dimension))
     rows = []
     for i, row in enumerate(raw):
-        if not isinstance(row, (list, tuple)) or len(row) != 2:
-            raise ValueError("%s row %d is not length 2" % (name, i))
+        if not isinstance(row, (list, tuple)) or len(row) != dimension:
+            raise ValueError("%s row %d is not length %d" % (name, i, dimension))
         rows.append([
-            _fraction(row[0], "%s[%d][0]" % (name, i)),
-            _fraction(row[1], "%s[%d][1]" % (name, i)),
+            _fraction(entry, "%s[%d][%d]" % (name, i, j))
+            for j, entry in enumerate(row)
         ])
     return rows
 
 
 def _add(left, right):
-    return [[left[i][j] + right[i][j] for j in range(2)] for i in range(2)]
+    n = len(left)
+    return [[left[i][j] + right[i][j] for j in range(n)] for i in range(n)]
 
 
 def _scale(matrix, scalar):
-    return [[scalar * matrix[i][j] for j in range(2)] for i in range(2)]
+    return [[scalar * value for value in row] for row in matrix]
 
 
 def _mul(left, right):
-    out = [[Fraction(0), Fraction(0)], [Fraction(0), Fraction(0)]]
-    for i in range(2):
-        for k in range(2):
-            for j in range(2):
-                out[i][j] += left[i][k] * right[k][j]
+    n = len(left)
+    out = [[Fraction(0) for _ in range(n)] for _ in range(n)]
+    for i in range(n):
+        for k in range(n):
+            left_ik = left[i][k]
+            if left_ik == 0:
+                continue
+            for j in range(n):
+                out[i][j] += left_ik * right[k][j]
     return out
 
 
 def _transpose(matrix):
-    return [[matrix[j][i] for j in range(2)] for i in range(2)]
+    n = len(matrix)
+    return [[matrix[j][i] for j in range(n)] for i in range(n)]
+
+
+def _det(matrix):
+    n = len(matrix)
+    work = [row[:] for row in matrix]
+    sign = Fraction(1)
+    for i in range(n):
+        pivot = next((row for row in range(i, n) if work[row][i] != 0), None)
+        if pivot is None:
+            return Fraction(0)
+        if pivot != i:
+            work[i], work[pivot] = work[pivot], work[i]
+            sign = -sign
+        sign *= work[i][i]
+        inverse = 1 / work[i][i]
+        for row in range(i + 1, n):
+            if work[row][i] == 0:
+                continue
+            factor = work[row][i] * inverse
+            for col in range(i, n):
+                work[row][col] -= factor * work[i][col]
+    return sign
+
+
+def _principal(matrix, index):
+    return [[matrix[i][j] for j in index] for i in index]
 
 
 def _spd(matrix):
-    return matrix[0][0] > 0 and matrix[0][0] * matrix[1][1] - matrix[0][1] ** 2 > 0
+    n = len(matrix)
+    for k in range(1, n + 1):
+        if _det([row[:k] for row in matrix[:k]]) <= 0:
+            return False
+    return True
 
 
 def _nsd(matrix):
-    m11, m12, m22 = matrix[0][0], matrix[0][1], matrix[1][1]
-    if m11 > 0:
-        return False
-    if m11 * m22 - m12 * m12 < 0:
-        return False
-    if m11 == 0:
-        return m12 == 0 and m22 <= 0
+    n = len(matrix)
+    negated = [[-matrix[i][j] for j in range(n)] for i in range(n)]
+    for k in range(1, n + 1):
+        for index in combinations(range(n), k):
+            if _det(_principal(negated, index)) < 0:
+                return False
     return True
 
 
 def _parse_modes(raw):
     if not isinstance(raw, (list, tuple)) or not raw:
         raise ValueError("mode_matrices must be a nonempty list")
-    return [_matrix(item, "mode_matrices[%d]" % index) for index, item in enumerate(raw)]
+    return [
+        _matrix(item, "mode_matrices[%d]" % index, STATE_DIMENSION)
+        for index, item in enumerate(raw)
+    ]
+
+
+def _cell(numerator, denominator=1):
+    return _ratio(numerator, denominator)
+
+
+def _row(*entries):
+    return [_cell(*entry) if isinstance(entry, tuple) else _cell(entry) for entry in entries]
 
 
 INSTANCES = (
     {
-        "name": "shear",
+        "name": "braid",
         "mode_matrices": [
-            [[_ratio(-4), _ratio(21, 10)], [_ratio(0), _ratio(-3, 10)]],
+            [_row(-1, (-12, 25), (-36, 125)), _row(0, (-1, 5), (12, 25)), _row(0, 0, -1)],
+            [_row(-1, 0, 0), _row((-36, 125), -1, (-12, 25)), _row((12, 25), 0, (-1, 5))],
+            [_row((-1, 5), (12, 25), 0), _row(0, -1, 0), _row((-12, 25), (-36, 125), -1)],
+            [_row(-1, 0, 0), _row((12, 25), (-1, 5), 0), _row((-36, 125), (-12, 25), -1)],
         ],
     },
     {
-        "name": "pair",
+        "name": "cycle",
         "mode_matrices": [
-            [[_ratio(-4), _ratio(21, 10)], [_ratio(0), _ratio(-3, 10)]],
-            [[_ratio(-3, 10), _ratio(0)], [_ratio(21, 10), _ratio(-4)]],
+            [_row(-1, (-2, 5), (-1, 5)), _row(0, (-1, 5), (2, 5)), _row(0, 0, -1)],
+            [_row((-1, 5), (2, 5), 0), _row(0, -1, 0), _row((-2, 5), (-1, 5), -1)],
+            [_row(-1, 0, 0), _row((-1, 5), -1, (-2, 5)), _row((2, 5), 0, (-1, 5))],
         ],
     },
     {
-        "name": "three",
+        "name": "twist",
         "mode_matrices": [
-            [[_ratio(-4), _ratio(21, 10)], [_ratio(0), _ratio(-3, 10)]],
-            [[_ratio(-3, 10), _ratio(0)], [_ratio(21, 10), _ratio(-4)]],
-            [[_ratio(-2), _ratio(4, 5)], [_ratio(-1, 5), _ratio(-3, 5)]],
+            [_row(-1, (-2, 3), (-4, 15)), _row(0, (-1, 6), (1, 3)), _row(0, 0, -1)],
+            [_row((-1, 6), 0, (1, 3)), _row((-2, 3), -1, (-4, 15)), _row(0, 0, -1)],
+            [_row(-1, 0, 0), _row((1, 3), (-1, 6), 0), _row((-4, 15), (-2, 3), -1)],
+            [_row(-1, (-4, 15), (-2, 3)), _row(0, -1, 0), _row(0, (1, 3), (-1, 6))],
         ],
     },
     {
-        "name": "mid",
+        "name": "cross",
         "mode_matrices": [
-            [[_ratio(-3), _ratio(17, 10)], [_ratio(0), _ratio(-2, 5)]],
-            [[_ratio(-2, 5), _ratio(0)], [_ratio(17, 10), _ratio(-3)]],
+            [_row(-1, (2, 5), (-1, 5)), _row(0, (-1, 5), (-2, 5)), _row(0, 0, -1)],
+            [_row(-1, 0, 0), _row((-1, 5), -1, (2, 5)), _row((-2, 5), 0, (-1, 5))],
+            [_row((-1, 5), (-2, 5), 0), _row(0, -1, 0), _row((2, 5), (-1, 5), -1)],
         ],
     },
 )
@@ -135,7 +197,7 @@ def public_instance(instance):
     return {
         "name": instance["name"],
         "mode_matrices": deepcopy(instance["mode_matrices"]),
-        "state_dimension": 2,
+        "state_dimension": STATE_DIMENSION,
         "max_numerator": MAX_NUMERATOR,
         "max_denominator": MAX_DENOMINATOR,
     }
@@ -144,13 +206,14 @@ def public_instance(instance):
 def _validate(submission):
     if not isinstance(submission, dict):
         raise ValueError("submission must be a mapping")
-    p11 = _fraction(submission.get("p11"), "p11")
-    p12 = _fraction(submission.get("p12"), "p12")
-    p22 = _fraction(submission.get("p22"), "p22")
+    gram = [[Fraction(0) for _ in range(STATE_DIMENSION)] for _ in range(STATE_DIMENSION)]
+    for key, row, col in GRAM_KEYS:
+        value = _fraction(submission.get(key), key)
+        gram[row][col] = value
+        gram[col][row] = value
     alpha = _fraction(submission.get("alpha"), "alpha")
     if alpha <= 0:
         raise ValueError("alpha must be positive")
-    gram = [[p11, p12], [p12, p22]]
     if not _spd(gram):
         raise ValueError("P is not positive definite")
     return gram, alpha

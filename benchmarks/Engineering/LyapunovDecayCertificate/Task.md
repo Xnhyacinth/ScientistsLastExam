@@ -2,27 +2,32 @@
 
 ## The question
 
-A switched linear system jumps among a published list of 2-by-2 Hurwitz matrices
+A switched linear system jumps among a published list of 3-by-3 Hurwitz matrices
 `A_i`. A common quadratic Lyapunov function `V(x) = x^T P x` with a positive rate
 `alpha` is a proof that every trajectory decays at least as `e^{-alpha t / 2}` in
 the `P`-norm, **regardless of how the modes switch**. Finding `P` and `alpha` is
 the work; a numerical simulation of one switching signal is not a certificate.
 
 Submit exact rational `P` and `alpha`. Floats are rejected, not rounded: a
-numerical LMI dump is not a proof.
+numerical LMI dump is not a proof. After homogeneity `P` still has five free
+entries, so a two-parameter block-diagonal Gram is not a complete search.
 
 ## What you implement
 
 ```python
 def build_lyapunov(instance):
     ...
-    return {"p11": [num, den], "p12": [num, den], "p22": [num, den],
-            "alpha": [num, den]}
+    return {
+        "p11": [num, den], "p12": [num, den], "p13": [num, den],
+        "p22": [num, den], "p23": [num, den], "p33": [num, den],
+        "alpha": [num, den],
+    }
 ```
 
-`P = [[p11, p12], [p12, p22]]` must be positive definite. For every mode,
-`A_i^T P + P A_i + alpha P` must be negative semidefinite. Both tests are
-Sylvester criteria in exact `Fraction` arithmetic.
+`P = [[p11, p12, p13], [p12, p22, p23], [p13, p23, p33]]` must be positive
+definite. For every mode, `A_i^T P + P A_i + alpha P` must be negative
+semidefinite. Both tests are Sylvester / principal-minor criteria in exact
+`Fraction` arithmetic.
 
 The score of a valid certificate is `min(max(0, (alpha - 1/10000) / (3/4)), 1)`, averaged over the
 four published instances. The identity Gram at `alpha = 1/10000` is valid and
@@ -34,8 +39,8 @@ instance zero.
 | key | meaning |
 |---|---|
 | `name` | instance label |
-| `mode_matrices` | list of 2-by-2 modes; each entry is `[numerator, denominator]` |
-| `state_dimension` | 2 |
+| `mode_matrices` | list of 3-by-3 modes; each entry is `[numerator, denominator]` |
+| `state_dimension` | 3 |
 | `max_numerator` | 10**6 |
 | `max_denominator` | 10**6 |
 
@@ -43,7 +48,7 @@ instance zero.
 
 | key | meaning |
 |---|---|
-| `p11`, `p12`, `p22` | integer or `[numerator, denominator]` |
+| `p11`, `p12`, `p13`, `p22`, `p23`, `p33` | integer or `[numerator, denominator]` |
 | `alpha` | positive integer or `[numerator, denominator]` |
 
 ## Relation and distinction
