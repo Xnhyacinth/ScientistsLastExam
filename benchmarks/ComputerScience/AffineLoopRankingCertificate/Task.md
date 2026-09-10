@@ -31,12 +31,16 @@ arithmetic:
 2. `ρ(x) - ρ(Ax+b) ≥ delta` on the same polyhedron, with a second multiplier
    vector `μ ≥ 0`.
 
-Four coupled transitions use dimensions 8, 10, 12 and 16. A differs from identity,
-so the decrease depends on the state and the second multiplier vector is necessary.
-For a valid certificate the score is
+Four mixed-sign transitions use dimensions 8, 10, 12 and 16. Each instance
+has 2n guards: cyclic pairwise sums and rotated (2, skip-3) half-spaces, not
+n independent coordinate inequalities `x_i ≥ 1`. A differs from identity and
+has a negative skip term, so the decrease depends on the state, Farkas
+multipliers are not unique functions of `r`, and a column enumeration of
+`(I-A^T)^{-1}` does not produce a unit-1-norm certificate. For a valid
+certificate the score is
 `min(max(0,(delta-1/10000)/(optimal_delta-1/10000)),1)`, averaged over the loops.
 The uniform ranking at delta=1/10000 is valid and scores exactly zero. `optimal_delta`
-is the evaluator-only exactly verified Farkas LP optimum for each instance, not an arbitrary clip unit.
+is an evaluator-only exactly verified Farkas LP optimum, not a public instance field.
 A failed certificate scores zero. Rational transitions are checked over all real states;
 no claim is made that the update maps every integer vector to another integer vector.
 

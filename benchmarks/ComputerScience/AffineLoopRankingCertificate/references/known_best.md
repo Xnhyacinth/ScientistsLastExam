@@ -1,46 +1,50 @@
-# AffineLoopRankingCertificate — coupled transitions
+# AffineLoopRankingCertificate — overcomplete mixed-sign loops
 
 ## Construction and exact optima
 
 These are procedural rational affine transitions over real states, not transcribed SV-COMP
-integer programs. For dimension n=8,10,12,16, A has diagonal 1/2, next cyclic entry 1/4
-and next-two entry 1/8. Guards are x_i>=1. All row/column sums are 7/8.
-Both Farkas vectors matter; no coordinate-axis ranking is feasible.
+integer programs. For dimension n=8,10,12,16 the update is circulant with first row
+`(1/2, 1/8, -1/4, 1/16, 0, …)`. The negative skip term makes `(I-A^T)^{-1}` mixed-sign,
+so the old identity-guard simplex of nonnegative inverse columns is gone. Guards are 2n
+half-spaces: `x_i + x_{i+1} ≥ 2` and `2 x_i + x_{i+3} ≥ 3`. They are not n independent
+coordinate inequalities, so `λ=r` and `μ=(I-A^T)r` are not Farkas solutions. The fibre
+`G^T λ = r` is positive-dimensional.
 
-Let M=I-A^T and B=M^-1. Since A is nonnegative and contractive, B is nonnegative.
-Writing r=B*mu, mu>=0, sum(r)=1 expresses every feasible ranking as a convex combination
-of normalized columns of B. Therefore the maximum decrease is the largest value of
-c^T B[:,j]/sum(B[:,j]), where c_i=1-sum(A[i,:])-b_i. Tests recompute these ratios in
-exact Fraction arithmetic and generate matching certificates from public inputs using
-`references/inverse_column_probe.py`; no complete instance-answer table is shipped.
-This establishes the score-one LP optimum, not merely a numerical lower witness.
+Coordinate-axis rankings lie outside the guard cone. Tests recompute each hidden
+`optimal_delta` with an independent exact Farkas LP in `tests/affine_ranking_lp.py` and
+check a matching certificate; no complete instance-answer table is shipped. Commit
+`f7586e6` removed public `optimal_delta` and `references/known_optima.json`; those
+disclosures stay gone.
 
 | dimension | optimal delta | local reference delta | reference score |
 |---|---:|---:|---:|
-| 8 | 145031/28536 | 1689/400 | 0.830807 |
-| 10 | 661183/134200 | 3496673/900000 | 0.788571 |
-| 12 | 599934529/123666440 | 32869/9000 | 0.752816 |
-| 16 | 1280622923/269940120 | 1888523477/576000000 | 0.691102 |
+| 8 | 43769/5136 | 73/16 | 0.535373 |
+| 10 | 292551/27376 | 81/16 | 0.473728 |
+| 12 | 1160739799/121772784 | 211/48 | 0.461160 |
+| 16 | 102537959/8118000 | 37/8 | 0.366159 |
 
 ## Baseline and reference
 
 The uniform ranking claims delta=1/10000 and scores exactly zero. The public-input reference
-uses feasible pair-coordinate ascent with exact rational steps, scoring 0.765824 mean.
-It can stall at a face where improving requires a coupled direction. It does not read optima.
+searches uniform and pairwise slopes with constructive Farkas multipliers, scoring 0.459105
+mean. It can stall where improving requires a coupled direction. It does not read optima.
 
 ## Shortcut probes and ablations
 
-Axis enumeration: no valid certificates, score 0. Local pair-coordinate ascent: 0.765824.
-Full exact cone-ray solution: 1.0. Dropping the second multiplier vector invalidates every
-positive normalized ranking because M is invertible. General LP solvers remain applicable;
-no frontier-model hardness claim follows from defeating the old coordinate-axis shortcut.
+Axis enumeration: no valid certificates, score 0. Inverse-column enum of `(I-A^T)^{-1}`
+(`references/inverse_column_probe.py`, the previous 20-line closed form): feasibility 0,
+combined 0.0 on all four instances (mixed-sign columns fail the unit 1-norm; n multipliers
+for 2n guards). Local uniform-plus-pairwise reference: 0.459105. Full exact Farkas LP:
+1.0. General LP solvers remain applicable; no frontier-model hardness claim follows from
+defeating the identity-guard column enum.
 
 ## Construction errors
 
-The previous four A=I instances reduced to coordinate maximization and reference already
-attained their global optimum. They were replaced, not rescaled. Task.md and the Chinese
-inventory now state the correct baseline subtraction. The new rational coefficients do
-not preserve arbitrary integer states; the contract explicitly covers real states.
+The A=I translations reduced to coordinate maximization. Replacing A only, while keeping
+`x_i ≥ 1`, left a simplex on the columns of `(I-A^T)^{-1}`. Those instances were replaced,
+not rescaled. Public `optimal_delta` and full optimal certificates were removed in `f7586e6`
+and are not restored. The rational coefficients do not preserve arbitrary integer states; the
+contract explicitly covers real states.
 
 ## Robustness and model draws
 
@@ -49,16 +53,9 @@ caps are 10^18 to admit these higher-dimensional exact witnesses. Malformed/floa
 fail closed. No model draws, fresh program corpus or long-horizon calibration has been run.
 Lineage is incomplete_legacy and the task remains a candidate.
 
+## September 10 instance repair
 
-## September 9 scientific admission hold
-
-The [owner review](https://github.com/Geniusyingmanji/ScientistsLastExam/pull/30#issuecomment-5594780400)
-correctly identifies the remaining simplex degeneracy. `references/inverse_column_probe.py`
-computes the inverse columns in exact rationals using only public A and b, generates the
-Farkas multipliers, and reaches score one on every instance. Hiding optimal_delta from the
-candidate input and deleting the full-answer JSON do not defeat this algorithm.
-
-The current instance family is not admitted as a hard search benchmark. A larger guard set
-alone would still leave generic linear programming available. A materially different family,
-such as sourced multi-branch programs needing lexicographic ranking, requires independent
-synthesis/verification and shortcut evidence; no toy replacement is claimed here.
+Owner review: changing A≠I only changed the basis while n coordinate guards uniquely determined
+`λ=r` and `μ=(I-A^T)r`. The new overcomplete mixed-sign family makes those identities false.
+The same inverse-column probe now scores 0.0, not 1.0. A general exact LP still reaches the
+hidden scalar optimum and is disclosed as a residual shortcut, not as admission evidence.

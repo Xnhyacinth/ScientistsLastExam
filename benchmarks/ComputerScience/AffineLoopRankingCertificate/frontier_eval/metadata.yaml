@@ -9,5 +9,5 @@ gpu_required: false
 eval_time_seconds: 8
 science_metric: proven_linear_ranking_decrease
 reference_baseline: uniform rational ranking at delta = 1/10000
-reference_sota: pair-coordinate rational ascent; per-instance exact Farkas LP optima define score one
+reference_sota: discrete uniform-plus-pairwise ranking; per-instance exact Farkas LP optima define score one
 citation: "Colon and Sipma, TACAS 2001; Podelski and Rybalchenko, VMCAI 2004"

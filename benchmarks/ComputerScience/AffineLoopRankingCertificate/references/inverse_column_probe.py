@@ -1,4 +1,9 @@
-"""Exact public-input counterexample for the current single-simplex loop family."""
+"""Exact public-input counterexample for the previous identity-guard simplex family.
+
+This is the 20-line column enumeration of (I-A^T)^{-1}. On the overcomplete
+guard family it must not recover score one: multipliers are no longer λ=r
+and μ=(I-A^T)r, and the feasible set is not that n-vertex simplex.
+"""
 from fractions import Fraction
 
 

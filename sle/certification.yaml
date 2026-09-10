@@ -510,8 +510,8 @@ tasks:
     reason: >-
       Certificate-bound cell that is not a continuous Lyapunov function and not
       a graph reconstruction: an exact rational linear ranking function with
-      Farkas multipliers proves a uniform decrease for a coupled rational
-      affine loop at 1-norm 1. The uniform ranking at a token rate is valid and
+      Farkas multipliers proves a uniform decrease for an overcomplete mixed-sign
+      rational affine loop at 1-norm 1. The uniform ranking at a token rate is valid and
       scores exactly zero. Candidate, not certified. No frontier searcher draw.
     citation_ids:
       - doi:10.1007/3-540-45319-9_17

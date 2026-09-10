@@ -95,31 +95,51 @@ def _parse_guards(raw, dimension):
     return parsed
 
 
-def _axis_guard(dimension, index):
-    slope = [_ratio(1 if j == index else 0) for j in range(dimension)]
-    return {"g": slope, "d": _ratio(-1)}
+def _overcomplete_guards(dimension):
+    # Pairwise and rotated half-spaces, not n independent coordinate guards.
+    # The Farkas fibre over r is positive-dimensional: multipliers are search variables.
+    guards = []
+    for index in range(dimension):
+        slope = [_ratio(1 if j in (index, (index + 1) % dimension) else 0)
+                 for j in range(dimension)]
+        guards.append({"g": slope, "d": _ratio(-2)})
+    for index in range(dimension):
+        slope = [_ratio(2 if j == index else 1 if j == (index + 3) % dimension else 0)
+                 for j in range(dimension)]
+        guards.append({"g": slope, "d": _ratio(-3)})
+    return guards
 
 
-def _coupled_instance(dimension, optimum):
-    # Contractive rational transition with coupled coordinates; decreases depend on state.
-    update = [[_ratio(1, 2) if i == j else _ratio(1, 4) if j == (i + 1) % dimension
-               else _ratio(1, 8) if j == (i + 2) % dimension else _ratio(0)
-               for j in range(dimension)] for i in range(dimension)]
+def _mixed_update(dimension):
+    # Circulant with a negative skip term so (I-A^T)^{-1} is not a nonnegative M-inverse.
+    first = [_ratio(0)] * dimension
+    first[0] = _ratio(1, 2)
+    first[1] = _ratio(1, 8)
+    first[2] = _ratio(-1, 4)
+    first[3] = _ratio(1, 16)
+    return [[first[(j - i) % dimension] for j in range(dimension)] for i in range(dimension)]
+
+
+def _offset(dimension, well):
+    return [_ratio(well if i == 0 else -(1 + i % 5)) for i in range(dimension)]
+
+
+def _overcomplete_instance(dimension, well, optimum):
     return {
-        "name": "coupled_%d" % dimension,
+        "name": "overcomplete_%d" % dimension,
         "dimension": dimension,
-        "guards": [_axis_guard(dimension, i) for i in range(dimension)],
-        "A": update,
-        "b": [_ratio(-12 if i == 0 else -(1 + i % 3)) for i in range(dimension)],
+        "guards": _overcomplete_guards(dimension),
+        "A": _mixed_update(dimension),
+        "b": _offset(dimension, well),
         "optimal_delta": optimum,
     }
 
 
 INSTANCES = (
-    _coupled_instance(8, [145031, 28536]),
-    _coupled_instance(10, [661183, 134200]),
-    _coupled_instance(12, [599934529, 123666440]),
-    _coupled_instance(16, [1280622923, 269940120]),
+    _overcomplete_instance(8, -12, [43769, 5136]),
+    _overcomplete_instance(10, -16, [292551, 27376]),
+    _overcomplete_instance(12, -14, [1160739799, 121772784]),
+    _overcomplete_instance(16, -20, [102537959, 8118000]),
 )
 
 def public_instance(instance):
@@ -201,10 +221,10 @@ def evaluate(build_ranking):
     valid = [row for row in rows if row["valid"]]
     combined = sum(row["instance_score"] for row in rows) / len(rows)
     return {
-        "combined_score": float(combined),
+        "combined_score": float(round(combined, 6)),
         "valid": 1.0 if valid else 0.0,
         "feasibility_rate": len(valid) / len(rows),
-        "raw_score": float(combined),
+        "raw_score": float(round(combined, 6)),
         "instances_with_a_valid_certificate": len(valid),
         "per_instance": rows,
     }
