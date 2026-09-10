@@ -33,6 +33,7 @@ discovery_kind:
   parameter_inversion: recover numbers of a form that is already named
 
 tasks:
+  Microbiology/MetagenomeCompositionAssignment: {form: discovery, kind: substance, note: marker_mixture_alias_inadequacy_candidate}
   Ecology/OccupancyDetectionDesign: {form: discovery, kind: evidence, note: latent_occupancy_and_repeat_detection_not_population_history_or_climate_fingerprinting}
   Physics/CriticalPhenomenaLab: {form: discovery, kind: parameter_inversion, note: finite_size_scaling_not_microscopic_law}
   # --- optimization / frontier-eng ------------------------------------------
@@ -72,6 +73,7 @@ tasks:
   DiscreteGeometry/SpherePackingCertificate: {form: optimization, analogue: certificate_bound, note: exact_rational_Cohn_Elkies_bound_not_a_packing_construction}
   QuantumFoundations/BellBoundCertificate: {form: optimization, analogue: certificate_bound, note: exact_rational_SOS_bound_on_a_Bell_functional_not_a_construction}
   ControlTheory/LyapunovDecayCertificate: {form: optimization, analogue: certificate_bound, note: exact_rational_common_quadratic_lyapunov_not_a_controller}
+  QuantumFoundations/FourSettingMomentCertificate: {form: optimization, analogue: certificate_bound, note: i4422_moment_subset_not_i3322_word_budget_sos}
   InformationTheory/ShannonCapacityCertificate: {form: optimization, analogue: certificate_bound, note: two_sided_interval_for_an_open_capacity_lower_side_is_a_code_upper_side_is_exact_rational}
   Mathematics/NonlinearCodeRecords: {form: optimization, analogue: combinatorial}
   Algorithm/MatrixMultiplicationRank: {form: optimization, analogue: combinatorial}
