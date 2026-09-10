@@ -862,7 +862,6 @@ def _greedy_rewrite_impl(
                 code = extract_code(reply)
                 signed_decision = None
                 parse_status = "parsed_code" if code else "no_code"
-            proposal_published_wall = active_wall + (time.monotonic() - step_started)
             pending_proposal = {
                 "schema_version": 1,
                 "step": it,
@@ -884,10 +883,20 @@ def _greedy_rewrite_impl(
                 "prompt_metrics_sha256": sha256_text(prompt_metrics_rendered),
                 "system_prompt_sha256": sha256_text(system_prompt),
                 "llm_usage": llm_usage,
-                "pre_evaluation_wall_seconds": time.monotonic() - step_started,
-                "proposal_published_wall_seconds": proposal_published_wall,
+                "pre_evaluation_wall_seconds": 0.0,
+                "proposal_published_wall_seconds": 0.0,
                 "signed_decision": signed_decision,
             }
+            # ONE clock read feeds both fields, after the record is built, so
+            #   published == active_wall + pre_evaluation_wall
+            # exactly.  That is the definition evolve.py:917-921 already uses as
+            # its fallback, and it satisfies both invariants unconditionally:
+            #   published >= pre_evaluation_wall            (active_wall >= 0)
+            #   published <= cumulative_wall_seconds        (evaluation_wall >= 0)
+            pre_evaluation_wall = time.monotonic() - step_started
+            proposal_published_wall = active_wall + pre_evaluation_wall
+            pending_proposal["pre_evaluation_wall_seconds"] = pre_evaluation_wall
+            pending_proposal["proposal_published_wall_seconds"] = proposal_published_wall
             # Commit the provider draw before evaluating it. An evaluator
             # outage then replays this exact source/result instead of drawing a
             # replacement proposal from the model.

@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from sle.evaluate import INVALID_SCORE, evaluate_candidate
+from sle.evaluate import CREDENTIAL_MARKERS, INVALID_SCORE, evaluate_candidate
 from sle.metric_visibility import search_visible_metrics, store_full_metrics
 from sle.registry import find_task
 
@@ -60,7 +60,7 @@ def evaluate(program_path: str) -> dict[str, Any]:
     sensitive = {}
     for key in tuple(os.environ):
         normalized = key.upper()
-        if any(marker in normalized for marker in ("API_KEY", "AUTHORIZATION", "TOKEN")):
+        if any(marker in normalized for marker in CREDENTIAL_MARKERS):
             sensitive[key] = os.environ.pop(key)
     try:
         candidate = Path(program_path).resolve()
