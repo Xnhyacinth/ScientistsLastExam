@@ -98,6 +98,45 @@ class UnimolecularFalloffLawTests(unittest.TestCase):
         self.assertEqual(full["development_false_discovery_rate"], 0.0)
         self.assertEqual(full["heldout_false_discovery_rate"], 0.0)
 
+    def test_the_measurement_budget_is_not_free(self):
+        """Three assays must score clearly below the full-budget reference."""
+        probe = _load(TASK / "references/three_assay_probe.py", "three_assay_probe")
+        cheap = self.evaluator.evaluate(probe.identify_falloff)
+        full = self.evaluator.evaluate(self.reference.identify_falloff)
+        self.assertLess(
+            cheap["combined_score"],
+            full["combined_score"] - 0.2,
+            "three assays score as well as the full pressure curve",
+        )
+        self.assertLess(
+            cheap["heldout_mechanism_score"],
+            full["heldout_mechanism_score"] - 0.2,
+        )
+
+    def test_the_public_high_pressure_wall_is_still_falloff(self):
+        for world in list(self.evaluator.DEVELOPMENT_WORLDS) + list(self.evaluator.HELDOUT_WORLDS):
+            if world["kind"] not in self.evaluator.SUPPORTED:
+                continue
+            with self.subTest(seed=world["seed"], kind=world["kind"]):
+                kinf = self.evaluator.k_inf(world, 300.0)
+                k_wall = self.evaluator.true_k(world, 300.0, 100.0)
+                pr_wall = self.evaluator.k0_m(world, 300.0, 100.0) / kinf
+                self.assertAlmostEqual(pr_wall, self.evaluator.HIGH_P_WALL_PR, places=6)
+                self.assertLess(k_wall / kinf, 0.85)
+                self.assertGreater(k_wall / kinf, 0.10)
+
+    def test_measurement_noise_is_keyed_by_temperature_and_pressure(self):
+        spec = self.evaluator.DEVELOPMENT_WORLDS[0]
+        first = self.evaluator._Lab(spec)
+        second = self.evaluator._Lab(spec)
+        high = first.measure(300.0, 100.0)
+        repeat = first.measure(300.0, 100.0)
+        low = second.measure(300.0, 1.0e-3)
+        high_reordered = second.measure(300.0, 100.0)
+        self.assertEqual(high, repeat)
+        self.assertEqual(high, high_reordered)
+        self.assertNotEqual(high, low)
+
 
 if __name__ == "__main__":
     unittest.main()

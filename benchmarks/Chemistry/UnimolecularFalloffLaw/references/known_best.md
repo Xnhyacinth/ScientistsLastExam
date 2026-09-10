@@ -1,4 +1,4 @@
-# UnimolecularFalloffLaw — complete pressure fit, scientific admission pending
+# UnimolecularFalloffLaw — 100 bar is still falloff, scientific admission pending
 
 ## Reference and reproduction
 
@@ -13,45 +13,38 @@ uv run python -m sle eval --task UnimolecularFalloffLaw --allow-uncertified \
   --candidate benchmarks/Chemistry/UnimolecularFalloffLaw/verification/reference_falloff.py --timeout 30
 ```
 
-The updated reference scores **0.9364326667 development / 0.9535225000 heldout**, valid,
-with zero false discovery on both splits. These values were reproduced through the real
-sandbox. The former scan scored **0.7319923333 / 0.7768720000**. It spent 12–13 assays
-but hardcoded Fcent=.40 and treated the 100-bar measurement as k_inf; its documentation
-incorrectly said it estimated Fcent from the middle of the curve.
+The reference scores **0.9613366667 development / 0.7277200000 heldout**, valid, with zero
+false discovery on both splits. The Arrhenius baseline is valid and scores zero.
 
-## Baseline
+## Why the three-assay shortcut existed
 
-The one-assay pressure-independent Arrhenius guess always publishes Lindemann. It is valid
-and scores zero, including false claims on unsupported channels.
+In-family worlds previously placed Pr(300 K, 100 bar) in the thousands, so a single in-budget
+high-P reading was already k_inf. `references/three_assay_probe.py` reconstructs the
+[September 9 owner counterexample](https://github.com/Geniusyingmanji/ScientistsLastExam/pull/26#issuecomment-5594779434)
+with that reference's own family predicate (`f_obs < 0.82`, Fcent=0.40). Against the old
+12–13 assay scan it scored **0.746885 / 0.808437** versus **0.731992 / 0.776872**. Fitting the
+full pressure curve (commit `bb6c950`) raised the reference to **0.936433 / 0.953523**, but
+left the 100 bar wall at k_inf and seeded noise by call index.
 
-## Shortcut and budget evidence
+## Scientific repairs
 
-`references/three_assay_probe.py` independently reconstructs the [September 9 owner counterexample](https://github.com/Geniusyingmanji/ScientistsLastExam/pull/26#issuecomment-5594779434):
-using the former reference's own family predicate, it scores **0.746885 / 0.808437**.
-The earlier 0.565/0.698 probe always emitted Lindemann and understated this shortcut.
-The complete curve fit beats the stronger three-assay rule on both fixed splits.
+Noise is now a hash of `(world seed, T, P)`. Repeating the same assay returns the same draw;
+extra budget buys new conditions. In-family (and two-channel) A0 is set so
+Pr(300 K, 100 bar) = 2: Lindemann k(100 bar)/k_inf = 2/3, and Troe is lower. `log_k_inf` is
+an extrapolation from the falloff, not a wall reading.
 
-An in-process diagnostic varied only the noise seeds across 16 deterministic panels
-(seed offsets 100000 through 1600000); world parameters and score were unchanged.
-Full-minus-three-assay development gaps range **0.071850–0.244938**, mean **0.201187**;
-heldout gaps **0.100845–0.189645**, mean **0.146796**. This is evidence for the benefit
-of using the full curve in this family, not fresh-parameter or model calibration.
-Noiseless tests recover Fcent=.25 and .65 rather than the old fixed guess.
+After those changes the same three-assay probe scores **0.198579 / 0.324198**, below the
+repaired reference on both splits. A 2304-point grid that treated 100 bar as k_inf is not
+re-run: the wall is no longer k_inf, so that search is not a witness here. No model draws
+or pairing Δ were taken.
 
-## Corrections to proposed repairs
-
-Current call-index seeds already give independent noise for repeated settings. Seeding solely
-by (T,P) would repeat identical noise and prevent averaging, so that suggestion was not adopted.
-The release score is normalized above blanket refusal, not divided by reference score:
-0.746885 never became 1.0 merely because it exceeded the old reference.
+Held-out Troe still trades k_inf against Fcent inside the observable window; that is leftover
+headroom, not a claim that the reference saturates the task.
 
 ## Remaining scientific hold
 
-A more competent reference now approaches the task ceiling (fresh-noise means about
-0.935/0.957). This does not establish hard or long-horizon search. Broader identifiable
-parameter/family regimes and matched shortcut/model evidence are still required; the PR
-remains Draft without a cosmetic scale change or weakened reference. The heldout split
-is evaluator-only; no model runs or frozen calibration records were regenerated.
+The package remains a candidate. Broader identifiable regimes, server-held worlds, and
+independent review are still required. The held-out split is evaluator-only.
 
 ## Model and provenance scope
 

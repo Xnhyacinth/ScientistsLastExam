@@ -1,6 +1,7 @@
 """Frozen oracle for UnimolecularFalloffLaw."""
 from __future__ import annotations
 
+import hashlib
 import math
 
 import numpy as np
@@ -9,6 +10,8 @@ MEASURE_BUDGET = 18
 T_BOUNDS = (300.0, 1200.0)
 P_BOUNDS = (1.0e-3, 1.0e2)
 SUPPORTED = {"lindemann", "troe"}
+# Pr at 300 K and the public 100 bar wall. The high-pressure limit is off the wall.
+HIGH_P_WALL_PR = 2.0
 
 PUBLIC_PROBLEM = {
     "temperature_bounds_K": list(T_BOUNDS),
@@ -23,7 +26,8 @@ PUBLIC_PROBLEM = {
         "This symmetric reduced law omits the full Troe c and d terms."
     ),
     "measurement_model": (
-        "measure(temperature_K, pressure_bar) returns ln k in 1/s plus frozen Gaussian noise"
+        "measure(temperature_K, pressure_bar) returns ln k in 1/s plus Gaussian noise "
+        "frozen per world seed and (T, P); repeats of the same assay return the same draw"
     ),
     "abstain_when": (
         "a second pressure-independent channel is open, or k falls as pressure rises"
@@ -37,6 +41,18 @@ def public_problem():
 
 def k_inf(spec, temperature):
     return float(spec["A_inf"]) * math.exp(-float(spec["E_inf"]) / max(float(temperature), 1.0))
+
+
+def _a0_for_wall_pr(A_inf, E_inf, E0, pr=HIGH_P_WALL_PR):
+    """Low-P prefactor so Pr(300 K, 100 bar) equals pr, not a saturated high-P limit."""
+    return float(pr) * float(A_inf) * (300.0 / 100.0) * math.exp((float(E0) - float(E_inf)) / 300.0)
+
+
+def _measurement_rng(seed, temperature, pressure):
+    payload = ("%d|%.12g|%.12g" % (int(seed), float(temperature), float(pressure))).encode("ascii")
+    digest = hashlib.sha256(payload).digest()
+    words = np.frombuffer(digest[:16], dtype="<u4")
+    return np.random.default_rng(np.random.SeedSequence([int(word) for word in words]))
 
 
 def k0_m(spec, temperature, pressure):
@@ -88,7 +104,7 @@ class _Lab:
             self.violated = True
             raise RuntimeError("measure budget exhausted")
         self.used += 1
-        rng = np.random.default_rng((int(self.spec["seed"]), 17, self.used))
+        rng = _measurement_rng(self.spec["seed"], t, p)
         value = math.log(max(true_k(self.spec, t, p), 1e-30))
         return float(value + 0.04 * rng.normal())
 
@@ -137,18 +153,26 @@ def _mechanism(spec, abstain, family, log_kinf, log_pr, fcent):
 
 
 DEVELOPMENT_WORLDS = (
-    {"kind": "lindemann", "seed": 11001, "A_inf": 2.4e7, "E_inf": 2100.0, "A0": 4.8e9, "E0": 900.0},
-    {"kind": "troe", "seed": 11002, "A_inf": 1.1e8, "E_inf": 2450.0, "A0": 2.2e10, "E0": 700.0, "Fcent": 0.42},
-    {"kind": "troe", "seed": 11003, "A_inf": 6.5e7, "E_inf": 1800.0, "A0": 9.4e9, "E0": 1100.0, "Fcent": 0.28},
-    {"kind": "two_channel", "seed": 12001, "A_inf": 3.0e7, "E_inf": 2000.0, "A0": 5.0e9, "E0": 800.0, "A2": 4.0e5, "E2": 900.0},
-    {"kind": "two_channel", "seed": 12002, "A_inf": 8.0e7, "E_inf": 2600.0, "A0": 1.5e10, "E0": 600.0, "A2": 1.2e6, "E2": 1400.0},
+    {"kind": "lindemann", "seed": 11001, "A_inf": 2.4e7, "E_inf": 2100.0,
+     "A0": _a0_for_wall_pr(2.4e7, 2100.0, 900.0), "E0": 900.0},
+    {"kind": "troe", "seed": 11002, "A_inf": 1.1e8, "E_inf": 2450.0,
+     "A0": _a0_for_wall_pr(1.1e8, 2450.0, 700.0), "E0": 700.0, "Fcent": 0.42},
+    {"kind": "troe", "seed": 11003, "A_inf": 6.5e7, "E_inf": 1800.0,
+     "A0": _a0_for_wall_pr(6.5e7, 1800.0, 1100.0), "E0": 1100.0, "Fcent": 0.28},
+    {"kind": "two_channel", "seed": 12001, "A_inf": 3.0e7, "E_inf": 2000.0,
+     "A0": _a0_for_wall_pr(3.0e7, 2000.0, 800.0), "E0": 800.0, "A2": 4.0e5, "E2": 900.0},
+    {"kind": "two_channel", "seed": 12002, "A_inf": 8.0e7, "E_inf": 2600.0,
+     "A0": _a0_for_wall_pr(8.0e7, 2600.0, 600.0), "E0": 600.0, "A2": 1.2e6, "E2": 1400.0},
     {"kind": "negative", "seed": 13001, "A_inf": 5.0e7, "E_inf": 2200.0, "A0": 3.0e9, "E0": 850.0},
     {"kind": "negative", "seed": 13002, "A_inf": 9.0e6, "E_inf": 1600.0, "A0": 1.0e9, "E0": 500.0},
 )
 HELDOUT_WORLDS = (
-    {"kind": "lindemann", "seed": 21001, "A_inf": 4.1e7, "E_inf": 1950.0, "A0": 7.7e9, "E0": 950.0},
-    {"kind": "troe", "seed": 21002, "A_inf": 2.0e8, "E_inf": 2300.0, "A0": 3.3e10, "E0": 750.0, "Fcent": 0.51},
-    {"kind": "two_channel", "seed": 22001, "A_inf": 1.5e7, "E_inf": 1700.0, "A0": 2.8e9, "E0": 1000.0, "A2": 8.0e5, "E2": 1100.0},
+    {"kind": "lindemann", "seed": 21001, "A_inf": 4.1e7, "E_inf": 1950.0,
+     "A0": _a0_for_wall_pr(4.1e7, 1950.0, 950.0), "E0": 950.0},
+    {"kind": "troe", "seed": 21002, "A_inf": 2.0e8, "E_inf": 2300.0,
+     "A0": _a0_for_wall_pr(2.0e8, 2300.0, 750.0), "E0": 750.0, "Fcent": 0.51},
+    {"kind": "two_channel", "seed": 22001, "A_inf": 1.5e7, "E_inf": 1700.0,
+     "A0": _a0_for_wall_pr(1.5e7, 1700.0, 1000.0), "E0": 1000.0, "A2": 8.0e5, "E2": 1100.0},
     {"kind": "negative", "seed": 23001, "A_inf": 3.2e7, "E_inf": 2050.0, "A0": 4.4e9, "E0": 720.0},
     {"kind": "negative", "seed": 23002, "A_inf": 1.8e7, "E_inf": 2400.0, "A0": 6.1e9, "E0": 880.0},
 )

@@ -1,4 +1,4 @@
-# UnimolecularFalloffLaw
+# UnimolecularFalloffLaw — Lindemann or Troe, or neither
 
 ## The question
 
@@ -46,14 +46,15 @@ k = k_inf(T)*Pr/(1+Pr)*F
 
 The full Troe c and d terms are omitted. Fcent is constant in this model.
 Negative-pressure-order worlds are synthetic counterexamples, not a claimed elementary law.
-Repeated measurements receive distinct deterministic noise draws indexed by call number;
-repeats can therefore be averaged within the budget.
+Noise is frozen per world seed and `(T, P)`: repeating the same assay returns the same draw.
+Extra budget buys new conditions, not a quieter copy of the same point. The public 100 bar
+wall is still in the falloff, so `log_k_inf` is an extrapolation, not a single high-P reading.
 Spending past the budget fails the world closed.
 
 ## Relation and distinction
 
 - Not `ChemicalKinetics/ReactionMechanismFitting`: that recovers a **network of first-order edges**, not a pressure-dependent elementary law.
-- Not `SystemsBiology/EnzymeKineticsLaw`: Michaelis–Menten saturation in a well-mixed enzyme, not gas-phase falloff.
+- Not `SystemsBiology/EnzymeKineticsLaw`: that on-ramp identifies which of six published enzyme laws is present from designed titrations. This task is weighted recovery of k_inf, Pr and Fcent on a pressure curve, with a different refusal geometry.
 - Not PR #22 `ChronoamperometryLawID`: electrode transients, not Troe/Lindemann.
 - Not `Turbulence/WallClosureDiscovery`: a wall mixing-length formula, not chemical kinetics.
 
