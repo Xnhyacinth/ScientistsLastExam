@@ -88,13 +88,42 @@ class BatchAggregationTests(unittest.TestCase):
                 run(1, second),
             ])
 
-    def test_aggregation_rejects_runs_without_trusted_runtime_identity(self):
+    def test_aggregation_rejects_successful_runs_without_trusted_runtime_identity(self):
         run = {
             "task": "T/X", "algorithm": "greedy_rewrite",
-            "feedback_mode": "normal", "seed": 0, "error": "offline",
+            "feedback_mode": "normal", "seed": 0, "best": 0.2,
+            "summary": {
+                "best_so_far_auc": 0.1, "budget_units": 1,
+                "oracle_calls": 1, "wall_seconds": 1,
+                "llm": {"total_tokens": 0, "estimated_cost_usd": None},
+            },
         }
         with self.assertRaisesRegex(ValueError, "lacks trusted evaluator runtime"):
             MODULE.aggregate_runs([run])
+
+    def test_planned_missing_block_remains_in_denominator(self):
+        config = {"tasks": ["T/X", "T/Y"], "algorithms": ["greedy_rewrite"],
+                  "feedback_modes": ["normal", "selection_blind"], "seeds": [0, 1]}
+        failed = {"task": "T/X", "algorithm": "greedy_rewrite",
+                  "feedback_mode": "normal", "seed": 0, "error": "offline"}
+        got = MODULE.aggregate_runs([failed], config=config)
+        intent = got["intent_to_evaluate"]
+        self.assertEqual(intent["scheduled_runs"], 8)
+        self.assertEqual(intent["missing_runs"], 7)
+        self.assertEqual(intent["terminal_failed_runs"], 1)
+        missing = got["by_condition"]["T/Y|greedy_rewrite|normal"]
+        self.assertEqual(missing["scheduled_n"], 2)
+        self.assertEqual(missing["missing_runs"], 2)
+        self.assertEqual(missing["best_score"]["n"], 0)
+        self.assertEqual(missing["completion_rate"], 0.0)
+
+    def test_runs_outside_fixed_plan_are_rejected(self):
+        config = {"tasks": ["T/X"], "algorithms": ["greedy_rewrite"],
+                  "feedback_modes": ["normal"], "seeds": [0]}
+        run = {"task": "T/Y", "algorithm": "greedy_rewrite",
+               "feedback_mode": "normal", "seed": 0, "error": "offline"}
+        with self.assertRaisesRegex(ValueError, "outside.*plan"):
+            MODULE.aggregate_runs([run], config=config)
 
     def test_feedback_condition_order_is_counterbalanced_by_seed(self):
         modes = ["normal", "selection_blind"]

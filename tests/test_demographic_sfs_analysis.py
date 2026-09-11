@@ -6,6 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from scripts.audit_historical_records import audit_named
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -38,22 +40,19 @@ class DemographicSFSAnalysisTests(unittest.TestCase):
 
     def test_analysis_binds_reports_trajectories_and_accounting(self):
         report = self.report
-        self.assertTrue(report["execution_passed"])
-        self.assertEqual(
-            report["trusted_evidence"],
-            report["source_provenance"]["source_tree_dirty"] is False,
-        )
-        self.assertEqual(report["passed"], report["trusted_evidence"])
-        self.assertTrue(report["input_task_runtime_source_equivalent"])
-        self.assertEqual(
-            report["input_task_runtime_source_changes"],
-            [
-                "sle/evaluate.py",
-                "sle/secure_eval.py",
-                "sle/trusted_driver.py",
-            ],
-        )
-        self.assertTrue(report["input_task_runtime_source_migration"]["accepted"])
+        archive = audit_named("demographic_sfs_v2", ROOT)
+        self.assertEqual(archive["status"], "passed", archive)
+        self.assertEqual(archive["passed_run_count"], 3)
+        self.assertFalse(report["execution_passed"])
+        self.assertFalse(report["trusted_evidence"])
+        self.assertFalse(report["passed"])
+        self.assertFalse(report["input_task_runtime_source_equivalent"])
+        migration = report["input_task_runtime_source_migration"]
+        self.assertFalse(migration["accepted"])
+        self.assertTrue(migration["checks"]["report_hash_matches"])
+        self.assertTrue(migration["checks"]["report_passed_clean"])
+        self.assertFalse(migration["checks"]["runtime_change_scope_matches"])
+        self.assertFalse(migration["checks"]["current_runtime_hashes_match"])
         self.assertTrue(report["input_source_scope_equivalent"])
         self.assertTrue(report["input_llm_condition_equivalent"])
         self.assertTrue(report["input_task_contract_equivalent"])

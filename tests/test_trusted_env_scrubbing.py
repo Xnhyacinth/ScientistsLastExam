@@ -32,6 +32,9 @@ class TrustedEnvironmentScrubbingTests(unittest.TestCase):
             "GH_TOKEN": "ghp_xyz",
             "CLAUDE_CODE_MESSAGING_TOKEN": "t",
             "api_key_lowercase": "also secret",
+            "DB_PASSWORD": "password",
+            "AWS_SECRET_ACCESS_KEY": "credential",
+            "SERVICE_CREDENTIAL": "credential",
         }
         scrubbed = without_credentials(dict(environment))
         self.assertEqual(scrubbed, {})
@@ -97,7 +100,8 @@ class TrustedEnvironmentScrubbingTests(unittest.TestCase):
                   / "sle" / "upstream_evaluator.py").read_text(encoding="utf-8")
         self.assertIn("CREDENTIAL_MARKERS", source)
         self.assertNotIn('("API_KEY", "AUTHORIZATION", "TOKEN")', source)
-        self.assertEqual(CREDENTIAL_MARKERS, ("API_KEY", "AUTHORIZATION", "TOKEN"))
+        from sle.frontier_eval_entrypoint import SENSITIVE_MARKERS
+        self.assertEqual(CREDENTIAL_MARKERS, SENSITIVE_MARKERS)
 
 
 if __name__ == "__main__":

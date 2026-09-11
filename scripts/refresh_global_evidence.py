@@ -17,6 +17,10 @@ pointer left behind. This is that procedure as one command:
        scripts/audit_task_maturity.py    -> experiments/task_maturity_audit_<date>_v<N>.json
     4. rewrite DEFAULT_MATURITY in scripts/audit_measurement_health.py
 
+Step 2 requires --private-output outside Git in a 0700 directory. The full report is created
+as an immutable 0600 file; experiments/ receives a public projection containing only selection
+metrics, hashes and decisions computed from complete private results.
+
 Step 2 needs the candidate sandbox, so this runs on the benchmark host, not a laptop. Steps 3
 and 4 edit tracked files; the maturity document produced in step 3 therefore records a dirty
 tree unless `--commit` is given, which commits the two pointer edits and the two new documents
@@ -102,12 +106,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--repeats", type=int, default=2, help="secure-baseline repeats")
     parser.add_argument("--timeout", type=float, default=180.0, help="per-task baseline timeout")
+    parser.add_argument("--private-output", type=Path,
+                        help="new private baseline original outside Git, in a 0700 directory")
     parser.add_argument("--commit", action="store_true",
                         help="commit pointer edits and new documents so the maturity document "
                              "is produced from a clean revision")
     parser.add_argument("--skip-baseline", action="store_true",
                         help="reuse the newest secure-baseline document (no sandbox on this host)")
     args = parser.parse_args()
+    if not args.skip_baseline and args.private_output is None:
+        parser.error("--private-output is required for a fresh baseline; full results are never public")
 
     if not _tree_is_clean():
         raise SystemExit("working tree has uncommitted tracked changes; evidence produced now "
@@ -125,6 +133,7 @@ def main() -> int:
     else:
         baseline = _target(SERIES["secure_baseline"], today)
         _run([sys.executable, "scripts/run_secure_baseline.py", "--output", str(baseline),
+              "--private-output", str(args.private_output),
               "--repeats", str(args.repeats), "--timeout", str(args.timeout)])
         print("  secure baseline:", _summary(baseline, ("passed", "trust_decision")))
         summary = json.loads(baseline.read_text(encoding="utf-8")).get("summary", {})

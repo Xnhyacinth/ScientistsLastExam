@@ -17,7 +17,10 @@ from typing import Any, Callable, Optional
 
 from ..evaluate import INVALID_SCORE, evaluate_candidate, resolve_trusted_runtime
 from ..llm import LLMClient
-from ..metric_visibility import search_visible_metrics
+from ..metric_visibility import (
+    EvaluationInfrastructureError, require_healthy_evaluations, require_scientific_result,
+    search_visible_metrics, store_infrastructure_failure,
+)
 from ..protocol import sha256_text
 from ..spec import TaskSpec
 from .common import (
@@ -31,10 +34,24 @@ from .common import (
     validate_feedback_mode,
     write_summary,
 )
-from .evolve import SYSTEM_PROMPT, _build_prompt, extract_code
+from .evolve import LLMInfrastructureError, SYSTEM_PROMPT, _build_prompt, extract_code
 
 TREEQUEST_VERSION = "0.3.2"
 TREEQUEST_COMMIT = "96047d712d66bbbf4dcc86dcd3e2eaab98c35f83"
+
+
+def _evaluate_for_search(spec, candidate, timeout_s, diagnostics, trusted_runtime):
+    try:
+        metrics = evaluate_candidate(
+            spec, candidate, timeout_s=timeout_s, trusted_runtime=trusted_runtime,
+        )
+        require_scientific_result(metrics)
+        return metrics
+    except Exception as exc:
+        store_infrastructure_failure(diagnostics, {
+            "error": str(exc), "metrics": locals().get("metrics"),
+        })
+        raise EvaluationInfrastructureError("trusted evaluation infrastructure failure") from None
 
 
 @dataclass(frozen=True)
@@ -89,6 +106,8 @@ def abmcts(
     ).resolve()
     workdir.mkdir(parents=True, exist_ok=True)
     trusted_runtime = resolve_trusted_runtime(spec.task_dir)
+    diagnostics = workdir / "trusted_full_metrics"
+    require_healthy_evaluations(diagnostics)
     ensure_run_manifest(
         workdir, spec=spec, llm=llm, algorithm="abmcts", seed=seed,
         feedback_mode=feedback_mode, resume=resume,
@@ -139,9 +158,8 @@ def abmcts(
     if not resume:
         candidate_path.write_text(baseline_code, encoding="utf-8")
         started = time.monotonic()
-        baseline_metrics = evaluate_candidate(
-            spec, candidate_path, timeout_s=timeout_s,
-            trusted_runtime=trusted_runtime,
+        baseline_metrics = _evaluate_for_search(
+            spec, candidate_path, timeout_s, diagnostics, trusted_runtime,
         )
         baseline_score, baseline_valid = metrics_score(baseline_metrics)
         # TreeQuest search state must never contain evaluator-only science metrics.
@@ -229,13 +247,13 @@ def abmcts(
             if not code:
                 error = "no_code"
         except Exception as exc:  # noqa: BLE001
-            error = "LLM error: %s" % exc
+            store_infrastructure_failure(diagnostics, {"stage": "provider", "error": str(exc)})
+            raise LLMInfrastructureError("provider request failed after transport retries") from exc
 
         if code:
             candidate_path.write_text(code, encoding="utf-8")
-            metrics = evaluate_candidate(
-                spec, candidate_path, timeout_s=timeout_s,
-                trusted_runtime=trusted_runtime,
+            metrics = _evaluate_for_search(
+                spec, candidate_path, timeout_s, diagnostics, trusted_runtime,
             )
             oracle_calls += 1
         else:

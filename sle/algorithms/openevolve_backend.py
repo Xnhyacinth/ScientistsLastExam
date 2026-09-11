@@ -11,7 +11,10 @@ from typing import Any, Callable, Optional
 
 from ..llm import LLMClient
 from ..evaluate import INVALID_SCORE, resolve_trusted_runtime
-from ..metric_visibility import load_full_metrics
+from ..metric_visibility import (
+    EvaluationInfrastructureError, load_full_metrics, require_healthy_evaluations,
+    store_infrastructure_failure,
+)
 from ..protocol import sha256_text
 from ..spec import TaskSpec
 from ..upstream_evaluator import write_configured_wrapper
@@ -153,6 +156,7 @@ def openevolve(
     config.llm.api_base = llm.config.base_url
     config.llm.api_key = model.api_key
 
+    require_healthy_evaluations(workdir / "trusted_full_metrics")
     evaluator_file = write_configured_wrapper(
         workdir / "upstream_evaluator.py", spec.task_id, timeout_s,
         full_metrics_dir=workdir / "trusted_full_metrics",
@@ -186,6 +190,7 @@ def openevolve(
         best = _run_async(
             controller.run(iterations=remaining_iterations, checkpoint_path=checkpoint_arg)
         )
+    require_healthy_evaluations(workdir / "trusted_full_metrics")
     if best is None:
         raise RuntimeError("OpenEvolve returned no program")
     programs = _programs(controller)
@@ -197,10 +202,7 @@ def openevolve(
     oracle_calls = 0
     best_raw = INVALID_SCORE
     baseline_score = None
-    unevaluated = 0
     history: list[dict[str, Any]] = []
-    # Recorded steps must stay contiguous from zero, so a skipped program cannot consume a step
-    # index. Track the recorded position separately from the database position.
     step = 0
     for index, program in enumerate(programs):
         public_metrics = dict(program.metrics or {})
@@ -209,13 +211,18 @@ def openevolve(
                 workdir / "trusted_full_metrics", program.code, public_metrics
             )
         except FileNotFoundError:
-            # OpenEvolve keeps a program in its database even when its own evaluator timed out,
-            # recording {"error": 0.0, "timeout": true} from upstream. No trusted evaluation ran,
-            # so no sidecar exists. Those upstream metrics must never enter scoring, but one
-            # timed-out candidate must not destroy the whole run either: on a slow task this was
-            # 5 of 11 programs and it aborted the adapter outright.
-            unevaluated += 1
-            continue
+            # Upstream may retain a program after killing its evaluator. Missing
+            # trusted evidence is a run fault: skipping it would renumber later
+            # proposals and can turn the first proposal into a false baseline.
+            store_infrastructure_failure(workdir / "trusted_full_metrics", {
+                "stage": "openevolve_reconstruction",
+                "reason": "missing_trusted_metric_sidecar",
+                "candidate_sha256": sha256_text(program.code),
+                "upstream_program_id": str(program.id),
+            })
+            raise EvaluationInfrastructureError(
+                "OpenEvolve program is missing its trusted metric sidecar"
+            ) from None
         score, valid = metrics_score(metrics)
         oracle_calls += 1
         improved = valid and score > best_raw
@@ -241,13 +248,11 @@ def openevolve(
              "best": best_raw, "accepted": improved}
         )
         step += 1
-    if oracle_calls == 0:
-        raise RuntimeError(
-            "no OpenEvolve program carries a trusted evaluation (%d of %d timed out upstream)"
-            % (unevaluated, len(programs))
-        )
     if baseline_score is None:
-        baseline_score = metrics_score(programs[0].metrics or {})[0]
+        store_infrastructure_failure(workdir / "trusted_full_metrics", {
+            "stage": "openevolve_reconstruction", "reason": "missing_trusted_baseline",
+        })
+        raise EvaluationInfrastructureError("OpenEvolve database has no trusted baseline")
 
     summary = recorder.summary(
         baseline_score=baseline_score,
@@ -268,12 +273,13 @@ def openevolve(
         {"usage_available": False, "calls": None, "input_tokens": None,
          "output_tokens": None, "total_tokens": None, "estimated_cost_usd": None}
     )
-    summary["upstream_unevaluated_programs"] = unevaluated
+    # Retain the historical summary key; successful runs now require every sidecar.
+    summary["upstream_unevaluated_programs"] = 0
     os.replace(str(rebuild_path), str(trajectory_path))
     atomic_write_text(workdir / "best_program.py", best.code)
     write_summary(workdir, summary)
-    log_fn("[%s] OpenEvolve best=%.6f programs=%d scored=%d upstream_unevaluated=%d"
-           % (spec.task_id, float(best_raw), len(programs), oracle_calls, unevaluated))
+    log_fn("[%s] OpenEvolve best=%.6f programs=%d scored=%d upstream_unevaluated=0"
+           % (spec.task_id, float(best_raw), len(programs), oracle_calls))
     return EvolveResult(
         task_id=spec.task_id,
         best_score=float(best_raw),

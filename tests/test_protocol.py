@@ -410,6 +410,53 @@ class ProtocolMetricTests(unittest.TestCase):
 
 
 class GreedyRewriteTests(unittest.TestCase):
+    def test_completed_run_budget_extension_preserves_and_verifies_old_receipts(self):
+        spec = find_task("LennardJonesCluster")
+        for reply in ("```python\ndef optimize_cluster(n_atoms):\n    return []\n```", "no code"):
+            with self.subTest(reply=reply), tempfile.TemporaryDirectory() as temporary:
+                work = Path(temporary)
+                with patch("sle.algorithms.evolve.evaluate_candidate", side_effect=runtime_bound_evaluator([
+                    {"combined_score": 0.1, "valid": 1.0},
+                    {"combined_score": 0.2, "valid": 1.0},
+                ])):
+                    greedy_rewrite(spec, FakeLLM([]), budget=0, timeout_s=20,
+                                   workdir=work, log_fn=lambda _: None)
+                    self.assertTrue(verify_run(work, expected_budget=0)["verified"])
+                    old_files = {
+                        path: path.read_bytes()
+                        for directory in ("requests", "receipts")
+                        for path in (work / "evaluation_ledger" / directory).glob("*.json")
+                    }
+                    greedy_rewrite(spec, FakeLLM([reply]), budget=1, timeout_s=20,
+                                   workdir=work, resume=True, log_fn=lambda _: None)
+                self.assertTrue(verify_run(work, expected_budget=1)["verified"])
+                for path, contents in old_files.items():
+                    self.assertEqual(path.read_bytes(), contents)
+                with self.assertRaisesRegex(ValueError, "externally expected budget"):
+                    verify_run(work, expected_budget=0)
+
+    def test_uncommitted_baseline_must_recover_original_budget_before_extension(self):
+        spec = find_task("LennardJonesCluster")
+        with tempfile.TemporaryDirectory() as temporary:
+            work = Path(temporary)
+            with patch("sle.algorithms.evolve.evaluate_candidate", return_value={
+                "combined_score": 0.1, "valid": 1.0,
+            }) as evaluator, patch("sle.algorithms.evolve.append_event", side_effect=RuntimeError("crash")):
+                with self.assertRaisesRegex(RuntimeError, "crash"):
+                    greedy_rewrite(spec, FakeLLM([]), budget=0, timeout_s=20,
+                                   workdir=work, log_fn=lambda _: None)
+            self.assertEqual(evaluator.call_count, 1)
+            snapshot = EvaluationLedger(work).snapshot()
+            with patch("sle.algorithms.evolve.evaluate_candidate") as evaluator:
+                with self.assertRaisesRegex(ValueError, "original proposal_budget"):
+                    greedy_rewrite(spec, FakeLLM([]), budget=1, timeout_s=20,
+                                   workdir=work, resume=True, log_fn=lambda _: None)
+                self.assertEqual(EvaluationLedger(work).snapshot(), snapshot)
+                greedy_rewrite(spec, FakeLLM([]), budget=0, timeout_s=20,
+                               workdir=work, resume=True, log_fn=lambda _: None)
+                evaluator.assert_not_called()
+            self.assertTrue(verify_run(work, expected_budget=0)["verified"])
+
     def test_mismatched_bound_runtime_request_cannot_be_consumed(self):
         spec = find_task("LennardJonesCluster")
         original = EvaluationLedger.evaluate_once
@@ -594,23 +641,46 @@ class GreedyRewriteTests(unittest.TestCase):
             )
             snapshot = result.summary["sentinel_snapshot"]
             events = snapshot["events"]
+            trajectory = load_trajectory(work / "trajectory.jsonl")
+            if len(trajectory) == 2:
+                self.assertTrue(verify_run(work, expected_budget=1)["verified"])
+            else:
+                with self.assertRaisesRegex(ValueError, "early termination"):
+                    verify_run(work, expected_budget=1)
 
-        self.assertFalse(result.summary["horizon_reached"])
+        # Keep the real sandbox and the fixed ten-second contract. Machine load may make a
+        # baseline or proposal late; the raw clock determines the required terminal branch.
+        self.assertIn(len(trajectory), (1, 2))
+        baseline_wall = trajectory[0]["cumulative_wall_seconds"]
+        completed_wall = trajectory[-1]["cumulative_wall_seconds"]
+        self.assertEqual(result.summary["horizon_reached"], completed_wall >= 10.0)
+        self.assertEqual(len(llm.prompts), len(trajectory) - 1)
+        self.assertEqual(not llm.prompts, baseline_wall >= 10.0)
         self.assertEqual(events[0]["sentinel_type"], "t0")
         self.assertEqual(events[-1]["sentinel_type"], "terminal")
-        self.assertEqual(events[-1]["reason"], "proposal_budget_exhausted_before_active_wall_horizon")
-        self.assertEqual(snapshot["type_counts"]["submission"], 1)
-        self.assertEqual(snapshot["type_counts"]["terminal"], 1)
-        submission = next(
-            row for row in events if row["sentinel_type"] == "submission"
+        expected_reason = (
+            "baseline_evaluation_completed_after_active_wall_horizon" if baseline_wall > 10.0
+            else "active_wall_horizon_reached" if completed_wall >= 10.0
+            else "proposal_budget_exhausted_before_active_wall_horizon"
         )
-        self.assertEqual(submission["evaluation"]["status"], "not_evaluated")
-        self.assertIsNone(submission["evaluation"]["sha256"])
-        self.assertIn("Preregistered active-time horizon", llm.prompts[0])
-        self.assertIn("10.000 active wall seconds", llm.prompts[0])
-        self.assertIn("proposal 1 in a fixed-duration run", llm.prompts[0])
-        self.assertIn("operational safety bound", llm.prompts[0])
-        self.assertNotIn("proposal 1 of 1", llm.prompts[0])
+        self.assertEqual(events[-1]["reason"], expected_reason)
+        self.assertEqual(events[-1]["scheduled_elapsed_seconds"], 10.0)
+        self.assertEqual(events[-1]["recorded_elapsed_seconds"], completed_wall)
+        available = [trajectory[0]] + [row for row in trajectory[1:]
+                     if row["algorithm_metadata"]["proposal_published_wall_seconds"] <= 10.0]
+        self.assertEqual(events[-1]["artifact_sha256"], available[-1]["candidate_sha256"])
+        self.assertLessEqual(events[-1]["artifact_published_elapsed_seconds"], 10.0)
+        self.assertEqual(snapshot["type_counts"].get("submission", 0), len(trajectory) - 1)
+        self.assertEqual(snapshot["type_counts"]["terminal"], 1)
+        for submission in (row for row in events if row["sentinel_type"] == "submission"):
+            self.assertEqual(submission["evaluation"]["status"], "not_evaluated")
+            self.assertIsNone(submission["evaluation"]["sha256"])
+        for prompt in llm.prompts:
+            self.assertIn("Preregistered active-time horizon", prompt)
+            self.assertIn("10.000 active wall seconds", prompt)
+            self.assertIn("proposal 1 in a fixed-duration run", prompt)
+            self.assertIn("operational safety bound", prompt)
+            self.assertNotIn("proposal 1 of 1", prompt)
 
     def test_wall_fields_share_one_clock_read(self):
         """Both wall fields must come from one clock read, on a real clock.
@@ -810,10 +880,19 @@ class GreedyRewriteTests(unittest.TestCase):
                                workdir=work, seed=18, resume=True,
                                log_fn=lambda _: None)
 
-            with self.assertRaisesRegex(ValueError, "smaller than the committed checkpoint"):
-                greedy_rewrite(spec, FakeLLM([]), budget=1, timeout_s=20,
-                               workdir=work, seed=17, resume=True,
-                               log_fn=lambda _: None)
+            # Committed receipt allocations now reject a smaller budget before checkpoint
+            # restoration. This must not evaluate again or rewrite any durable evidence.
+            ledger = work / "evaluation_ledger"
+            records = {path.relative_to(ledger): path.read_bytes()
+                       for path in ledger.rglob("*.json")}
+            with patch("sle.algorithms.evolve.evaluate_candidate") as evaluator:
+                with self.assertRaisesRegex(ValueError, "proposal_budget violates monotone allocation"):
+                    greedy_rewrite(spec, FakeLLM([]), budget=1, timeout_s=20,
+                                   workdir=work, seed=17, resume=True,
+                                   log_fn=lambda _: None)
+                evaluator.assert_not_called()
+            self.assertEqual(records, {path.relative_to(ledger): path.read_bytes()
+                                       for path in ledger.rglob("*.json")})
 
     @skip_unless_sandbox("bwrap")  # exercises the candidate sandbox; skipped only where none can exist
     def test_llm_transport_failure_does_not_consume_proposal_slot(self):

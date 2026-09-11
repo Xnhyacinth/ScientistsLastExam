@@ -7,12 +7,14 @@ the first time a missing key or a crashing evaluator shows up.
 
     python scripts/check_task_contribution.py --task MaterialsScience/PhaseDiagramDiscovery
 
-Exit 0 only if every check scored, not crashed.
+Exit 0 requires all contribution checks, including declared shortcuts, to run and pass.
+Exit 2 means incomplete/skipped/migration pending; exit 1 means a failed check.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 import tempfile
 from pathlib import Path
@@ -36,6 +38,7 @@ from sle.certification import certification_status, load_certification  # noqa: 
 from sle.evaluate import INVALID_SCORE, evaluate_candidate  # noqa: E402
 from sle.frontier import load_frozen_wave  # noqa: E402
 from sle.registry import find_task, list_tasks  # noqa: E402
+from scripts.shortcut_probe_contract import inspect_probe  # noqa: E402
 
 DISCOVERY_AXES = (
     "development_false_discovery_rate",
@@ -68,11 +71,29 @@ BASELINE_ZERO_TOLERANCE = 0.05
 
 
 def _fail(rows: list[dict], check: str, detail: str) -> None:
-    rows.append({"check": check, "ok": False, "detail": detail})
+    rows.append({"check": check, "ok": False, "status": "failed", "detail": detail})
 
 
 def _ok(rows: list[dict], check: str, detail: str = "") -> None:
-    rows.append({"check": check, "ok": True, "detail": detail})
+    rows.append({"check": check, "ok": True, "status": "passed", "detail": detail})
+
+
+def _skip(rows: list[dict], check: str, detail: str = "not evaluated") -> None:
+    rows.append({"check": check, "ok": None, "status": "skipped", "detail": detail})
+
+
+def _evaluate(spec, path, *, timeout_s):
+    try:
+        metrics = evaluate_candidate(spec, path, timeout_s=timeout_s)
+        if not isinstance(metrics, dict) or any(
+            type(metrics.get(key)) not in (int, float) or not math.isfinite(metrics[key])
+            for key in ("combined_score", "valid")
+        ):
+            raise ValueError("non-finite or missing scalar metrics")
+        return metrics
+    except Exception as exc:
+        return {"combined_score": INVALID_SCORE, "valid": 0.0, "infrastructure_failure": True,
+                "error_message": "evaluation failed: " + type(exc).__name__}
 
 
 def check_task(task_id: str, timeout_s: float = 180.0, *, skip_eval: bool = False) -> dict:
@@ -149,7 +170,9 @@ def check_task(task_id: str, timeout_s: float = 180.0, *, skip_eval: bool = Fals
     else:
         _ok(rows, "numeric_keys", "")
 
-    keys = subscript_keys(spec.initial_program_path.read_text(encoding="utf-8"))
+    initial_source = (spec.initial_program_path.read_text(encoding="utf-8")
+                      if spec.initial_program_path.is_file() else "")
+    keys = subscript_keys(initial_source)
     keys |= evaluator_problem_keys(source)
     constraints = spec.eval_dir / "constraints.txt"
     if constraints.is_file():
@@ -169,18 +192,19 @@ def check_task(task_id: str, timeout_s: float = 180.0, *, skip_eval: bool = Fals
         else:
             _ok(rows, "uncapped_prompt", "")
 
+    structural_count = len(rows)
     baseline: dict = {}
     if skip_eval:
-        _ok(rows, "baseline_eval", "skipped")
-        _ok(rows, "deterministic_baseline", "skipped")
+        _skip(rows, "baseline_eval")
+        _skip(rows, "deterministic_baseline")
         if role == "discovery":
-            _ok(rows, "discovery_axes", "skipped")
-            _ok(rows, "degenerate_candidates_score_zero", "skipped")
-        _ok(rows, "bad_candidates_score_zero", "skipped")
+            _skip(rows, "discovery_axes")
+            _skip(rows, "degenerate_candidates_score_zero")
+        _skip(rows, "bad_candidates_score_zero")
         if wave is not None:
-            _ok(rows, "frontier_degenerate_credit_zero", "skipped")
+            _skip(rows, "frontier_degenerate_credit_zero")
     else:
-        baseline = evaluate_candidate(spec, spec.initial_program_path, timeout_s=timeout_s)
+        baseline = _evaluate(spec, spec.initial_program_path, timeout_s=timeout_s)
         score = float(baseline.get("combined_score", -1e18))
         valid = float(baseline.get("valid", 0.0))
         if baseline.get("infrastructure_failure"):
@@ -193,9 +217,9 @@ def check_task(task_id: str, timeout_s: float = 180.0, *, skip_eval: bool = Fals
         else:
             _ok(rows, "baseline_eval", "combined_score=%s" % score)
 
-        repeat = evaluate_candidate(spec, spec.initial_program_path, timeout_s=timeout_s)
+        repeat = _evaluate(spec, spec.initial_program_path, timeout_s=timeout_s)
         if baseline.get("infrastructure_failure") or repeat.get("infrastructure_failure"):
-            _fail(rows, "deterministic_baseline", "infrastructure failure is not a science result")
+            _fail(rows, "deterministic_baseline", "infrastructure failure is not determinism evidence")
         elif repeat != baseline:
             _fail(rows, "deterministic_baseline",
                   "full metric payload changed between identical evaluations")
@@ -296,11 +320,31 @@ def check_task(task_id: str, timeout_s: float = 180.0, *, skip_eval: bool = Fals
         else:
             _ok(rows, "bad_candidates_score_zero", "raises/empty/wrong_type scored")
 
-    passed = all(row["ok"] for row in rows)
+    probe = inspect_probe(spec, evaluate_candidate, timeout_s=timeout_s, skip_eval=skip_eval)
+    rows.append({"check": "shortcut_probe", "ok": True if probe["passed"] else
+                 False if probe["status"] == "failed" else None,
+                 "status": probe["status"], "detail": probe.get("detail", "")})
+    def phase(checks):
+        if any(row["ok"] is False for row in checks):
+            return "failed"
+        if not checks or any(row["ok"] is not True for row in checks):
+            return "incomplete"
+        return "passed"
+    phases = {"structural": phase(rows[:structural_count]),
+              "runtime": phase(rows[structural_count:-1]),
+              "shortcut_guard": phase(rows[-1:]),
+              "difficulty": "unassessed"}
+    execution_status = phase(rows)
     return {
+        "schema_version": 2,
         "task": spec.task_id,
-        "passed": passed,
+        "passed": execution_status == "passed",
+        "status": execution_status,
+        "phases": phases,
+        "scientific_admission": "not_assessed",
+        "note": "Passing declared probes does not establish model difficulty or iterative improvement.",
         "checks": rows,
+        "shortcut_probe": probe,
         "baseline_combined_score": baseline.get("combined_score"),
     }
 
@@ -317,14 +361,14 @@ def main() -> int:
     args = ap.parse_args()
     report = check_task(args.task, timeout_s=args.timeout, skip_eval=args.skip_eval)
     for row in report["checks"]:
-        mark = "ok  " if row["ok"] else "FAIL"
+        mark = "ok  " if row["ok"] is True else "FAIL" if row["ok"] is False else "SKIP"
         detail = ("  " + row["detail"]) if row["detail"] else ""
         print("%s  %-36s%s" % (mark, row["check"], detail))
     print()
-    print("passed" if report["passed"] else "failed", report["task"])
+    print(report["status"], report["task"], report["phases"])
     if args.output:
         Path(args.output).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    return 0 if report["passed"] else 1
+    return 0 if report["passed"] else 1 if report["status"] == "failed" else 2
 
 
 if __name__ == "__main__":

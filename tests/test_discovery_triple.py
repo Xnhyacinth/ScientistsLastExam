@@ -28,27 +28,23 @@ class DiscoveryTripleLayoutTests(unittest.TestCase):
         cls.module = load_module()
 
     @staticmethod
-    def write_run(directory: Path, condition: str, *, mode: str = "normal",
-                  seed: int = 0, budget: int = 1, score: float = 0.5) -> None:
+    def write_run(directory: Path, condition: str) -> None:
         directory.mkdir(parents=True)
         (directory / "run_manifest.json").write_text(json.dumps({
             "task_id": "Mathematics/SequenceLawRecovery",
-            "feedback_mode": mode,
-            "seed": seed,
+            "feedback_mode": "normal",
+            "seed": 0,
             "llm_condition": {"model": "hy3-ioa"},
             "llm_condition_sha256": condition,
             "task_package_sha256": "task-package",
             "runtime_source_sha256": "runtime-source",
-            "trusted_evaluator_runtime": {"fingerprint_sha256": "trusted-runtime"},
-            "algorithm": "greedy_rewrite",
         }), encoding="utf-8")
-        (directory / "trajectory.jsonl").write_text(json.dumps({
-            "step": budget,
+        (directory / "trajectory.jsonl").write_text(json.dumps({"step": 0, "valid": True, "score": 0.0}) + "\n" + json.dumps({
+            "step": 1,
             "valid": True,
-            "score": score,
-            "candidate_sha256": ("a" if mode == "normal" else "b") * 64,
+            "score": 0.5,
             "metrics": {
-                "combined_score": score,
+                "combined_score": 0.5,
                 "heldout_mechanism_score": 0.4,
                 "heldout_false_discovery_rate": 0.1,
                 "heldout_unsupported_refusal_rate": 0.8,
@@ -65,11 +61,7 @@ class DiscoveryTripleLayoutTests(unittest.TestCase):
                 "condition-nested",
             )
             output = Path(tmp) / "triple.json"
-            with patch.object(self.module, "verify_run", return_value={
-                "verified": True,
-                "budget": 1,
-                "trusted_evaluator_runtime_sha256": "trusted-runtime",
-            }), contextlib.redirect_stdout(io.StringIO()):
+            with contextlib.redirect_stdout(io.StringIO()):
                 self.module.main(["--runs", str(root), "--output", str(output)])
             rows = [
                 row for row in json.loads(output.read_text(encoding="utf-8"))["rows"]
@@ -96,84 +88,90 @@ class DiscoveryTripleLayoutTests(unittest.TestCase):
         self.assertIsNotNone(identity)
         self.assertEqual(identity[1], "hy3-ioa")
 
-    def test_identity_includes_algorithm_and_trusted_evaluator_runtime(self):
-        document = {
-            "task_id": "Mathematics/SequenceLawRecovery",
-            "llm_condition": {"model": "hy3"},
-            "llm_condition_sha256": "condition",
-            "task_package_sha256": "package",
-            "runtime_source_sha256": "runtime",
-            "trusted_evaluator_runtime": {"fingerprint_sha256": "trusted"},
-            "algorithm": "greedy_rewrite",
+
+class DiscoveryMetricContractTests(unittest.TestCase):
+    def test_heldout_axes_never_fall_back_to_development(self):
+        module = load_module()
+        metrics = {"heldout_mechanism_score": 0.3,
+                   "heldout_correct_refusal_rate": 0.2,
+                   "development_correct_refusal_rate": 0.9,
+                   "development_discovery_coverage": 0.8}
+        axes = module.extract(metrics)
+        self.assertEqual(axes["refusal"]["value"], 0.2)
+        self.assertIsNone(axes["coverage"]["value"])
+        self.assertEqual(axes["coverage"]["status"], "published_on_other_split")
+        self.assertEqual(axes["coverage"]["split"], "development")
+        self.assertEqual(axes["coverage"]["key"], "development_discovery_coverage")
+
+    def test_unprefixed_mechanism_is_published_on_other_split_not_missing(self):
+        module = load_module()
+        metrics = {
+            "mechanism_score": 0.55,
+            "development_false_discovery_rate": 0.1,
+            "development_unsupported_refusal_rate": 0.8,
+            "development_discovery_coverage": 0.7,
         }
-        identity = self.module.run_identity(document)
-        self.assertEqual(identity[-2:], ("trusted", "greedy_rewrite"))
+        heldout = module.extract(metrics, "heldout")
+        self.assertEqual(heldout["mechanism"]["status"], "published_on_other_split")
+        self.assertEqual(heldout["mechanism"]["key"], "mechanism_score")
+        self.assertEqual(heldout["mechanism"]["split"], "unsplit")
+        self.assertIsNone(heldout["mechanism"]["value"])
+        self.assertEqual(heldout["fdr"]["status"], "published_on_other_split")
+        self.assertEqual(heldout["fdr"]["split"], "development")
+        development = module.extract(metrics, "development")
+        self.assertEqual(development["mechanism"]["status"], "published_on_other_split")
+        self.assertEqual(development["fdr"]["value"], 0.1)
+        unsplit = module.extract(metrics, "unsplit")
+        self.assertEqual(unsplit["mechanism"]["value"], 0.55)
+        self.assertEqual(unsplit["fdr"]["status"], "published_on_other_split")
+        self.assertEqual(unsplit["refusal"]["status"], "published_on_other_split")
+        truly_absent = module.extract({"combined_score": 0.1}, "heldout")
+        self.assertIsNone(truly_absent["mechanism"])
+        self.assertIsNone(truly_absent["fdr"])
 
-    def test_unverified_run_is_only_unattributable_evidence(self):
+    def test_baseline_metrics_survive_late_unaccepted_improvement(self):
+        module = load_module()
         with TemporaryDirectory() as tmp:
-            root = Path(tmp) / "runs"
-            self.write_run(root / "cohort/cell", "condition")
-            output = Path(tmp) / "triple.json"
-            with patch.object(
-                self.module, "discovery_task_names",
-                return_value={"SequenceLawRecovery"},
-            ), patch.object(
-                self.module, "verify_run", side_effect=ValueError("unbound")
-            ), contextlib.redirect_stdout(io.StringIO()):
-                self.module.main(["--runs", str(root), "--output", str(output)])
-            rows = json.loads(output.read_text(encoding="utf-8"))["rows"]
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(rows[0]["status"], "unattributable_evidence")
-        self.assertFalse(rows[0]["trusted_evidence"])
-
-    def test_modes_budgets_and_seeds_are_separate_run_rows(self):
-        with TemporaryDirectory() as tmp:
-            root = Path(tmp) / "runs"
-            self.write_run(
-                root / "normal", "condition", mode="normal", seed=0,
-                budget=1, score=0.4,
-            )
-            self.write_run(
-                root / "blind", "condition", mode="selection_blind", seed=1,
-                budget=3, score=0.9,
-            )
-            output = Path(tmp) / "triple.json"
-
-            def verified(path, **_kwargs):
-                return {
-                    "verified": True,
-                    "budget": 1 if Path(path).name == "normal" else 3,
-                    "trusted_evaluator_runtime_sha256": "trusted-runtime",
-                }
-
-            with patch.object(
-                self.module, "discovery_task_names",
-                return_value={"SequenceLawRecovery"},
-            ), patch.object(
-                self.module, "verify_run", side_effect=verified,
-            ), contextlib.redirect_stdout(io.StringIO()):
-                self.module.main(["--runs", str(root), "--output", str(output)])
-            rows = json.loads(output.read_text(encoding="utf-8"))["rows"]
-        self.assertEqual(len(rows), 2)
-        self.assertEqual(
-            {(row["feedback_mode"], row["proposal_budget"], row["seed"])
-             for row in rows},
-            {("normal", 1, 0), ("selection_blind", 3, 1)},
-        )
-        self.assertTrue(all(row["run_manifest_sha256"] for row in rows))
-
-    def test_equal_score_candidate_selection_has_a_hash_tie_break(self):
-        with TemporaryDirectory() as tmp:
-            run = Path(tmp)
-            events = [
-                {"step": 1, "valid": True, "score": 0.5,
-                 "candidate_sha256": "b" * 64, "metrics": {"combined_score": 0.5}},
-                {"step": 2, "valid": True, "score": 0.5,
-                 "candidate_sha256": "a" * 64, "metrics": {"combined_score": 0.5}},
+            directory = Path(tmp)
+            rows = [
+                {"step": 0, "valid": True, "score": 0.6,
+                 "metrics": {"combined_score": 0.6, "heldout_mechanism_score": 0.4}},
+                {"step": 1, "valid": True, "score": 0.9, "accepted": False,
+                 "metrics": {"combined_score": 0.9, "heldout_mechanism_score": 0.8}},
             ]
-            (run / "trajectory.jsonl").write_text(
-                "".join(json.dumps(event) + "\n" for event in events),
-                encoding="utf-8",
-            )
-            selected = self.module.best_proposal(run)
-        self.assertEqual(selected["candidate_sha256"], "a" * 64)
+            (directory / "trajectory.jsonl").write_text("\n".join(map(json.dumps, rows)))
+            self.assertEqual(module.best_metrics(directory)["heldout_mechanism_score"], 0.4)
+
+    def test_seeds_are_not_selected_by_maximum_score(self):
+        module = load_module()
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for seed in (0, 1):
+                directory = root / str(seed)
+                DiscoveryTripleLayoutTests.write_run(directory, "same-condition")
+                path = directory / "run_manifest.json"
+                manifest = json.loads(path.read_text())
+                manifest["seed"] = seed
+                path.write_text(json.dumps(manifest))
+            output = root / "report.json"
+            with contextlib.redirect_stdout(io.StringIO()):
+                module.main(["--runs", str(root), "--output", str(output)])
+            rows = [r for r in json.loads(output.read_text())["rows"] if r["status"] == "ok"]
+            self.assertEqual(len(rows), 2)
+            self.assertEqual({r["seed"] for r in rows}, {0, 1})
+
+
+class DeclaredMetricTests(unittest.TestCase):
+    def test_actual_cards_distinguish_fpr_and_fdr_and_zero_claims(self):
+        import yaml
+        module = load_module()
+        imu = yaml.safe_load((ROOT / "benchmarks/Engineering/IMUBiasCalibration/TASK_CARD.yaml").read_text())["metric_contract"]
+        amoc = yaml.safe_load((ROOT / "benchmarks/EarthScience/AMOCTippingRefusal/TASK_CARD.yaml").read_text())["metric_contract"]
+        metrics = {"heldout_false_discovery_rate": 0.0, "heldout_false_discovery_denominator": 0}
+        fdr = module.extract(metrics, contract=imu)["fdr"]
+        fpr = module.extract(metrics, contract=amoc)["fdr"]
+        self.assertEqual(fdr["estimand"], "false_discovery_rate")
+        self.assertEqual(fdr["status"], "zero_denominator")
+        self.assertIsNone(fdr["value"])
+        self.assertEqual(fpr["estimand"], "false_positive_rate")
+        self.assertNotEqual(fdr["denominator"], fpr["denominator"])

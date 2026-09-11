@@ -1,29 +1,17 @@
 #!/usr/bin/env python3
-"""Report the discovery triple for every scientific_role: discovery task, never averaged.
+"""Report discovery axes of each run's selected artifact on one explicit split.
 
-A discovery task asks whether a hidden mechanism was recovered, and a single maximised scalar
-cannot express that. CausaLab measured GPT-5.2-high at 92% task accuracy with an all-edge F1 of
-0.471 on the same setting: objective score and mechanism recovery are different quantities, and
-collapsing them hides exactly the failure that matters.
-
-The oracles already compute the axes. They are being folded into combined_score, so this reads
-them back out:
-
-    mechanism   did the submitted equation / graph / parameters match the hidden truth
-    fdr         did the agent claim a discovery on a world where the truth is out of library
-    refusal     did the agent decline when it should have
-
-The three are printed side by side and deliberately never combined. A task missing an axis is
-reported as missing rather than imputed.
-
-Usage:
-    python scripts/report_discovery_triple.py --runs runs/saturation --output /tmp/triple.json
+Metric names alone do not establish an estimand: false claims divided by claims
+(FDR) differs from false claims divided by unsupported worlds (FPR). Contracts
+are read only from task packages matching the manifest's exact package hash.
+Historical runs without a matching contract retain raw values with unresolved
+semantics. No axis is averaged across tasks or selected across runs.
 """
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -31,109 +19,45 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from sle.registry import list_tasks  # noqa: E402
-from sle.run_verification import verify_run  # noqa: E402
 from sle.task_versions import version_class  # noqa: E402
+from scripts.reporting_trajectory import read_incumbents, read_events, trajectory_selection_evidence  # noqa: E402
 
 
 def known_conditions() -> dict[str, str]:
     import yaml
 
     path = ROOT / "sle" / "llm_conditions.yaml"
-    if not path.is_file():
-        return {}
-    document = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    return {
-        str(digest): str(entry.get("model") or "unrecorded")
-        for digest, entry in (document.get("conditions") or {}).items()
-    }
+    document = yaml.safe_load(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    return {str(digest): str(entry.get("model") or "unrecorded")
+            for digest, entry in ((document or {}).get("conditions") or {}).items()}
 
-# Several naming conventions coexist in the inventory. Preference order runs from the strictest
-# evidence (held-out worlds) to the weakest (development worlds the searcher could see).
+
+# These aliases locate raw values; they do not assert compatible denominators.
 AXES = {
-    "mechanism": (
-        "heldout_mechanism_score",
-        "mechanism_score",
-        "development_mechanism_score",
-        "development_body_support_f1",
-        # Same axis, different vocabulary. Without these, a task that measures mechanism recovery
-        # thoroughly reads as not measuring it at all.
-        "heldout_supported_correct_model_rate",
-        "development_supported_correct_model_rate",
-        "heldout_hypothesis_score",
-        "development_hypothesis_score",
-    ),
-    "fdr": (
-        "heldout_false_discovery_rate",
-        "development_false_discovery_rate",
-        # Unprefixed, for evaluators that do not split their metrics by development and held-out.
-        # InterventionalSCM publishes exactly these and read as never measuring them.
-        "false_discovery_rate",
-    ),
-    "refusal": (
-        "heldout_unsupported_refusal_rate",
-        "development_unsupported_refusal_rate",
-        "development_correct_refusal_rate",
-        "null_abstention_correct",
-        "correct_refusal_rate",
-    ),
-    # A fourth column, not a fourth axis. The triple says how good a discovery was; this says
-    # whether one was attempted at all. Without it a task can read as impossibly hard when what
-    # actually happened is that every proposal declined every world - and the two call for
-    # opposite responses. Six tasks in this inventory score exactly zero, and all six turn out to
-    # be blanket abstention rather than difficulty: refusal 1.00 with coverage 0.00 on every
-    # valid proposal. The scoring is right to give that nothing, because a task that pays for
-    # declining is a task that can be farmed by declining. What was wrong was that the report
-    # could not tell the two apart.
-    "coverage": (
-        "heldout_discovery_coverage",
-        "development_discovery_coverage",
-        "development_supported_claim_coverage",
-        "development_attempt_rate",
-        "discovery_coverage",
-    ),
+    "mechanism": ("mechanism_score", "body_support_f1", "supported_correct_model_rate",
+                  "hypothesis_score"),
+    "fdr": ("false_discovery_rate",),
+    "refusal": ("unsupported_refusal_rate", "correct_refusal_rate", "null_abstention_correct"),
+    "coverage": ("discovery_coverage", "supported_claim_coverage", "attempt_rate"),
 }
+COUNT_ONLY = {"fdr": ("false_discoveries",), "refusal": ("correct_abstentions",)}
 
 
 def discovery_task_names() -> set[str]:
-    names = set()
-    for spec in list_tasks(None):
-        if str(spec.metadata.get("scientific_role", "")) == "discovery":
-            names.add(str(spec.metadata.get("task")))
-    return names
-
-
-def best_proposal(directory: Path) -> dict | None:
-    """Deterministically select one valid proposal within one verified run."""
-    path = directory / "trajectory.jsonl"
-    if not path.is_file():
-        return None
-    best = None
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if int(row.get("step", 0) or 0) <= 0 or not row.get("valid"):
-            continue
-        score = float(row.get("score") or 0.0)
-        candidate = str(row.get("candidate_sha256") or "")
-        if best is None or score > float(best.get("score") or 0.0) or (
-            score == float(best.get("score") or 0.0)
-            and candidate < str(best.get("candidate_sha256") or "")
-        ):
-            best = row
-    return best
+    return {str(spec.metadata.get("task")) for spec in list_tasks(None)
+            if str(spec.metadata.get("scientific_role", "")) == "discovery"}
 
 
 def best_metrics(directory: Path) -> dict | None:
-    proposal = best_proposal(directory)
-    return None if proposal is None else (proposal.get("metrics") or {})
+    """Metrics belonging to the final incumbent, including a retained baseline."""
+    path = directory / "trajectory.jsonl"
+    if not path.is_file():
+        return None
+    selected = read_incumbents(path)
+    return (selected[-1].get("metrics") or {}) if selected else None
 
 
-def run_identity(document: dict) -> tuple[str, str, str, str, str, str, str] | None:
-    """Return the full evidence identity shared with the admission report."""
+def run_identity(document: dict) -> tuple[str, str, str, str, str] | None:
     task = str(document.get("task_id") or "")
     if not task:
         return None
@@ -141,254 +65,156 @@ def run_identity(document: dict) -> tuple[str, str, str, str, str, str, str] | N
     model = str((document.get("llm_condition") or {}).get("model") or "")
     if not model:
         model = known_conditions().get(condition, "unrecorded")
-    task_version = version_class(
-        task, str(document.get("task_package_sha256") or "unknown")
-    )[:14]
+    task_version = version_class(task, str(document.get("task_package_sha256") or "unknown"))[:14]
     runtime = str(document.get("runtime_source_sha256") or "unrecorded")
-    trusted_runtime = str(
-        (document.get("trusted_evaluator_runtime") or {}).get(
-            "fingerprint_sha256"
-        ) or "unrecorded"
-    )
-    algorithm = str(document.get("algorithm") or "unrecorded")
-    return task, model, condition, task_version, runtime, trusted_runtime, algorithm
+    return task, model, condition, task_version, runtime
 
 
-# Some evaluators publish a count where the report needs a rate, and do not publish the
-# denominator that would turn one into the other. That is a different defect from not measuring
-# the axis at all, and conflating them sends the fix to the wrong place: a count with no
-# denominator means the number is in the evaluator but unusable downstream.
-COUNT_ONLY = {
-    "fdr": ("heldout_false_discoveries", "development_false_discoveries",
-            "validation_false_discoveries"),
-    "refusal": ("heldout_correct_abstentions", "development_correct_abstentions",
-                "validation_correct_abstentions"),
-}
+def _metric_key(name: str, split: str) -> str:
+    return name if split == "unsplit" else split + "_" + name
 
 
-def extract(metrics: dict) -> dict:
+def _first_present(metrics: dict, names: tuple[str, ...], split: str) -> str | None:
+    return next((key for name in names if (key := _metric_key(name, split)) in metrics), None)
+
+
+def _published_elsewhere(metrics: dict, names: tuple[str, ...], requested: str) -> tuple[str, str] | None:
+    for split in ("heldout", "development", "unsplit"):
+        if split == requested:
+            continue
+        key = _first_present(metrics, names, split)
+        if key is not None:
+            return key, split
+    return None
+
+
+def extract(metrics: dict, split: str = "heldout", contract: dict | None = None) -> dict:
+    """No value fallback between heldout, development and unsplit measurements.
+
+    A key published only on another split is reported as published_on_other_split,
+    not as a missing axis and not as a copied value.
+    """
     out = {}
-    for axis, candidates in AXES.items():
-        for key in candidates:
-            if key in metrics and isinstance(metrics[key], (int, float)):
-                out[axis] = {"value": float(metrics[key]), "key": key}
-                break
-        else:
-            counted = next(
-                (key for key in COUNT_ONLY.get(axis, ()) if key in metrics), None
-            )
-            out[axis] = (
-                {"value": None, "key": counted, "status": "count_without_denominator"}
-                if counted else None
-            )
+    for axis, aliases in AXES.items():
+        definition = (contract or {}).get(axis)
+        candidates = (definition["metric"],) if definition else aliases
+        key = _first_present(metrics, candidates, split)
+        if key is None:
+            counted = _first_present(metrics, COUNT_ONLY.get(axis, ()), split)
+            if counted is not None:
+                out[axis] = {"value": None, "key": counted, "split": split,
+                             "status": "count_without_denominator"}
+                continue
+            elsewhere = _published_elsewhere(
+                metrics, candidates + COUNT_ONLY.get(axis, ()), split)
+            if elsewhere is not None:
+                other_key, other_split = elsewhere
+                out[axis] = {
+                    "value": None,
+                    "key": other_key,
+                    "split": other_split,
+                    "requested_split": split,
+                    "status": "published_on_other_split",
+                }
+            else:
+                out[axis] = None
+            continue
+        value = metrics[key]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError("discovery metric must be finite numeric: " + key)
+        entry = {"value": float(value), "key": key, "split": split,
+                 "status": "semantics_unrecorded"}
+        if definition:
+            entry.update({name: definition[name] for name in
+                          ("estimand", "numerator", "denominator", "direction")})
+            entry["status"] = "declared"
+            denominator_key = definition.get("denominator_metric")
+            if denominator_key:
+                denominator = metrics.get(_metric_key(denominator_key, split))
+                entry["denominator_value"] = denominator
+                if (isinstance(denominator, bool) or not isinstance(denominator, (int, float))
+                        or not math.isfinite(denominator) or denominator < 0):
+                    entry.update(value=None, status="denominator_unavailable")
+                elif denominator == 0:
+                    entry.update(value=None, status="zero_denominator")
+        out[axis] = entry
     return out
 
 
+def current_contracts() -> dict:
+    import yaml
+    from sle.algorithms.common import task_package_sha256
+
+    contracts = {}
+    for spec in list_tasks(None):
+        path = spec.task_dir / "TASK_CARD.yaml"
+        if path.is_file():
+            contract = (yaml.safe_load(path.read_text()) or {}).get("metric_contract")
+            if contract:
+                contracts[(spec.task_id, task_package_sha256(spec))] = contract
+    return contracts
+
+
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--runs", required=True)
     ap.add_argument("--output", required=True)
+    ap.add_argument("--split", choices=("heldout", "development", "unsplit"), default="heldout")
     args = ap.parse_args(argv)
-
-    wanted = discovery_task_names()
-    root = Path(args.runs)
-
-    # Every run of the task, found by reading the manifest rather than by matching directory
-    # names, and across cohorts rather than inside one. The previous version looked only at
-    # `runs/<one cohort>/<name>_*` and then used `matches[0]` - the first directory it happened
-    # to find - so it reported "no valid proposal" for all nineteen discovery tasks against a
-    # tree holding hundreds of them, and would have reported one arbitrary run if it had found
-    # any. Directory names are not reliable here either: budget-sweep cohorts are named for their
-    # budget, not their task.
-    run_records = []
-    for manifest in sorted(root.rglob("run_manifest.json")):
+    wanted, contracts = discovery_task_names(), current_contracts()
+    rows, represented = [], set()
+    for manifest in sorted(Path(args.runs).rglob("run_manifest.json")):
         try:
             document = json.loads(manifest.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        except (ValueError, OSError) as exc:
+            rows.append({"task": "unknown", "run_directory": str(manifest.parent.resolve()),
+                         "status": "invalid_manifest", "error": "%s: %s" % (manifest, exc)})
             continue
         identity = run_identity(document)
-        if identity is None:
+        if identity is None or identity[0].split("/")[-1] not in wanted:
             continue
-        mode = document.get("feedback_mode")
-        seed = document.get("seed")
-        budget = None
-        trusted_evidence = False
-        try:
-            verification = verify_run(manifest.parent)
-            budget = verification.get("budget")
-            trusted_evidence = bool(
-                verification.get("verified") is True
-                and verification.get("trusted_evaluator_runtime_sha256")
-                == identity[-2]
-                and document.get("task_package_sha256")
-                and all(value not in {"", "unrecorded", "unknown"} for value in identity)
-                and isinstance(mode, str)
-                and mode
-                and isinstance(seed, int)
-                and not isinstance(seed, bool)
-                and isinstance(budget, int)
-                and not isinstance(budget, bool)
-                and budget >= 0
-            )
-        except (OSError, ValueError):
-            pass
-        name = identity[0].split("/")[-1]
-        if name in wanted:
-            run_records.append({
-                "identity": identity,
-                "feedback_mode": mode,
-                "proposal_budget": budget,
-                "seed": seed,
-                "run_manifest_sha256": hashlib.sha256(
-                    manifest.read_bytes()
-                ).hexdigest(),
-                "workdir": manifest.parent,
-                "trusted_evidence": trusted_evidence,
-            })
-
-    rows = []
-    represented = set()
-    for run in run_records:
-        identity = run["identity"]
-        (
-            task, model, condition, task_version, runtime, trusted_runtime, algorithm,
-        ) = identity
-        trusted_evidence = run["trusted_evidence"]
+        task, model, condition, task_version, runtime = identity
         represented.add(task.split("/")[-1])
-        proposal = best_proposal(run["workdir"])
-        metrics = None if proposal is None else (proposal.get("metrics") or {})
-        common = {
-            "task": task,
-            "model": model,
-            "llm_condition_sha256": condition,
-            "task_version": task_version,
-            "runtime_source_sha256": runtime,
-            "trusted_evaluator_runtime_sha256": trusted_runtime,
-            "algorithm": algorithm,
-            "feedback_mode": run["feedback_mode"],
-            "proposal_budget": run["proposal_budget"],
-            "seed": run["seed"],
-            "run_manifest_sha256": run["run_manifest_sha256"],
-            "trusted_evidence": trusted_evidence,
-        }
-        if metrics is None:
-            rows.append({
-                **common,
-                "status": (
-                    "no valid proposal" if trusted_evidence
-                    else "unattributable_evidence"
-                ),
-            })
-            continue
-        axes = extract(metrics)
-        rows.append({
-            **common,
-            "status": "ok" if trusted_evidence else "unattributable_evidence",
-            "selected_candidate_sha256": proposal.get("candidate_sha256"),
-            "axes_published_by_some_run": sorted(
-                axis for axis, entry in axes.items() if entry is not None
-            ),
-            "combined_score": metrics.get("combined_score"),
-            "axes": axes,
-            "missing_axes": [a for a, v in axes.items() if v is None],
-            "count_without_denominator": [
-                a for a, v in axes.items()
-                if v is not None and v.get("status") == "count_without_denominator"
-            ],
-        })
-    for name in sorted(wanted - represented):
-        rows.append({"task": name, "status": "no valid proposal"})
-
-    def cell(entry):
-        if entry is None:
-            return "     -  "
-        if entry.get("value") is None:
-            return "  count "
-        return "%8.4f" % entry["value"]
-
-    rows.sort(key=lambda row: json.dumps(row, sort_keys=True, default=str))
-    print("discovery triple, best valid proposal per verified run. never averaged.")
-    print("coverage is not part of the triple: it says whether a discovery was attempted.")
-    print("%-32s %9s %9s %9s %9s %9s"
-          % ("task", "combined", "mechanism", "fdr", "refusal", "coverage"))
-    print("-" * 84)
-    for r in rows:
-        if r["status"] != "ok":
-            print("%-32s %9s   %s" % (r["task"][:32], "-", r["status"]))
-            continue
-        a = r["axes"]
-        print("%-32s %9.4f %s %s %s %s" % (
-            r["task"][:32], r["combined_score"] or 0.0,
-            cell(a["mechanism"]), cell(a["fdr"]), cell(a["refusal"]),
-            cell(a.get("coverage"))))
-
-    # Called out separately, because a task read as impossibly hard and a task nobody attempted
-    # need opposite responses and the combined score shows the same 0.0000 for both.
-    def value_of(row, axis):
-        entry = (row.get("axes") or {}).get(axis)
-        return None if entry is None else entry.get("value")
-
-    # A task that publishes no coverage metric has not been shown to decline; it has been shown
-    # to be unmeasured on this question. Folding the two together flagged GravityInversion, which
-    # scores 0.9941 with a mechanism score of 0.8593, as having attempted nothing.
-    declined = [r for r in rows if r["status"] == "ok"
-                and value_of(r, "coverage") is not None
-                and value_of(r, "coverage") <= 1e-9]
-    unmeasured = [r for r in rows if r["status"] == "ok" and value_of(r, "coverage") is None
-                  and "coverage" not in (r.get("axes_published_by_some_run") or [])]
-    # Measured, but not on the run that scored best. Saying these are unmeasured would be wrong.
-    stale = [r for r in rows if r["status"] == "ok" and value_of(r, "coverage") is None
-             and "coverage" in (r.get("axes_published_by_some_run") or [])]
-    if declined:
-        print()
-        print("run cells where the best valid proposal attempted no discovery at all: %d of %d"
-              % (len(declined), sum(1 for r in rows if r["status"] == "ok")))
-        for r in declined:
-            print("  %-32s refusal %s, coverage 0" % (
-                r["task"][:32], cell((r.get("axes") or {}).get("refusal")).strip()))
-        print("  These score zero correctly - a task that pays for declining can be farmed by")
-        print("  declining - but the zero is a refusal, not a difficulty, and recalibrating the")
-        print("  anchor would be treating the wrong thing.")
-    if unmeasured:
-        print()
-        print("run cells whose evaluator publishes no coverage metric: %d" % len(unmeasured))
-        print("  " + ", ".join(r["task"][:28] for r in unmeasured))
-        print("  Whether a discovery was attempted cannot be read off any run of these.")
-    if stale:
-        print()
-        print("run cells whose best proposal predates their coverage metric: %d" % len(stale))
-        print("  " + ", ".join(r["task"].split("/")[-1][:28] for r in stale))
-        print("  The evaluator publishes it now; the highest-scoring run on record was made")
-        print("  before it did, so the column is blank for that particular proposal.")
-
-    incomplete = [r for r in rows if r.get("missing_axes")]
-    countonly = [r for r in rows if r.get("count_without_denominator")]
-    print()
-    print("run cells missing at least one axis outright: %d of %d"
-          % (len(incomplete), len(rows)))
-    for r in incomplete:
-        print("  %-32s missing %s" % (r["task"][:32], r["missing_axes"]))
-    print()
-    print("run cells publishing a count where a rate is needed: %d" % len(countonly))
-    for r in countonly:
-        keys = [v["key"] for a, v in r["axes"].items()
-                if v is not None and v.get("status") == "count_without_denominator"]
-        print("  %-32s %s -> %s" % (
-            r["task"][:32], r["count_without_denominator"], keys))
-    if countonly:
-        print("  the evaluator measures these; it publishes the numerator without the world")
-        print("  count that would make it a rate. Fixing it edits the task package and so")
-        print("  rebinds that task's analysis artifacts - a governance step, not a cleanup.")
-
-    Path(args.output).write_text(json.dumps({
-        "schema_version": 3,
-        "note": "the three axes are reported separately and must not be averaged",
-        "task_count": len({row["task"] for row in rows}),
-        "run_row_count": len(rows),
-        "incomplete_count": len(incomplete),
-        "count_without_denominator_count": len(countonly),
-        "rows": rows,
-    }, indent=2), encoding="utf-8")
+        row = {"task": task, "model": model, "llm_condition_sha256": condition,
+               "task_version": task_version, "runtime_source_sha256": runtime,
+               "task_package_sha256": document.get("task_package_sha256"),
+               "feedback_mode": document.get("feedback_mode"), "seed": document.get("seed"),
+               "budget": document.get("budget"), "algorithm": document.get("algorithm"),
+               "run_directory": str(manifest.parent.resolve()), "split": args.split,
+               "endpoint": "incumbent"}
+        try:
+            metrics = best_metrics(manifest.parent)
+            if metrics is not None:
+                row["selection_evidence"] = trajectory_selection_evidence(
+                    read_events(manifest.parent / "trajectory.jsonl"))
+            contract = contracts.get((task, document.get("task_package_sha256")))
+            axes = extract(metrics, args.split, contract) if metrics is not None else None
+        except ValueError as exc:
+            row.update(status="invalid_trajectory_or_metrics", error=str(exc))
+        else:
+            if axes is None:
+                row.update(status="missing_trajectory")
+            else:
+                row.update(
+                    status="ok",
+                    combined_score=metrics.get("combined_score"),
+                    combined_score_scope="search objective; axes use the requested split",
+                    axes=axes,
+                    missing_axes=[a for a, v in axes.items() if v is None],
+                    published_on_other_split=[
+                        a for a, v in axes.items()
+                        if v is not None and v.get("status") == "published_on_other_split"
+                    ],
+                )
+        rows.append(row)
+    rows.extend({"task": name, "status": "missing_run"} for name in sorted(wanted - represented))
+    report = {"schema_version": 3, "split": args.split,
+              "note": "One row per run; selected incumbent; axes never averaged. Undeclared semantics are unresolved.",
+              "task_count": len({r["task"].split("/")[-1] for r in rows}),
+              "run_count": sum("run_directory" in r for r in rows), "rows": rows}
+    Path(args.output).write_text(json.dumps(report, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+    for row in rows:
+        print(row["task"], row.get("feedback_mode", ""), row.get("seed", ""), row["status"])
     print("report:", args.output)
     return 0
 

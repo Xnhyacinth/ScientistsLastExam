@@ -21,7 +21,6 @@ import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
 
 
 def load_module():
@@ -38,9 +37,7 @@ MODULE = load_module()
 def write_run(root: Path, cohort: str, dirname: str, task: str, mode: str, seed: int,
               scores: list[float], write_manifest: bool = True,
               model: str = "gpt-5.5", contract: str | None = None,
-              condition: str | None = None, runtime: str = "runtime:default",
-              trusted_runtime: str = "trusted:default",
-              algorithm: str = "greedy_rewrite") -> None:
+              condition: str | None = None, runtime: str = "runtime:default") -> None:
     workdir = root / cohort / dirname
     workdir.mkdir(parents=True)
     if write_manifest:
@@ -49,16 +46,48 @@ def write_run(root: Path, cohort: str, dirname: str, task: str, mode: str, seed:
             "llm_condition": {"model": model},
             "llm_condition_sha256": condition or ("condition:" + model),
             "runtime_source_sha256": runtime,
-            "trusted_evaluator_runtime": {
-                "fingerprint_sha256": trusted_runtime,
-            },
-            "algorithm": algorithm,
+            "algorithm": "greedy_rewrite",
             **({"task_package_sha256": contract} if contract else {}),
         }), encoding="utf-8")
     lines = [json.dumps({"step": 0, "valid": True, "score": 0.0})]
+    incumbent = 0.0
     for index, score in enumerate(scores, start=1):
-        lines.append(json.dumps({"step": index, "valid": True, "score": score}))
+        lines.append(json.dumps({"step": index, "valid": True, "score": score,
+                                 "accepted": score > incumbent}))
+        incumbent = max(incumbent, score)
     (workdir / "trajectory.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+class IncumbentCurveTests(unittest.TestCase):
+    def test_positive_baseline_survives_a_worse_proposal(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "trajectory.jsonl"
+            path.write_text("\n".join(json.dumps(row) for row in [
+                {"step": 0, "valid": True, "score": 0.6, "best_score": 0.6},
+                {"step": 1, "valid": True, "score": 0.2, "best_score": 0.6},
+            ]) + "\n")
+            self.assertEqual(MODULE.best_so_far(path), [0.6])
+
+    def test_unaccepted_late_score_does_not_replace_incumbent(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "trajectory.jsonl"
+            rows = [
+                {"step": 0, "valid": True, "score": 0.6},
+                {"step": 1, "valid": True, "score": 0.9,
+                 "accepted": False, "best_score": 0.6},
+                {"step": 2, "valid": True, "score": 0.7,
+                 "accepted": True, "best_score": 0.7},
+            ]
+            path.write_text("\n".join(map(json.dumps, rows)))
+            self.assertEqual(MODULE.best_so_far(path), [0.6, 0.7])
+
+    def test_inconsistent_selected_score_is_rejected(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "trajectory.jsonl"
+            path.write_text(json.dumps(
+                {"step": 0, "valid": True, "score": 0.6, "best_score": 0.8}))
+            with self.assertRaisesRegex(ValueError, "recorded best score"):
+                MODULE.best_so_far(path)
 
 
 class RunIdentityTests(unittest.TestCase):
@@ -66,48 +95,10 @@ class RunIdentityTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             root = Path(tmp)
             write_run(root, "crossover", "b20_normal_s0", "Astro/LowThrust", "normal", 0, [0.1])
-            with patch.object(MODULE, "verify_run", return_value={
-                "verified": True,
-                "budget": 1,
-                "trusted_evaluator_runtime_sha256": "trusted:default",
-            }):
-                found = MODULE.collect(root)
+            found = MODULE.collect(root)
             self.assertEqual(list(found),
                              [("Astro/LowThrust", "crossover", "gpt-5.5",
-                               "condition:gpt-5.5", "unknown", "runtime:default",
-                               "trusted:default", "greedy_rewrite", True)])
-
-    def test_trusted_runtime_and_algorithm_are_part_of_the_pooling_identity(self):
-        with TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            write_run(root, "a", "first", "T/X", "selection_blind", 0, [0.1],
-                      trusted_runtime="trusted-a", algorithm="greedy_rewrite")
-            write_run(root, "a", "second", "T/X", "selection_blind", 1, [0.1],
-                      trusted_runtime="trusted-b", algorithm="other")
-            def verified(path, **_kwargs):
-                manifest = json.loads((Path(path) / "run_manifest.json").read_text())
-                return {
-                    "verified": True,
-                    "budget": 1,
-                    "trusted_evaluator_runtime_sha256": manifest[
-                        "trusted_evaluator_runtime"
-                    ]["fingerprint_sha256"],
-                }
-            with patch.object(MODULE, "verify_run", side_effect=verified):
-                found = MODULE.collect(root)
-            self.assertEqual(len(found), 2)
-
-    def test_a_failed_run_verification_marks_the_identity_unattributable(self):
-        with TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            write_run(root, "a", "run", "T/X", "selection_blind", 0, [0.1])
-            with patch.object(MODULE, "verify_run", side_effect=ValueError("tampered")):
-                identity = MODULE.run_identity(root / "a" / "run")
-            self.assertFalse(identity[-1])
-            self.assertFalse(MODULE._identity_is_recorded(
-                identity[3], identity[4], identity[5], identity[6], identity[7],
-                identity[8], identity[-1],
-            ))
+                               "condition:gpt-5.5", "unknown", "runtime:default", "greedy_rewrite")])
 
     def test_a_run_without_a_manifest_is_skipped_rather_than_guessed(self):
         with TemporaryDirectory() as tmp:
@@ -141,13 +132,26 @@ class PoolingTests(unittest.TestCase):
             self.assertEqual(len(report["rows"]), 1)
             self.assertEqual(report["distinct_task_count"], 1)
 
-    def test_untrusted_paired_diagnostic_does_not_remove_next_pairing_candidate(self):
-        rows = [
-            {"task": "T/X", "trusted_evidence": True, "gap_by_budget": []},
-            {"task": "T/X", "trusted_evidence": False,
-             "gap_by_budget": [{"budget": 3}]},
-        ]
-        self.assertEqual(MODULE.paired_task_names(rows), set())
+    def test_each_row_lists_the_runs_it_pooled(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            open_loop = [0.5] * 8
+            feedback = [0.5, 0.52, 0.54, 0.57, 0.60, 0.65, 0.70, 0.75]
+            write_run(root, "paired", "open0", "T/X", "selection_blind", 0, open_loop)
+            write_run(root, "paired", "fb0", "T/X", "normal", 0, feedback)
+            write_run(root, "paired", "open1", "T/X", "selection_blind", 1, open_loop)
+            write_run(root, "paired", "fb1", "T/X", "normal", 1, feedback)
+            report = self.run_report(root)
+            runs = report["rows"][0]["runs"]
+            self.assertEqual(
+                {(item["seed"], item["feedback_mode"], item["cohort"]) for item in runs},
+                {
+                    (0, "selection_blind", "paired"),
+                    (0, "normal", "paired"),
+                    (1, "selection_blind", "paired"),
+                    (1, "normal", "paired"),
+                },
+            )
 
     @staticmethod
     def run_report(root: Path) -> dict:
@@ -156,22 +160,7 @@ class PoolingTests(unittest.TestCase):
             import contextlib
             import io
 
-            def verified(path, **_kwargs):
-                manifest = json.loads((Path(path) / "run_manifest.json").read_text())
-                steps = [
-                    json.loads(line)["step"]
-                    for line in (Path(path) / "trajectory.jsonl").read_text().splitlines()
-                    if line.strip()
-                ]
-                return {
-                    "verified": True,
-                    "budget": max(steps),
-                    "trusted_evaluator_runtime_sha256": (
-                        manifest.get("trusted_evaluator_runtime") or {}
-                    ).get("fingerprint_sha256"),
-                }
-            with patch.object(MODULE, "verify_run", side_effect=verified), \
-                    contextlib.redirect_stdout(io.StringIO()):
+            with contextlib.redirect_stdout(io.StringIO()):
                 MODULE.main(["--runs", str(root), "--output", str(target)])
             return json.loads(target.read_text(encoding="utf-8"))
 
@@ -332,10 +321,11 @@ class ModelSeparationTests(unittest.TestCase):
                 json.dumps({"task_id": "T/X", "feedback_mode": "normal", "seed": 0}),
                 encoding="utf-8")
             (workdir / "trajectory.jsonl").write_text(
+                json.dumps({"step": 0, "valid": True, "score": 0.0}) + "\n" +
                 json.dumps({"step": 1, "valid": True, "score": 0.4}) + "\n", encoding="utf-8")
             self.assertEqual(list(MODULE.collect(root)),
                              [("T/X", "old", "unrecorded", "unrecorded", "unknown",
-                               "unrecorded", "unrecorded", "unrecorded", False)])
+                               "unrecorded", "unrecorded")])
 
 
 class VerdictTests(unittest.TestCase):

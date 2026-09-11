@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 import math
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
-from .evaluation_ledger import EvaluationLedger, RunLease
+from .evaluation_ledger import EvaluationLedger, RunLease, validate_proposal_budget
 from .metric_visibility import (
     score_only_metrics,
     search_visible_metrics,
@@ -143,6 +144,50 @@ def _document(path: Path, label: str) -> dict[str, Any]:
     return value
 
 
+def _clock_equal(left: float, right: float) -> bool:
+    # The producer groups cumulative + (provider_prefix + receipt_wall), while
+    # publication + receipt_wall groups the same additions differently. Allow
+    # floating-point rounding, not a fixed grace period that could erase work.
+    return math.isclose(left, right, rel_tol=8 * sys.float_info.epsilon, abs_tol=0.0)
+
+
+def _verify_event_clock(
+    event: dict[str, Any], previous_cumulative: float, receipt: dict[str, Any] | None,
+) -> float:
+    """Check the logical active clock against the consumed durable outcome.
+
+    A reused receipt retains its original duration. Failed physical attempts and
+    downtime between resume invocations are not added to this logical clock.
+    No-code events have no receipt: only their prefix/publication bounds and
+    cumulative accounting can be verified, including local rejection overhead.
+    """
+    wall = float(event["wall_seconds"])
+    cumulative = float(event["cumulative_wall_seconds"])
+    if cumulative != previous_cumulative + wall:
+        raise ValueError("trajectory active clock differs from its cumulative prefix")
+    if int(event["step"]) == 0:
+        if receipt is None or wall != float(receipt["evaluation_wall_seconds"]):
+            raise ValueError("baseline active clock differs from its evaluation receipt")
+        return cumulative
+    published = (event.get("algorithm_metadata") or {}).get("proposal_published_wall_seconds")
+    try:
+        valid_publication = (
+            isinstance(published, (int, float)) and not isinstance(published, bool)
+            and math.isfinite(published) and published >= 0
+        )
+    except OverflowError:
+        valid_publication = False
+    if not valid_publication:
+        raise ValueError("trajectory proposal publication time must be finite and nonnegative")
+    if published < previous_cumulative or published > cumulative:
+        raise ValueError("trajectory proposal publication time is outside its active prefix")
+    if receipt is not None:
+        evaluation_wall = float(receipt["evaluation_wall_seconds"])
+        if wall < evaluation_wall or not _clock_equal(cumulative, published + evaluation_wall):
+            raise ValueError("proposal active clock differs from publication plus evaluation receipt")
+    return cumulative
+
+
 def _verify_run_unlocked(
     root: Path,
     *,
@@ -204,12 +249,24 @@ def _verify_run_unlocked(
     for key in ("task_id", "algorithm", "seed", "feedback_mode"):
         if summary.get(key) != manifest.get(key):
             raise ValueError("run summary %s differs from manifest" % key)
+    protocol = manifest.get("protocol")
+    evaluator_timeout = (
+        protocol.get("evaluator_timeout_seconds") if isinstance(protocol, dict) else None
+    )
+    if not (
+        isinstance(evaluator_timeout, (int, float))
+        and not isinstance(evaluator_timeout, bool)
+        and math.isfinite(evaluator_timeout) and evaluator_timeout > 0
+    ):
+        raise ValueError("run manifest evaluator_timeout_seconds must be positive and finite")
 
     if manifest.get("algorithm") == "greedy_rewrite":
         ledger = EvaluationLedger(root)
         verified_request_ids = []
         verified_receipts = {}
         expected_oracle_calls = 0
+        previous_cumulative_wall = 0.0
+        previous_proposal_budget = 0
         incumbent_hash = None
         incumbent_step = None
         incumbent_score = INVALID_SCORE
@@ -219,6 +276,7 @@ def _verify_run_unlocked(
         baseline_receipt_score = None
         for event in events:
             step = int(event["step"])
+            receipt = None
             trajectory_metrics = event.get("metrics") or {}
             if "trusted_evaluator_runtime_sha256" in trajectory_metrics:
                 raise ValueError(
@@ -311,7 +369,17 @@ def _verify_run_unlocked(
                     for key in IDENTITY_FIELDS
                     if identity.get(key) is not None
                 }
-                expected_request_identity["proposal_budget"] = budget
+                previous_proposal_budget = validate_proposal_budget(
+                    request, current_budget=budget,
+                    previous_budget=previous_proposal_budget,
+                )
+                request_timeout = request.get("evaluator_timeout_seconds")
+                if not (
+                    isinstance(request_timeout, (int, float))
+                    and not isinstance(request_timeout, bool)
+                    and request_timeout == evaluator_timeout
+                ):
+                    raise ValueError("evaluation receipt evaluator_timeout_seconds differs from manifest")
                 for key, value in expected_request_identity.items():
                     if request.get(key) != value:
                         raise ValueError("evaluation receipt %s differs from manifest" % key)
@@ -360,6 +428,9 @@ def _verify_run_unlocked(
                 and bool(event.get("valid")) == expected_valid
             ):
                 raise ValueError("trajectory accounting differs from evaluation receipts")
+            previous_cumulative_wall = _verify_event_clock(
+                event, previous_cumulative_wall, receipt,
+            )
             if event.get("candidate_sha256"):
                 candidate_history.append({
                     "step": step,

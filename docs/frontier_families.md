@@ -91,6 +91,13 @@ create an isolated ledger and is not a valid campaign-wide lifetime total.
 declared by that run. Release/cohort evidence must additionally pass `--expected-budget N`; the
 cohort runner supplies this external campaign contract automatically.
 
+A completed greedy checkpoint can continue with a larger proposal budget. Historical
+requests and receipts keep their original allocation and content hashes: allocations must
+be nondecreasing, cover their proposal step, and stay within the final verified budget.
+An unfinished baseline must first recover under its original budget; an already drawn
+pending proposal must retain its original prompt before any extension. Extending a run
+does not turn its earlier receipts into evidence for a separately allocated fresh run.
+
 The first credited event for a wave freezes its task contract, complete task package, runtime
 source, and trusted evaluator runtime condition. Later events in that wave must match all four.
 Frontier events use their own schema version independently of wave manifests and evaluation

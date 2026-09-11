@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+
+from scripts.audit_historical_records import audit_named
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,25 +42,23 @@ class AlloyHardnessAnalysisTests(unittest.TestCase):
 
     def test_analysis_binds_calibration_reports_lineage_and_replay(self):
         report = self.report
-        self.assertTrue(report["execution_passed"], report)
-        self.assertEqual(
-            report["trusted_evidence"],
-            report["source_provenance"]["source_tree_dirty"] is False,
-        )
-        self.assertEqual(report["passed"], report["trusted_evidence"])
-        self.assertTrue(report["input_task_runtime_source_equivalent"])
+        archive = audit_named("alloy_hardness", ROOT)
+        self.assertEqual(archive["status"], "passed", archive)
+        self.assertEqual(archive["passed_run_count"], 3)
+        # Historical raw bytes remain bound; today's evaluator exceeds the old
+        # migration's scope. A successful direct replay cannot approve it.
+        self.assertFalse(report["execution_passed"])
+        self.assertFalse(report["trusted_evidence"])
+        self.assertFalse(report["passed"])
+        self.assertFalse(report["input_task_runtime_source_equivalent"])
         self.assertFalse(report["input_task_runtime_source_unchanged"])
-        self.assertEqual(
-            report["input_task_runtime_source_changes"],
-            sorted(
-                list(self.module.SOURCE_MIGRATION_CHANGES)
-                + list(self.module.RUNTIME_PATHS)
-            ),
-        )
         migration = report["input_task_runtime_source_migration"]
-        self.assertTrue(migration["accepted"], migration)
-        self.assertTrue(all(migration["checks"].values()))
-        self.assertTrue(
+        self.assertFalse(migration["accepted"], migration)
+        self.assertTrue(migration["checks"]["report_hash_matches"])
+        self.assertTrue(migration["checks"]["report_passed_clean"])
+        self.assertFalse(migration["checks"]["runtime_change_scope_matches"])
+        self.assertFalse(migration["checks"]["current_runtime_hashes_match"])
+        self.assertFalse(
             report["input_task_runtime_source_migration_equivalent"]
         )
         self.assertTrue(report["input_source_scope_equivalent"])
@@ -240,11 +242,21 @@ class AlloyHardnessAnalysisTests(unittest.TestCase):
         self.assertFalse(failed["execution_passed"])
 
     def test_source_migration_is_hash_bound_and_scoped(self):
+        # Positive historical claim: exact files at the audited revision, never
+        # the moving checkout. Keep the original digests unchanged.
+        for path, expected in self.module.SOURCE_MIGRATION_HASHES.items():
+            original = subprocess.check_output(
+                ["git", "show", self.module.SOURCE_MIGRATION_REVISION + ":" + path],
+                cwd=ROOT,
+            )
+            self.assertEqual(hashlib.sha256(original).hexdigest(), expected)
         revision = self.module.source_provenance(ROOT)["git_revision"]
-        accepted = self.module._source_migration_status(
+        current = self.module._source_migration_status(
             revision, list(self.module.SOURCE_MIGRATION_CHANGES),
         )
-        self.assertTrue(accepted["accepted"], accepted)
+        self.assertFalse(current["accepted"], current)
+        self.assertTrue(current["checks"]["report_hash_matches"])
+        self.assertFalse(current["checks"]["current_runtime_hashes_match"])
 
         extra = self.module._source_migration_status(
             revision,

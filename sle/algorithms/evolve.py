@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from ..evaluate import evaluate_candidate, INVALID_SCORE, resolve_trusted_runtime
-from ..evaluation_ledger import EvaluationLedger, RunLease
+from ..evaluation_ledger import EvaluationLedger, RunLease, validate_proposal_budget
 from ..frontier import frontier_binding
 from ..llm import LLMClient
 from ..metric_visibility import (
@@ -440,6 +440,20 @@ def _greedy_rewrite_impl(
         if active_wall_horizon_s is not None else None
     )
     evaluation_ledger = EvaluationLedger(workdir)
+    if resume:
+        prior_requests = [
+            evaluation_ledger.require_request_id(request_id)["request"]
+            for request_id in evaluation_ledger.snapshot()["request_ids"]
+        ]
+        previous_budget = 0
+        for request in sorted(prior_requests, key=lambda row: row.get("step", -1)):
+            previous_budget = validate_proposal_budget(
+                request, current_budget=budget, previous_budget=previous_budget,
+            )
+            # A baseline without a checkpoint must reuse its original request ID.
+            # Finish that recovery before starting a larger-budget continuation.
+            if (baseline_retry or baseline_commit_recovery) and previous_budget != budget:
+                raise ValueError("recover baseline with its original proposal_budget before extension")
     frozen_task_contract = str(run_manifest["task_contract_sha256"])
     frozen_task_package = str(run_manifest["task_package_sha256"])
     frozen_runtime_source = str(run_manifest["runtime_source_sha256"])

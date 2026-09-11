@@ -6,6 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from scripts.audit_historical_records import audit_named
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -38,33 +40,28 @@ class DiffractionGratingAnalysisTests(unittest.TestCase):
 
     def test_analysis_binds_calibrations_lineage_manifests_and_replays(self):
         report = self.report
-        self.assertTrue(report["execution_passed"], report)
-        self.assertEqual(
-            report["trusted_evidence"],
-            report["source_provenance"]["source_tree_dirty"] is False,
-        )
-        self.assertEqual(report["passed"], report["trusted_evidence"])
+        archive = audit_named("diffraction_grating", ROOT)
+        self.assertEqual(archive["status"], "passed", archive)
+        self.assertEqual(archive["passed_run_count"], 3)
+        self.assertFalse(report["execution_passed"])
+        self.assertFalse(report["trusted_evidence"])
+        self.assertFalse(report["passed"])
         self.assertTrue(
             report["calibration_to_model_task_runtime_source_equivalent"]
         )
         self.assertEqual(
             report["calibration_to_model_task_runtime_source_changes"], []
         )
-        self.assertTrue(
+        self.assertFalse(
             report["model_to_analysis_task_runtime_source_equivalent"]
         )
-        self.assertEqual(
-            report["model_to_analysis_task_runtime_source_changes"],
-            [
-                "benchmarks/Physics/DiffractionGratingDesign/verification/evaluator.py",
-                "sle/evaluate.py",
-                "sle/secure_eval.py",
-                "sle/trusted_driver.py",
-            ],
-        )
-        self.assertTrue(
-            report["model_to_analysis_task_runtime_source_migration"]["accepted"]
-        )
+        migration = report["model_to_analysis_task_runtime_source_migration"]
+        self.assertFalse(migration["accepted"])
+        self.assertTrue(migration["checks"]["report_hash_matches"])
+        self.assertTrue(migration["checks"]["report_passed_clean"])
+        self.assertFalse(migration["checks"]["runtime_change_scope_matches"])
+        self.assertFalse(migration["checks"]["current_runtime_hashes_match"])
+        self.assertFalse(migration["additional_checks"]["current_evaluator_hash_matches"])
         self.assertTrue(report["input_source_scope_equivalent"])
         self.assertTrue(report["input_llm_condition_equivalent"])
         self.assertTrue(report["input_task_contract_equivalent"])

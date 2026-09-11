@@ -51,6 +51,7 @@ def write_verified_run(root: Path, *, budget: int = 10) -> None:
         "task_package_sha256": "b" * 64,
         "runtime_source_sha256": "c" * 64,
         "trusted_evaluator_runtime": runtime,
+        "protocol": {"evaluator_timeout_seconds": 20.0},
         "seed": 0,
         "feedback_mode": "normal",
         "llm_condition": {"model": "hy3"},
@@ -67,6 +68,7 @@ def write_verified_run(root: Path, *, budget: int = 10) -> None:
         )
     }
     identity["proposal_budget"] = budget
+    identity["evaluator_timeout_seconds"] = 20.0
     runtime_hash = runtime["fingerprint_sha256"]
     cumulative = 0.0
     incumbent = "VALUE = 0\n"
@@ -106,6 +108,7 @@ def write_verified_run(root: Path, *, budget: int = 10) -> None:
             "parent_sha256": sha256_text(incumbent),
             "prompt_sha256": prompt_hash,
         }, lambda step=step: {"combined_score": step / 100.0, "valid": 1.0})
+        published = cumulative
         cumulative += receipt["evaluation_wall_seconds"]
         append_event(root / "trajectory.jsonl", TrajectoryEvent(
             step=step, oracle_calls=step + 1, score=step / 100.0,
@@ -120,6 +123,7 @@ def write_verified_run(root: Path, *, budget: int = 10) -> None:
                 "selection_policy": "online_incumbent",
                 "accepted_semantics": "online_incumbent_update",
                 "proposal_slot": step,
+                "proposal_published_wall_seconds": published,
                 "prompt_source_step": step - 1,
                 "feedback_released_through_step": step - 1,
                 "prompt_sha256": prompt_hash,

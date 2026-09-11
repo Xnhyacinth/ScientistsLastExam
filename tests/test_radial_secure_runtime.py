@@ -46,6 +46,9 @@ class RadialVelocityPackageContractTests(unittest.TestCase):
         ), patch(
             "sle.secure_eval.importlib.metadata.version",
             side_effect=lambda distribution: versions[distribution],
+        ), patch(
+            "sle.secure_eval._mounted_candidate_distribution_version",
+            side_effect=lambda distribution, mounts: versions[distribution],
         ):
             self.assertEqual(read_candidate_packages(Path(temporary)), ())
 

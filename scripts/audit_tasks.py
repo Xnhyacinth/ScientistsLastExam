@@ -237,7 +237,9 @@ def _task_card_issues(path: Path) -> list[str]:
 
 def _normalized_oracle(path: Path) -> str:
     tree = ast.parse(path.read_text(encoding="utf-8"))
-    if tree.body and isinstance(tree.body[0], ast.Expr) and isinstance(tree.body[0].value, ast.Str):
+    if (tree.body and isinstance(tree.body[0], ast.Expr)
+            and isinstance(tree.body[0].value, ast.Constant)
+            and isinstance(tree.body[0].value.value, str)):
         tree.body.pop(0)
     entrypoint_names = {
         node.args.args[0].arg for node in ast.walk(tree)

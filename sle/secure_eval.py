@@ -9,6 +9,7 @@ import json
 import math
 import os
 import platform
+import re
 import resource
 import select
 import shutil
@@ -102,6 +103,55 @@ def _site_package_roots() -> list[Path]:
         if resolved not in roots:
             roots.append(resolved)
     return roots
+
+
+def _candidate_package_mounts(packages: tuple[str, ...]) -> list[tuple[Path, str]]:
+    """Choose exactly the package sources exposed by the candidate's isolated sys.path."""
+    mounts: list[tuple[Path, str]] = []
+    mounted: set[str] = set()
+    for root in _site_package_roots():
+        for package in BASE_CANDIDATE_PACKAGES + tuple(packages):
+            if "/" in package or package in (".", ".."):
+                raise RuntimeError("candidate package name must be a bare path")
+            source = root / package
+            if source.exists() and package not in mounted:
+                resolved = source.resolve()
+                try:
+                    resolved.relative_to(root)
+                except ValueError as exc:
+                    raise RuntimeError("candidate package directory escapes its site root") from exc
+                mounts.append((resolved, "/packages/" + package))
+                mounted.add(package)
+    return mounts
+
+
+def _mounted_candidate_distribution_version(
+    distribution: str, mounts: list[tuple[Path, str]]
+) -> str:
+    """Read metadata belonging to the selected mounts, never a trusted PYTHONPATH overlay.
+
+    Distribution file records bind import-name aliases (PIL/Pillow, erfa/pyerfa, etc.) without
+    adding paths to the sandbox. A shadow package without matching metadata, a mixed installation,
+    or ambiguous metadata fails closed instead of borrowing a later installation's version.
+    """
+    normalize = lambda name: re.sub(r"[-_.]+", "-", name).lower()
+    selected = {Path(destination).name: source for source, destination in mounts}
+    matches = []
+    for root in dict.fromkeys(_site_package_roots()):
+        for installed in importlib.metadata.distributions(path=[str(root)]):
+            if normalize(str(installed.metadata.get("Name", ""))) != normalize(distribution):
+                continue
+            owned = {path.parts[0] for path in installed.files or ()
+                     if path.parts and path.parts[0] in selected}
+            if owned and all(Path(installed.locate_file(name)).resolve() == selected[name]
+                             for name in owned):
+                matches.append(installed)
+    if len(matches) != 1:
+        raise RuntimeError(
+            "candidate-mounted distribution %r has missing, ambiguous or mismatched file metadata"
+            % distribution
+        )
+    return matches[0].version
 
 
 @functools.lru_cache(maxsize=8)
@@ -385,9 +435,8 @@ def read_candidate_packages(task_dir: Path) -> tuple[str, ...]:
             )
         if name not in toolkits:
             toolkits.append(name)
-    for distribution, expected_version in candidate_distribution_pins(
-        sys.version_info[:2], toolkits
-    ).items():
+    pins = candidate_distribution_pins(sys.version_info[:2], toolkits)
+    for distribution, expected_version in pins.items():
         try:
             installed_version = importlib.metadata.version(distribution)
         except importlib.metadata.PackageNotFoundError as exc:
@@ -404,6 +453,14 @@ def read_candidate_packages(task_dir: Path) -> tuple[str, ...]:
         for directory in ALLOWED_CANDIDATE_PACKAGES[name]:
             if directory not in resolved:
                 resolved.append(directory)
+    mounts = _candidate_package_mounts(tuple(resolved))
+    for distribution, expected_version in pins.items():
+        mounted_version = _mounted_candidate_distribution_version(distribution, mounts)
+        if mounted_version != expected_version:
+            raise RuntimeError(
+                "candidate-mounted package %r has version %s, expected %s"
+                % (distribution, mounted_version, expected_version)
+            )
     return tuple(resolved)
 
 
@@ -445,22 +502,7 @@ def _sandbox_command(candidate: Path, entrypoint: str, seccomp_fd: int,
         raise RuntimeError("secure evaluation requires bubblewrap (bwrap)")
     runtime_python, runtime_stdlib, runtime_libpython = _candidate_runtime()
     runtime_version = "%d.%d" % sys.version_info[:2]
-    package_mounts: list[tuple[Path, str]] = []
-    mounted: set[str] = set()
-    requested = BASE_CANDIDATE_PACKAGES + tuple(packages)
-    for root in _site_package_roots():
-        for package in requested:
-            if "/" in package or package in (".", ".."):
-                raise RuntimeError("candidate package name must be a bare path")
-            src = root / package
-            if src.exists() and package not in mounted:
-                resolved = src.resolve()
-                try:
-                    resolved.relative_to(root)
-                except ValueError as exc:
-                    raise RuntimeError("candidate package directory escapes its site root") from exc
-                package_mounts.append((resolved, "/packages/" + package))
-                mounted.add(package)
+    package_mounts = _candidate_package_mounts(packages)
     dependency_sources = [runtime_python, runtime_stdlib]
     if runtime_libpython is not None:
         dependency_sources.append(runtime_libpython)

@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import tempfile
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -33,6 +34,41 @@ METRIC_VISIBILITY_SCOPE = (
     "validation, mechanism, robustness and per-instance metrics remain in the trusted trace"
 )
 
+CANDIDATE_FAILURES = frozenset((
+    "candidate_timeout", "blocked_or_missing_import", "blocked_operation",
+    "blocked_or_missing_file", "non_finite_candidate_value",
+    "candidate_callback_schema_error", "candidate_response_too_large",
+    "candidate_worker_exit", "candidate_runtime_error",
+))
+
+
+class EvaluationInfrastructureError(RuntimeError):
+    """A trusted evaluation failed; it must never become a scientific score."""
+
+
+def require_scientific_result(metrics: Mapping[str, Any]) -> None:
+    if metrics.get("infrastructure_failure"):
+        raise EvaluationInfrastructureError("trusted evaluation infrastructure failure")
+
+
+def public_error_message(metrics: Mapping[str, Any]) -> str:
+    """Expose finite failure categories, never arbitrary oracle exception text."""
+    message = metrics.get("error_message")
+    if message in (
+        "candidate is not a regular file", "task has no declared entrypoint.txt",
+        "timeout must be positive and finite", "no_code", "signed_decision_contract_invalid",
+    ):
+        return str(message)
+    kind = metrics.get("candidate_failure_kind")
+    if isinstance(kind, str) and kind in CANDIDATE_FAILURES:
+        return "candidate invalid: " + kind
+    if isinstance(message, str) and message.startswith("candidate invalid: "):
+        if message[len("candidate invalid: "):] in CANDIDATE_FAILURES:
+            return message
+    if metrics.get("timeout"):
+        return "candidate evaluation timed out"
+    return "evaluation rejected; details retained in trusted diagnostics"
+
 
 def search_visible_metrics(metrics: Mapping[str, Any]) -> dict[str, Any]:
     """Return the closed allowlist exposed to proposal and selection code.
@@ -42,7 +78,33 @@ def search_visible_metrics(metrics: Mapping[str, Any]) -> dict[str, Any]:
     """
     if not isinstance(metrics, Mapping):
         raise TypeError("metrics must be a mapping")
-    return {key: metrics[key] for key in SEARCH_VISIBLE_KEYS if key in metrics}
+    require_scientific_result(metrics)
+    public = {key: metrics[key] for key in SEARCH_VISIBLE_KEYS if key in metrics}
+    if public.get("error_message"):
+        public["error_message"] = public_error_message(metrics)
+    return public
+
+
+def store_infrastructure_failure(directory: Path, diagnostic: Mapping[str, Any]) -> None:
+    """Persist a private fault marker so swallowed backend exceptions still fail closed."""
+    failures = Path(directory) / "infrastructure_failures"
+    failures.mkdir(parents=True, exist_ok=True, mode=0o700)
+    try:
+        rendered = json.dumps(dict(diagnostic), allow_nan=False, default=str)
+    except (TypeError, ValueError):
+        rendered = json.dumps({"diagnostic": repr(dict(diagnostic))[:8000]})
+    descriptor, path = tempfile.mkstemp(prefix="failure_", suffix=".json", dir=str(failures))
+    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+        handle.write(rendered + "\n")
+
+
+def require_healthy_evaluations(directory: Path) -> None:
+    """Optional frameworks may catch evaluator exceptions; do not publish such runs."""
+    failures = Path(directory) / "infrastructure_failures"
+    if failures.is_dir() and any(failures.iterdir()):
+        raise EvaluationInfrastructureError(
+            "trusted evaluation infrastructure failed; use a fresh run directory"
+        )
 
 
 def score_only_metrics(metrics: Mapping[str, Any]) -> dict[str, Any]:
@@ -91,8 +153,9 @@ def store_full_metrics(directory: Path, candidate_path: Path,
     Repeated evaluation of identical source must yield identical metrics. A mismatch is raised
     instead of silently overwriting evidence, which also catches nondeterministic task oracles.
     """
+    require_scientific_result(metrics)
     directory = Path(directory).resolve()
-    directory.mkdir(parents=True, exist_ok=True)
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     digest = candidate_sha256(candidate_path)
     destination = _sidecar_path(directory, digest)
     rendered = json.dumps(dict(metrics), sort_keys=True, separators=(",", ":"),
@@ -102,9 +165,20 @@ def store_full_metrics(directory: Path, candidate_path: Path,
         if existing != rendered:
             raise RuntimeError("nondeterministic full metrics for candidate %s" % digest)
         return digest
-    temporary = destination.with_name(".%s.%d.tmp" % (destination.name, os.getpid()))
-    temporary.write_text(rendered, encoding="utf-8")
-    os.replace(str(temporary), str(destination))
+    # Link a complete private file into place exactly once. Concurrent evaluations
+    # may agree, but cannot overwrite a conflicting observation between the check
+    # above and publication (os.replace would silently lose that evidence).
+    descriptor, temporary = tempfile.mkstemp(prefix="." + digest, dir=str(directory))
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(rendered)
+        try:
+            os.link(temporary, str(destination))
+        except FileExistsError:
+            if destination.read_text(encoding="utf-8") != rendered:
+                raise RuntimeError("nondeterministic full metrics for candidate %s" % digest)
+    finally:
+        os.unlink(temporary)
     return digest
 
 
@@ -118,6 +192,7 @@ def load_full_metrics(directory: Path, source: str,
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError("trusted metric sidecar is not a mapping")
+    require_scientific_result(value)
     if public_metrics is not None:
         expected = search_visible_metrics(value)
         observed = {

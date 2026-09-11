@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from sle.algorithms.common import atomic_write_text
-from sle.evaluation_ledger import EvaluationLedger
+from sle.evaluation_ledger import EvaluationLedger, validate_proposal_budget
 from sle.protocol import (
     TrajectoryEvent,
     append_event,
@@ -44,6 +44,7 @@ class RunVerificationTests(unittest.TestCase):
         extra_request_frontier: dict[str, str] | None = None,
         proposal_budget: int = 0,
         feedback_mode: str = "normal",
+        receipt_timeout: object = 20.0,
     ) -> str:
         program = "def solve():\n    return 1\n"
         candidate_hash = sha256_text(program)
@@ -55,6 +56,7 @@ class RunVerificationTests(unittest.TestCase):
             "task_package_sha256": "b" * 64,
             "runtime_source_sha256": "c" * 64,
             "trusted_evaluator_runtime": current_runtime_descriptor(()),
+            "protocol": {"evaluator_timeout_seconds": 20.0},
             "seed": 0,
             "feedback_mode": feedback_mode,
             "llm_condition_sha256": "d" * 64,
@@ -71,6 +73,7 @@ class RunVerificationTests(unittest.TestCase):
                     "feedback_mode", "llm_condition_sha256", "llm_condition",
                 )},
                 "proposal_budget": proposal_budget,
+                "evaluator_timeout_seconds": receipt_timeout,
                 **(frontier or {}),
                 **(extra_request_frontier or {}),
                 "trusted_evaluator_runtime_sha256": manifest[
@@ -119,6 +122,7 @@ class RunVerificationTests(unittest.TestCase):
         score: float,
         accepted: bool,
         recorded_feedback_mode: str | None = None,
+        provider_wall: float = 0.0,
     ) -> str:
         parent = (root / "best_program.py").read_text(encoding="utf-8")
         program = "def solve():\n    return 2\n"
@@ -146,6 +150,7 @@ class RunVerificationTests(unittest.TestCase):
                 "feedback_mode": feedback_mode,
                 "seed": 0,
                 "proposal_budget": 1,
+                "evaluator_timeout_seconds": 20.0,
                 "llm_condition_sha256": "d" * 64,
                 "llm_condition": {"model": "test-model"},
                 "trusted_evaluator_runtime_sha256": manifest[
@@ -171,9 +176,9 @@ class RunVerificationTests(unittest.TestCase):
                 best_score=best_score,
                 valid=True,
                 accepted=accepted,
-                wall_seconds=receipt["evaluation_wall_seconds"],
+                wall_seconds=provider_wall + receipt["evaluation_wall_seconds"],
                 cumulative_wall_seconds=(
-                    prior_cumulative + receipt["evaluation_wall_seconds"]
+                    prior_cumulative + (provider_wall + receipt["evaluation_wall_seconds"])
                 ),
                 candidate_sha256=candidate_hash,
                 parent_sha256=sha256_text(parent),
@@ -184,6 +189,7 @@ class RunVerificationTests(unittest.TestCase):
                     "selection_policy": _selection_policy(recorded_mode),
                     "accepted_semantics": _accepted_semantics(recorded_mode),
                     "proposal_slot": 1,
+                    "proposal_published_wall_seconds": prior_cumulative + provider_wall,
                     "prompt_source_step": 0,
                     "feedback_released_through_step": 0,
                     "prompt_sha256": prompt_hash,
@@ -605,6 +611,45 @@ class RunVerificationTests(unittest.TestCase):
             atomic_write_text(root / "summary.json", json.dumps(summary) + "\n")
             with self.assertRaisesRegex(ValueError, "early termination|completed budget"):
                 verify_run(root)
+
+    def test_manifest_timeout_must_match_immutable_receipt(self):
+        for timeout in (200, 0, -1, True, "20", None):
+            with self.subTest(timeout=timeout), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                self._run(root)
+                manifest_path = root / "run_manifest.json"
+                manifest = json.loads(manifest_path.read_text())
+                manifest["protocol"]["evaluator_timeout_seconds"] = timeout
+                atomic_write_text(manifest_path, json.dumps(manifest) + "\n")
+                with self.assertRaisesRegex(ValueError, "evaluator_timeout_seconds"):
+                    verify_run(root)
+
+    def test_receipt_timeout_requires_matching_numeric_contract(self):
+        for timeout in (200, 0, -1, True, "20", None):
+            with self.subTest(timeout=timeout), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                self._run(root, receipt_timeout=timeout)
+                with self.assertRaisesRegex(ValueError, "evaluator_timeout_seconds"):
+                    verify_run(root)
+
+    def test_completed_receipt_cannot_claim_a_larger_original_allocation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            self._run(root, proposal_budget=1)
+            with self.assertRaisesRegex(ValueError, "proposal_budget"):
+                verify_run(root)
+
+    def test_budget_extension_rejects_invalid_or_shrinking_allocations(self):
+        for allocation, step, previous in (
+            (True, 0, 0), (None, 0, 0), (1.0, 0, 0),
+            (-1, 0, 0), (1, 2, 0), (2, 2, 3), (5, 2, 0),
+        ):
+            with self.subTest(allocation=allocation, step=step, previous=previous):
+                with self.assertRaisesRegex(ValueError, "proposal_budget"):
+                    validate_proposal_budget(
+                        {"proposal_budget": allocation, "step": step},
+                        current_budget=4, previous_budget=previous,
+                    )
 
     def test_release_verification_binds_external_budget(self):
         with tempfile.TemporaryDirectory() as temporary:

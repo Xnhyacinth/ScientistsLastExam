@@ -114,30 +114,6 @@ score, but a valid submission is required on both splits.
 - `Sensors/QuartzCrystalMicrobalanceLab` infers resonance admittance and deposition from sweeps,
   rather than vector sensor calibration from temperature/pose interventions.
 
-## Measured competence ladder
-
-Linux sandbox calibration; development / held-out normalized scores:
-
-| Policy | Development | Held-out |
-|---|---:|---:|
-| Information-designed, full calibration and fault tests | 0.718699 | 0.552215 |
-| Six measurements | 0.000000 | 0.004345 |
-| Twelve measurements | 0.356836 | 0.254128 |
-| Central temperatures only | 0.047489 | 0.169275 |
-| Sequential settings | 0.165670 | 0.434979 |
-| Diagonal-only calibration | 0.000000 | 0.000000 |
-| Without thermal fault test | 0.312466 | 0.206246 |
-| Without temperature-dependent cross-axis test | 0.312466 | 0.348838 |
-| Without parasitic-acceleration test | 0.312466 | 0.206246 |
-| Fixed fault axis | 0.134237 | 0.004212 |
-| Best designed-measurement residual-threshold grid | 0.072900 | 0.024859 |
-| Best sequential-measurement residual-threshold grid | 0.025579 | 0.075309 |
-| Factory baseline / blanket refusal / never refusing | 0.000000 | 0.000000 |
-
-Each grid contains 900 policies selected on development only. These are registered probe
-maxima, not bounds on all algorithms. Finite-budget calibration error and fault discrimination
-leave room for improvement.
-
 ## Rules and sources
 
 Only edit `solution.py`. Deterministic CPU Python, NumPy and SciPy are available.

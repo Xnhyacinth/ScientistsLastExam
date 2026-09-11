@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.repo_paths import run_workdir_is_present  # noqa: E402
+from scripts.audit_historical_records import audit_named  # noqa: E402
 SCRIPT = ROOT / "scripts/analyze_force_field_hypothesis_calibrations.py"
 SPEC = importlib.util.spec_from_file_location("force_field_analysis", SCRIPT)
 ANALYSIS = importlib.util.module_from_spec(SPEC)
@@ -385,7 +386,20 @@ class ForceFieldHypothesisAnalysisTests(unittest.TestCase):
         if not all(run_workdir_is_present(path, ROOT) for path in raw_paths):
             self.skipTest("the runs this analysis reads are not in this checkout")
         report = ANALYSIS.analyze()
-        self.assertTrue(report["execution_passed"], report)
+        archive = audit_named("force_field_hypothesis", ROOT)
+        self.assertEqual(archive["status"], "passed", archive)
+        self.assertEqual(archive["passed_run_count"], 3)
+        self.assertFalse(report["execution_passed"])
+        self.assertFalse(report["trusted_evidence"])
+        self.assertFalse(report["passed"])
+        self.assertFalse(report["input_task_runtime_source_equivalent"])
+        migration = report["input_task_runtime_source_migration"]
+        self.assertFalse(migration["accepted"])
+        self.assertTrue(migration["checks"]["report_hash_matches"])
+        self.assertTrue(migration["checks"]["report_passed_clean"])
+        self.assertFalse(migration["checks"]["runtime_change_scope_matches"])
+        self.assertFalse(migration["checks"]["current_runtime_hashes_match"])
+        self.assertTrue(all(record["integrity_passed"] for record in report["records"].values()))
         self.assertEqual(
             report["proposal_hurdle_summary"]["failure_counts"],
             {

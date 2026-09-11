@@ -66,6 +66,7 @@ benchmarks/
         ├── TASK_CARD.yaml            # [认证必需] 证据与评审
         ├── solution.py               # [必需] 弱但合法的基线程序
         ├── frontier_eval/            # [必需] 黑盒评测契约
+        │   ├── run_eval.py          # 标准库启动器 → sle.frontier_eval_entrypoint CLI
         │   ├── metadata.yaml         # 任务元数据(见下)
         │   ├── initial_program.txt   # 指向基线文件(例如 "solution.py")
         │   ├── candidate_destination.txt  # 智能体编辑的文件
@@ -125,6 +126,12 @@ oracle 须定义 `evaluate(candidate_callable)`,返回的字典**至少**包含:
 
 可选字段:`feasibility_rate`、`constraint_violations`、`raw_score`、`per_instance` 等。
 
+多世界或多实例 oracle 必须在每个独立世界开始时调用候选代理的 `reset_session()`
+（直接传入普通测试函数时用 `hasattr` 判断）。重置要覆盖 development → heldout 边界，
+使模块全局变量、已导入库的属性和私有 `/tmp` 都重新初始化。同一世界的测量回调、控制器步进
+及返回的远程 callable 要继续使用该世界的会话。请用真实 `CandidateProxy` 验证这些边界；
+只检查基线分数确定，无法发现程序按世界顺序积累状态的问题。
+
 **发现类任务另有要求。** 三个轴必须**分开**报出、永不平均:机制恢复、假发现率、校准拒答。
 再加一列"是否尝试过发现"——没有它,"每个提案都拒绝了每个世界"与"科学太难做不出来"在报表上一样,
 而这两种情况需要相反的处置。归一化要让**全面弃权恰好得零**:
@@ -172,6 +179,7 @@ credit 不含假发现/弃权惩罚,不能作为综合提交质量分。具体 m
 
 **基线也是难度阶梯的锚。** 若任务带 `DIFFICULTY` 层级,每一级都要保证基线仍然**合法** ——
 一个连基线都无效的层级什么都测不了,因为分数以"基线 = 0"归一化,那里没有基线。
+历史任务有例外,新投稿仍须归一化到 0。
 只用候选去测会把"太难"与"坏掉"混为一谈。
 
 ---
@@ -199,7 +207,8 @@ credit 不含假发现/弃权惩罚,不能作为综合提交质量分。具体 m
 **A 科学与新颖性**
 1. 填补 `sle/conf/exam_taxonomy.yaml` 的学科 × 形式空格(`python scripts/report_exam_taxonomy.py`)。
 2. `Task.md` 有「关系与区别」小节,点名仓库内最近邻并说明差在哪(产物形式、可判错世界、拒答轴、实例集)。
-3. 与 Frontier-Eng 的两份目录(论文附录 47 题、仓库 `TASK_DETAILS` 95 条)逐条对照,同一问题类不立题。
+3. 与 Frontier-Eng 的两份目录(论文附录 47 题、仓库 `TASK_DETAILS` 的全部条目)逐条对照,
+   记录目录修订与实际条目数,同一问题类不立题。仓库目录会变化,不要照抄历史的 95 条计数。
 4. 引用支撑 oracle 里的模型本身,不是只支撑领域。
 
 **B Oracle 合约**
@@ -215,7 +224,7 @@ credit 不含假发现/弃权惩罚,不能作为综合提交质量分。具体 m
 12. **捷径探针**:对提交做低维参数化的网格搜索(数百到数千次评测),报告最好分,写进卡片 `known_shortcuts`。超过参考解就必须加固。这一条是被一个两参数网格搜索能拿 0.94 的投稿逼出来的。
 13. 消融阶梯:每拿掉参考解的一项能力都要掉分,掉幅写进 `Task.md`。不掉分的能力说明那部分设计没起作用。
 14. 参考解真值盲、可独立运行、**能力完整但故意不打满**,留的空间要说清是哪一项。
-15. 基线自信地错,分数为零。
+15. 基线自信地错,分数为零。历史任务有例外,新投稿仍须归一化到 0。
 
 **D 证据与准入**
 16. 前沿模型 draw(`batch_evolve.py --run-role calibration`,干净树上跑)。准入线:首提案不得够到参考解。
@@ -229,9 +238,15 @@ credit 不含假发现/弃权惩罚,不能作为综合提交质量分。具体 m
 22. `tests/test_<task>.py` 钉住关键性质。
 
 **F 集成**
-23. 黑盒 `frontier_eval/run_eval.py` 的 entrypoint 与 TASK_ID 正确,且真的跑得通。
+23. 黑盒 `frontier_eval/run_eval.py` 只用标准库启动 `sle.frontier_eval_entrypoint` CLI，保留显式 `TASK_ID` 与 `EVAL_TIMEOUT_S`；后者与卡片 `evaluation_budget` 一致；metadata 的 `eval_time_seconds` 是预计评测成本，生成器缺省预算为 `max(300, 3 * eval_time_seconds)`，可用 `eval_timeout_s` 显式覆盖。禁止同进程 import 候选。验证非 300 秒预算能传到 `sle eval`，导入/基础设施故障返回非零且不生成分数；搜索可见指标走白名单，全量 sidecar 必须放在提案智能体不可读的目录。
 24. Linux 主机沙箱内实跑,分数与本地一致;`python scripts/check_task_contribution.py --task <id>` 通过。
 25. 全量测试绿;若改了任务包内文件,还要刷新全局证据。
+
+共享入口默认只写公开指标,丢弃全量诊断。维护者如需保留诊断,显式传入
+`--full-metrics-dir /private/evaluation/task-id`;目录须为 0700,并且不在候选文件或公开指标的父目录内
+(包括符号链接的目标)。外部 harness 还须保证它不被挂进智能体工作区。可信评估故障返回 2、删除旧分数,
+只在显式私有目录保留诊断;无效候选仍返回可计分结果。OpenEvolve/Shinka/AB-MCTS 若发生可信故障,该运行不可发布或
+从故障后状态继续计为同一实验;使用新运行目录。greedy 的已提交提案则按其 ledger 恢复契约复用。
 
 ---
 
@@ -286,8 +301,9 @@ credit 不含假发现/弃权惩罚,不能作为综合提交质量分。具体 m
 `secure_baseline_determinism_*.json`)里,因为这两份文档只能由维护者在带沙箱的 Linux 主机上用
 `scripts/refresh_global_evidence.py` 重新生成。**这不是你的 PR 的缺陷,你也修不了。**
 
-因此该断言在 PR 上只检查"已冻结任务的证据有没有漂",新任务归入 `awaiting_freeze` 不判红;
-在 `main` 上(`SLE_REQUIRE_FROZEN_INVENTORY=1`)则一并要求,合并后由维护者跑一次 refresh 并推送。
+因此该断言在 fork PR 上只检查"已冻结任务的证据有没有漂",新任务归入 `awaiting_freeze` 不判红;
+本仓库内的维护者集成 PR 与 `main` 都设置 `SLE_REQUIRE_FROZEN_INVENTORY=1`,
+要求完整冻结清单。维护者须在集成分支上先完成 Linux refresh 与全量 CI,再合并。
 你的 PR 里**不要**提交重新生成的证据文档 —— 它们会记录你本机的 revision,反而把绑定弄脏。
 
 CI 其余部分对 PR 一视同仁:审计、卡片校验、沙箱测试全部要绿。
@@ -316,6 +332,23 @@ macOS 没有 bubblewrap,沙箱路径一律不可用。
 所以流程固定是:**先 commit,再在 Linux 主机上 `git pull --ff-only`,确认 `git status` 干净,再生成证据,
 再 commit 证据**。改动任何任务包内文件之后,除了 `refresh_global_evidence.py`,还要跑
 `pytest tests/test_measurement_health_preflight.py tests/test_scientific_materiality.py tests/test_batch_runner.py`。
+
+安全基线与七题预检必须显式指定仓库外的私有原件路径：目录权限为 `0700`，新文件以
+`0600` 创建，已有原件不能覆盖。完整隐藏指标仅保留在私有文件；公开 JSON 是选择指标与哈希的
+导出，确定性和各门判定仍使用完整结果。`fail_closed_count` 只检查本轮基线结果，不能当作
+畸形候选测试覆盖。预检的逐字段数值跨度也只公开选择指标；完整跨度映射仅公开哈希，
+整体最大跨度与稳定性判定仍来自完整私有结果。它不公开隐藏指标的单次取值或逐世界记录。
+下面路径需换成维护者的新持久私有目录，命令须在干净的 Linux 树上执行：
+
+```bash
+mkdir -m 700 /path/outside/git/private-evidence
+python scripts/refresh_global_evidence.py --commit --private-output /path/outside/git/private-evidence/baseline.json
+python scripts/run_measurement_health_preflight.py --private-output /path/outside/git/private-evidence/preflight.json --output experiments/preflight-new.json
+```
+
+原始基线已测量且评测器、任务与依赖源码未改变时，可用
+`python scripts/run_secure_baseline.py --export-private /path/outside/git/private-evidence/baseline.json --output experiments/baseline-export-new.json`
+只生成公开导出。该模式保留原评测修订与原件哈希，另外记录导出修订；它不会重新评测或把漂移的旧运行重签为当前证据。
 
 团队内部的主机名、可用模型端点与密钥获取方式不在仓库里,向维护者索取内部 runbook。
 

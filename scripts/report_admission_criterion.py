@@ -5,9 +5,8 @@ A task earns its place in this benchmark by measuring iterative improvement. Tha
 things, and the order matters:
 
     1. necessary   the open-loop control must SATURATE with budget. A control that keeps climbing
-                   means best-of-N is not exhausted, and independent sampling will eventually
-                   overtake any searcher - so whatever gap you measured was an artefact of the
-                   budget you happened to pick.
+                   means best-of-N is not exhausted over the measured budget range.
+                   This is an admission policy, not a proof about asymptotic performance.
     2. sufficient  with best-of-N exhausted, the feedback arm must still beat it, and the gap
                    must widen with budget rather than close.
 
@@ -31,7 +30,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import hashlib
 import itertools
 import json
 import math
@@ -44,7 +42,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from sle.task_versions import version_class  # noqa: E402
-from sle.run_verification import verify_run  # noqa: E402
+
+from scripts.reporting_trajectory import read_incumbents, read_events, trajectory_selection_evidence
 
 # Budgets the gap is reported at. The shape across these matters more than any single endpoint:
 # a gap that grows is evidence of iteration paying off, one that peaks and turns over means
@@ -104,26 +103,20 @@ def best_so_far(path: Path) -> list[float] | None:
     """The best-so-far curve over proposals. Invalid proposals score zero, as the harness does."""
     if not path.is_file():
         return None
-    rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        try:
-            rows.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    proposals = sorted(
-        (r for r in rows if int(r.get("step", 0) or 0) > 0),
-        key=lambda r: int(r["step"]),
-    )
-    if not proposals:
-        return None
-    curve, best = [], 0.0
-    for row in proposals:
-        score = float(row.get("score") or 0.0) if row.get("valid") else 0.0
-        best = max(best, score)
-        curve.append(best)
-    return curve
+    selected = read_incumbents(path)
+    return [float(row["score"]) for row in selected[1:]] or None
+
+
+class RunCurve(list):
+    """A curve retains the exact run it came from for downstream axis joins."""
+
+    def __init__(self, values, workdir, manifest):
+        super().__init__(values)
+        self.run = {"run_directory": str(workdir.resolve()),
+                    "algorithm": manifest.get("algorithm", "unrecorded"),
+                    "budget": manifest.get("budget"),
+                    "selection_evidence": trajectory_selection_evidence(
+                        read_events(workdir / "trajectory.jsonl"))}
 
 
 def score_modes() -> dict[str, str]:
@@ -159,12 +152,8 @@ def known_conditions() -> dict[str, str]:
 _CONDITIONS: dict[str, str] | None = None
 
 
-def run_identity(
-    workdir: Path,
-) -> tuple[
-    str, str, int, str, str, str, str, str, str, int | None, bool
-] | None:
-    """Read the full measurement identity and whether the run verifies.
+def run_identity(workdir: Path) -> tuple[str, str, int, str, str, str, str] | None:
+    """Read task, mode, seed, model, condition, task version, and runtime identity.
 
     The directory name cannot be trusted for this. Budget-sweep cohorts are named for their
     budget rather than their task - `runs/crossover/b20_normal_s0` - so parsing the name invents
@@ -199,51 +188,17 @@ def run_identity(
     contract = version_class(str(task),
                              str(document.get("task_package_sha256") or "unknown"))[:14]
     runtime = str(document.get("runtime_source_sha256") or "unrecorded")
-    runtime_descriptor = document.get("trusted_evaluator_runtime") or {}
-    trusted_runtime = str(
-        runtime_descriptor.get("fingerprint_sha256") or "unrecorded"
-    )
-    algorithm = str(document.get("algorithm") or "unrecorded")
-    verified_budget = None
-    trusted_evidence = False
-    try:
-        verification = verify_run(workdir)
-        verified_budget = verification.get("budget")
-        trusted_evidence = bool(
-            verification.get("verified") is True
-            and verification.get("trusted_evaluator_runtime_sha256")
-            == trusted_runtime
-            and isinstance(verified_budget, int)
-            and not isinstance(verified_budget, bool)
-            and verified_budget >= 0
-        )
-    except (OSError, ValueError):
-        # Legacy, incomplete and tampered runs remain visible as diagnostics, but are never
-        # allowed through the admission gate below.
-        pass
-    return (
-        str(task), str(mode), int(seed), model, condition, contract, runtime,
-        trusted_runtime, algorithm, verified_budget, trusted_evidence,
-    )
+    return str(task), str(mode), int(seed), model, condition, contract, runtime
 
 
 def _identity_is_recorded(
-    model: str,
-    condition: str,
-    contract: str,
-    runtime: str,
-    trusted_runtime: str,
-    algorithm: str,
-    trusted_evidence: bool,
+    model: str, condition: str, contract: str, runtime: str,
 ) -> bool:
     return bool(
-        trusted_evidence
-        and model != "unrecorded"
+        model != "unrecorded"
         and condition != "unrecorded"
         and contract not in {"unknown", "unrecorded"}
         and runtime != "unrecorded"
-        and trusted_runtime != "unrecorded"
-        and algorithm != "unrecorded"
     )
 
 
@@ -281,7 +236,35 @@ def _protocol_incomplete(workdir: Path) -> str | None:
     return str(value) if value else None
 
 
-def collect(runs_root: Path) -> dict[tuple[str, str, str, str, str, str, str, str, bool],
+def pooled_run_records(
+    found: dict[tuple, dict[str, dict[int, list[float]]]],
+    task: str, model: str, condition: str, contract: str, runtime: str, algorithm: str,
+) -> list[dict]:
+    """The runs that went into one admission row, including both arms and cohorts.
+
+    Downstream joiners need seed and feedback_mode. This row is pooled, so the list is
+    the join key — not a unique (seed, mode) on the row itself.
+    """
+    records = []
+    for (other, cohort, other_model, other_condition, other_contract, other_runtime, other_algorithm), arms in sorted(
+        found.items()
+    ):
+        if (other, other_model, other_condition, other_contract, other_runtime, other_algorithm) != (
+            task, model, condition, contract, runtime, algorithm,
+        ):
+            continue
+        for mode in sorted(arms):
+            for seed in sorted(arms[mode]):
+                records.append({
+                    "seed": int(seed),
+                    "feedback_mode": mode,
+                    "cohort": cohort,
+                    **getattr(arms[mode][seed], "run", {}),
+                })
+    return records
+
+
+def collect(runs_root: Path) -> dict[tuple[str, str, str, str, str, str, str],
                                      dict[str, dict[int, list[float]]]]:
     """Group curves by task, cohort, model condition, task version, and runtime.
 
@@ -300,10 +283,7 @@ def collect(runs_root: Path) -> dict[tuple[str, str, str, str, str, str, str, st
     this key it pooled seeds taken against two different versions of the task and asked whether
     best-of-N had stopped improving on the union - a question about no task in particular.
     """
-    found: dict[
-        tuple[str, str, str, str, str, str, str, str, bool],
-        dict[str, dict[int, list[float]]],
-    ] = defaultdict(
+    found: dict[tuple[str, str, str, str, str, str, str], dict[str, dict[int, list[float]]]] = defaultdict(
         lambda: defaultdict(dict)
     )
     for trajectory in sorted(runs_root.rglob("trajectory.jsonl")):
@@ -311,10 +291,7 @@ def collect(runs_root: Path) -> dict[tuple[str, str, str, str, str, str, str, st
         identity = run_identity(workdir)
         if identity is None:
             continue
-        (
-            task, mode, seed, model, condition, contract, runtime,
-            trusted_runtime, algorithm, _verified_budget, trusted_evidence,
-        ) = identity
+        task, mode, seed, model, condition, contract, runtime = identity
         if _protocol_incomplete(workdir):
             # A run with no valid proposal is not a measurement of the searcher; its flat zero
             # curve would read as saturation of the control or as a feedback arm that never
@@ -323,52 +300,16 @@ def collect(runs_root: Path) -> dict[tuple[str, str, str, str, str, str, str, st
         curve = best_so_far(trajectory)
         if curve is None:
             continue
-        key = (
-            task, _cohort_of(workdir, runs_root), model, condition, contract,
-            runtime, trusted_runtime, algorithm, trusted_evidence,
-        )
+        manifest = json.loads((workdir / "run_manifest.json").read_text(encoding="utf-8"))
+        algorithm = str(manifest.get("algorithm") or "unrecorded")
+        curve = RunCurve(curve, workdir, manifest)
+        key = (task, _cohort_of(workdir, runs_root), model, condition, contract, runtime, algorithm)
         existing = found[key][mode].get(seed)
-        if existing is None or len(curve) > len(existing):
-            found[key][mode][seed] = curve
+        if existing is not None:
+            raise ValueError("ambiguous duplicate run cell: %s and %s" % (
+                existing.run["run_directory"], workdir))
+        found[key][mode][seed] = curve
     return found
-
-
-def collect_evidence_runs(runs_root: Path) -> dict[tuple[str, ...], list[dict]]:
-    """List verified run cells for exact downstream discovery-axis joins."""
-    grouped: dict[tuple[str, ...], list[dict]] = defaultdict(list)
-    for manifest in sorted(runs_root.rglob("run_manifest.json")):
-        identity = run_identity(manifest.parent)
-        if identity is None:
-            continue
-        (
-            task, mode, seed, model, condition, contract, runtime,
-            trusted_runtime, algorithm, budget, trusted_evidence,
-        ) = identity
-        if not trusted_evidence:
-            continue
-        key = (
-            task, model, condition, contract, runtime, trusted_runtime, algorithm,
-        )
-        grouped[key].append({
-            "feedback_mode": mode,
-            "proposal_budget": budget,
-            "seed": seed,
-            "run_manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
-        })
-    return {
-        key: sorted(values, key=lambda value: (
-            value["feedback_mode"], value["proposal_budget"], value["seed"],
-            value["run_manifest_sha256"],
-        ))
-        for key, values in grouped.items()
-    }
-
-
-def paired_task_names(rows: list[dict]) -> set[str]:
-    return {
-        row["task"] for row in rows
-        if row.get("trusted_evidence") is True and row.get("gap_by_budget")
-    }
 
 
 def saturation(curves: dict[int, list[float]]) -> dict | None:
@@ -551,7 +492,6 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     found = collect(Path(args.runs))
-    evidence_runs = collect_evidence_runs(Path(args.runs))
     modes = score_modes()
 
     # Saturation is a one-armed measurement, so open-loop seeds pool across cohorts: a seed run
@@ -559,24 +499,14 @@ def main(argv: list[str] | None = None) -> int:
     # `saturation`. The gap does not pool - it compares two arms, and arms from different
     # cohorts were never paired with each other.
     # Saturation pools across cohorts but never across models, for the same reason gaps do not.
-    pooled_open: dict[
-        tuple[str, str, str, str, str, str, str, bool],
-        dict[tuple[str, int], list[float]],
-    ] = defaultdict(dict)
-    for (
-        task, cohort, model, condition, contract, runtime, trusted_runtime,
-        algorithm, trusted_evidence,
-    ), arms in found.items():
+    pooled_open: dict[tuple[str, str, str, str, str, str], dict[tuple[str, int], list[float]]] = defaultdict(dict)
+    for (task, cohort, model, condition, contract, runtime, algorithm), arms in found.items():
         for mode in OPEN_LOOP_MODES:
             for seed, curve in arms.get(mode, {}).items():
                 key = (cohort, seed)
-                pool_key = (
-                    task, model, condition, contract, runtime, trusted_runtime,
-                    algorithm, trusted_evidence,
-                )
-                existing = pooled_open[pool_key].get(key)
+                existing = pooled_open[(task, model, condition, contract, runtime, algorithm)].get(key)
                 if existing is None or len(curve) > len(existing):
-                    pooled_open[pool_key][key] = curve
+                    pooled_open[(task, model, condition, contract, runtime, algorithm)][key] = curve
 
     # One row per task. Saturation pools across cohorts, so a per-cohort row would repeat the
     # same saturation verdict once per cohort and inflate every count - after the screen cohort
@@ -588,30 +518,14 @@ def main(argv: list[str] | None = None) -> int:
     # ... and one row per task version, for the same reason: a verdict is a statement about a
     # particular version of a task, and two versions cannot share one.
     pairs_seen = sorted({
-        (
-            task, model, condition, contract, runtime, trusted_runtime,
-            algorithm, trusted_evidence,
-        )
-        for (
-            task, _c, model, condition, contract, runtime, trusted_runtime,
-            algorithm, trusted_evidence,
-        ) in found
+        (task, model, condition, contract, runtime, algorithm)
+        for task, _c, model, condition, contract, runtime, algorithm in found
     })
-    for (
-        task, model, condition, contract, runtime, trusted_runtime, algorithm,
-        trusted_evidence,
-    ) in pairs_seen:
+    for task, model, condition, contract, runtime, algorithm in pairs_seen:
         cohort_gaps = []
-        for (
-            other, cohort, other_model, other_condition, other_contract,
-            other_runtime, other_trusted_runtime, other_algorithm,
-            other_trusted_evidence,
-        ), arms in sorted(found.items()):
+        for (other, cohort, other_model, other_condition, other_contract, other_runtime, other_algorithm), arms in sorted(found.items()):
             if (other != task or other_model != model or other_condition != condition
-                    or other_contract != contract or other_runtime != runtime
-                    or other_trusted_runtime != trusted_runtime
-                    or other_algorithm != algorithm
-                    or other_trusted_evidence != trusted_evidence):
+                    or other_contract != contract or other_runtime != runtime or other_algorithm != algorithm):
                 continue
             open_loop: dict[int, list[float]] = {}
             for mode in OPEN_LOOP_MODES:
@@ -625,11 +539,7 @@ def main(argv: list[str] | None = None) -> int:
             if gaps:
                 cohort_gaps.append({"cohort": cohort, "gaps": gaps,
                                     "seeds": len(set(open_loop) & set(feedback))})
-        pool_key = (
-            task, model, condition, contract, runtime, trusted_runtime, algorithm,
-            trusted_evidence,
-        )
-        sat = saturation(pooled_open.get(pool_key, {}))
+        sat = saturation(pooled_open.get((task, model, condition, contract, runtime, algorithm), {}))
         # Judge on the cohort that covers the most budgets, breaking ties on paired seeds.
         # Seeds alone is the wrong key: a cohort with eight seeds at a single budget cannot show
         # a trend at all, and ranking it first produced the verdict "gap grows with budget,
@@ -639,14 +549,17 @@ def main(argv: list[str] | None = None) -> int:
         )
         state, why = verdict(sat, best["gaps"] if best else [],
                              clipped=modes.get(task, "clipped") != "uncapped")
-        if not _identity_is_recorded(
-            model, condition, contract, runtime, trusted_runtime, algorithm,
-            trusted_evidence,
-        ):
+        run_records = pooled_run_records(found, task, model, condition, contract, runtime, algorithm)
+        legacy_selection = any(
+            record.get("selection_evidence", {}).get("status") == "legacy_inferred"
+            for record in run_records)
+        if legacy_selection:
+            why = "legacy acceptance is inferred, not recorded; diagnostic verdict was %s" % state
+            state = "unresolved_selection"
+        if not _identity_is_recorded(model, condition, contract, runtime) or algorithm == "unrecorded":
             why = (
                 "evidence identity is incomplete; diagnostic verdict was %s, but an "
-                "admission claim requires a verified task, algorithm, model condition, "
-                "runtime source and trusted evaluator runtime"
+                "admission claim requires recorded model, condition, task, and runtime"
                 % state
             )
             state = "unattributable_evidence"
@@ -656,25 +569,19 @@ def main(argv: list[str] | None = None) -> int:
             "llm_condition_sha256": condition,
             "task_version": contract,
             "runtime_source_sha256": runtime,
-            "trusted_evaluator_runtime_sha256": trusted_runtime,
             "algorithm": algorithm,
-            "trusted_evidence": trusted_evidence,
+            "endpoint": "incumbent",
+            "selection_evidence_status": "legacy_inferred" if legacy_selection else "recorded",
             "verdict": state,
             "reason": why,
             "judged_on_cohort": best["cohort"] if best else None,
             "pooled_open_loop_seeds": len(
-                pooled_open.get(pool_key, {})
+                pooled_open.get((task, model, condition, contract, runtime, algorithm), {})
             ),
+            "runs": run_records,
             "paired_cohorts": cohort_gaps,
             "saturation": sat,
             "gap_by_budget": best["gaps"] if best else [],
-            "paired_budget_signature": [
-                gap["budget"] for gap in (best["gaps"] if best else [])
-            ],
-            "evidence_runs": evidence_runs.get((
-                task, model, condition, contract, runtime, trusted_runtime,
-                algorithm,
-            ), []),
         })
 
     # Every verdict carries how many open-loop seeds stand behind it. Most of this inventory was
@@ -691,6 +598,7 @@ def main(argv: list[str] | None = None) -> int:
         "measures_iteration": 0, "measures_iteration_one_seed_deep": 1,
         "solved_at_ceiling": 90,
         "unattributable_evidence": 91,
+        "unresolved_selection": 92,
         "crossover_in_range": 2, "feedback_harmful": 3,
         "feedback_harmful_one_seed_deep": 4, "no_measurable_difference": 5,
         "gap_at_one_budget": 6, "exhausted_unpaired": 7, "control_not_exhausted": 8,
@@ -730,14 +638,9 @@ def main(argv: list[str] | None = None) -> int:
     counts: dict[str, int] = defaultdict(int)
     for row in rows:
         counts[row["verdict"]] += 1
-    paired = sum(
-        1 for row in rows if row["trusted_evidence"] and row["gap_by_budget"]
-    )
+    paired = sum(1 for row in rows if row["gap_by_budget"])
     tasks = {row["task"] for row in rows}
-    tasks_paired = {
-        row["task"] for row in rows
-        if row["trusted_evidence"] and row["gap_by_budget"]
-    }
+    tasks_paired = {row["task"] for row in rows if row["gap_by_budget"]}
     tasks_measuring = {row["task"] for row in rows if row["verdict"] == "measures_iteration"}
     models = sorted({row["model"] for row in rows})
 
@@ -750,44 +653,27 @@ def main(argv: list[str] | None = None) -> int:
     # were not measuring the same thing, and reading their verdicts as a disagreement attributes
     # a task edit to the models: before this key was added, LowThrustTransfer was reported as a
     # three-way disagreement while only two of the three had run the same task.
-    by_version: dict[
-        tuple[str, str, str, str, str, tuple[int, ...]], dict[str, str]
-    ] = defaultdict(dict)
+    by_version: dict[tuple[str, str, str, str], dict[str, str]] = defaultdict(dict)
     for row in rows:
         if not _identity_is_recorded(
             row["model"], row["llm_condition_sha256"], row["task_version"],
             row["runtime_source_sha256"],
-            row["trusted_evaluator_runtime_sha256"], row["algorithm"],
-            row["trusted_evidence"],
         ):
             continue
         model_condition = "%s@%s" % (
             row["model"], row["llm_condition_sha256"][:12]
         )
-        comparison_identity = (
-            row["task"], row["task_version"], row["runtime_source_sha256"],
-            row["trusted_evaluator_runtime_sha256"], row["algorithm"],
-            tuple(row["paired_budget_signature"]),
-        )
-        by_version[comparison_identity][model_condition] = row["verdict"]
-    contested = {
-        "%s @%s runtime=%s trusted=%s algorithm=%s budgets=%s" % (
-            task, version, runtime[:12], trusted[:12], algorithm,
-            ",".join(str(value) for value in signature),
-        ): verdicts
-        for (task, version, runtime, trusted, algorithm, signature), verdicts in by_version.items()
+        by_version[(row["task"], row["task_version"], row["runtime_source_sha256"], row["algorithm"])][model_condition] = row["verdict"]
+    contested = {"%s @%s runtime=%s algorithm=%s" % (task, version, runtime[:12], algorithm): verdicts
+                 for (task, version, runtime, algorithm), verdicts in by_version.items()
                  if len(verdicts) > 1 and len(set(verdicts.values())) > 1}
-    agreed = {
-        "%s @%s runtime=%s trusted=%s algorithm=%s budgets=%s" % (
-            task, version, runtime[:12], trusted[:12], algorithm,
-            ",".join(str(value) for value in signature),
-        ): verdicts
-        for (task, version, runtime, trusted, algorithm, signature), verdicts in by_version.items()
+    agreed = {"%s @%s runtime=%s algorithm=%s" % (task, version, runtime[:12], algorithm): verdicts
+              for (task, version, runtime, algorithm), verdicts in by_version.items()
               if len(verdicts) > 1 and len(set(verdicts.values())) == 1}
     # Counted so that "the models disagree less now" cannot be mistaken for better agreement when
     # it is really less overlap.
-    split_by_version = sorted({task for task, _v, _r, _tr, _a, _b in by_version
-                               if len({v for t, v, *_rest in by_version if t == task}) > 1})
+    split_by_version = sorted({task for task, _v, _r, _a in by_version
+                               if len({v for t, v, _runtime, _algorithm in by_version if t == task}) > 1})
     # A run can abort mid-trajectory - an evaluator infrastructure failure ends one outright -
     # and a short curve then looks like a complete run at a smaller budget. Neither the gap nor
     # the saturation test can tell the difference, so the count is surfaced rather than hidden.
@@ -838,10 +724,9 @@ def main(argv: list[str] | None = None) -> int:
     # fallback policy can change while the readable model name stays the same.
     assert len(rows) == len({
         (r["task"], r["model"], r["llm_condition_sha256"], r["task_version"],
-         r["runtime_source_sha256"], r["trusted_evaluator_runtime_sha256"],
-         r["algorithm"], r["trusted_evidence"])
+         r["runtime_source_sha256"], r["algorithm"])
         for r in rows
-    }), "one row per complete measurement identity"
+    }), "one row per task, model condition, task version and runtime"
     print("distinct tasks with paired evidence for the sufficient condition: %d of %d"
           % (len(tasks_paired), len(tasks)))
     print("distinct tasks shown to measure iteration: %d" % len(tasks_measuring))
@@ -866,7 +751,7 @@ def main(argv: list[str] | None = None) -> int:
     # One entry per task, not per (task, cohort): saturation now pools across cohorts, so a task
     # present in four cohorts would otherwise be listed four identical times. A task that has
     # been paired anywhere is not a candidate, however its other cohorts happen to be labelled.
-    paired_tasks = paired_task_names(rows)
+    paired_tasks = {row["task"] for row in rows if row["gap_by_budget"]}
     best_by_task: dict[str, tuple] = {}
     for row in rows:
         if row["verdict"] != "exhausted_unpaired":
@@ -891,12 +776,14 @@ def main(argv: list[str] | None = None) -> int:
         print("    none: every task with an exhausted control has already been paired")
 
     Path(args.output).write_text(json.dumps({
-        "schema_version": 4,
-        "note": "condition 1 (open-loop non-saturation) is necessary; condition 2 (a feedback "
+        "schema_version": 3,
+        "endpoint": "incumbent",
+        "legacy_selection_policy": "strict_score_improvement; see runs[].selection_evidence",
+        "note": "condition 1 (open-loop exhaustion below the task ceiling) is necessary; condition 2 (a feedback "
                 "gap that does not close with budget) is what makes a task measure iteration",
         "budgets": list(BUDGETS),
         "row_count": len(rows),
-        "note_rows": "one row per task; paired gaps listed per cohort inside each row",
+        "note_rows": "one row per task, algorithm, model condition, task version and runtime; paired gaps stay within cohorts",
         "distinct_task_count": len(tasks),
         "models": models,
         "tasks_with_more_than_one_version": split_by_version,

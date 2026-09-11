@@ -999,15 +999,49 @@ def _verified_completed_keys(
     return completed
 
 
+def task_definitions(specs) -> dict[str, dict]:
+    """Freeze analysis classification with the package that was actually scheduled."""
+    import yaml
+    from scripts.report_task_inventory import build_rows
+
+    inventory = {row["task_id"]: row for row in build_rows()}
+    definitions = {}
+    for spec in specs:
+        row = inventory[spec.task_id]
+        card = spec.task_dir / "TASK_CARD.yaml"
+        content = card.read_bytes() if card.is_file() else b""
+        definitions[spec.task_id] = {
+            "discipline": row["discipline"], "form": row["form"],
+            "score_mode": row["score_mode"],
+            "task_package_sha256": task_package_sha256(spec),
+            "task_card_sha256": hashlib.sha256(content).hexdigest() if content else None,
+            "metric_contract": (yaml.safe_load(content) or {}).get("metric_contract"),
+        }
+    return definitions
+
+
+def planned_run_cells(config: dict[str, Any]) -> set[tuple[str, str, str, int]]:
+    from itertools import product
+
+    dimensions = [config[name] for name in ("tasks", "algorithms", "feedback_modes", "seeds")]
+    if any(not values or len(values) != len(set(values)) for values in dimensions):
+        raise ValueError("run plan dimensions must be nonempty and unique")
+    return set(product(*dimensions))
+
+
 def aggregate_runs(
     runs: list[dict[str, Any]],
     *,
+    config: dict[str, Any] | None = None,
     scheduled_run_keys: set[str] | None = None,
 ) -> dict[str, Any]:
     runtime_by_task: dict[str, str] = {}
     for run in runs:
-        task_id = str(run["task"])
+        task_id = str(run.get("task") or "")
         fingerprint = run.get("trusted_evaluator_runtime_sha256")
+        descriptor = run.get("trusted_evaluator_runtime")
+        if run.get("error") and fingerprint is None and descriptor is None:
+            continue
         if not (
             isinstance(fingerprint, str)
             and len(fingerprint) == 64
@@ -1053,12 +1087,20 @@ def aggregate_runs(
             run["task"], run["algorithm"], run["feedback_mode"], int(run["seed"])
         ), []).append(run)
     observed_keys = set(attempts_by_run)
-    planned_keys = (
-        set(scheduled_run_keys) if scheduled_run_keys is not None
-        else observed_keys
-    )
+    if scheduled_run_keys is not None:
+        planned_keys = set(scheduled_run_keys)
+    elif config is not None:
+        planned_keys = {
+            _run_key(task, algorithm, mode, int(seed))
+            for task, algorithm, mode, seed in planned_run_cells(config)
+        }
+    else:
+        planned_keys = observed_keys
     if not observed_keys <= planned_keys:
-        raise ValueError("run lies outside the frozen schedule")
+        raise ValueError(
+            "observed run is outside the fixed plan"
+            if config is not None else "run lies outside the frozen schedule"
+        )
     groups: dict[str, list[dict[str, Any]]] = {}
     for run in current:
         key = "%s|%s|%s" % (run["task"], run["algorithm"], run["feedback_mode"])
@@ -1093,14 +1135,19 @@ def aggregate_runs(
             for run in group
         )
         scheduled_count = scheduled_by_condition.get(key, len(group))
+        observed_failed = len(group) - len(successful_group)
         by_condition[key] = {
             # ``n`` remains the valid-only sample size for compatibility. The
             # scheduled denominator and retry history are retained separately so
             # a recovered condition cannot erase an earlier failure.
             "n": len(successful_group),
             "scheduled_n": scheduled_count,
+            **({"missing_runs": scheduled_count - len(group)} if config is not None else {}),
             "successful_runs": len(successful_group),
-            "terminal_failed_runs": scheduled_count - len(successful_group),
+            "terminal_failed_runs": (
+                observed_failed if config is not None
+                else scheduled_count - len(successful_group)
+            ),
             "completion_rate": (
                 len(successful_group) / scheduled_count
                 if scheduled_count else 0.0
@@ -1139,7 +1186,13 @@ def aggregate_runs(
         name: mean_confidence_interval(getter(run) for run in successful)
         for name, getter in fields.items()
     } if successful else {}
+    observed_failed = len(current) - len(successful)
+    planned_unsuccessful = len(planned_keys) - len(successful)
     return {
+        "schema_version": 2,
+        "denominator_scope": (
+            "fixed_plan" if config is not None else "observed_runs_only_legacy"
+        ),
         "trusted_evaluator_runtime_sha256_by_task": dict(
             sorted(runtime_by_task.items())
         ),
@@ -1152,11 +1205,14 @@ def aggregate_runs(
         "attempt_failure_rate": failed_attempts / len(runs) if runs else 0.0,
         "recovered_runs": len(recovered_run_keys),
         "successful_runs": len(successful),
-        "failed_runs": len(planned_keys) - len(successful),
+        "failed_runs": observed_failed if config is not None else planned_unsuccessful,
         "intent_to_evaluate": {
             "scheduled_runs": len(planned_keys),
+            **({"missing_runs": len(planned_keys) - len(current)} if config is not None else {}),
             "successful_runs": len(successful),
-            "terminal_failed_runs": len(planned_keys) - len(successful),
+            "terminal_failed_runs": (
+                observed_failed if config is not None else planned_unsuccessful
+            ),
             "completion_rate": (
                 len(successful) / len(planned_keys) if planned_keys else 0.0
             ),
@@ -1369,6 +1425,8 @@ def main(argv: list[str] | None = None) -> int:
     current_environment = {"python": sys.version, "platform": platform.platform()}
     experiment_config = {
         "tasks": [spec.task_id for spec in specs],
+        "task_definitions": task_definitions(specs),
+        "runtime_source_sha256": runtime_source_sha256(),
         "algorithms": algorithms,
         "feedback_modes": feedback_modes,
         "scheduled_run_count": total,
@@ -1459,6 +1517,10 @@ def main(argv: list[str] | None = None) -> int:
     document: dict[str, Any]
     if args.resume and output.is_file():
         document = json.loads(output.read_text(encoding="utf-8"))
+        # Legacy reports remain resumable without inventing historical classifications.
+        for field in ("task_definitions", "runtime_source_sha256"):
+            if field not in (document.get("config") or {}):
+                experiment_config.pop(field, None)
         if document.get("config") != experiment_config:
             raise SystemExit("refusing to resume: experiment config does not match the report")
         if document.get("environment") != current_environment:
@@ -1533,7 +1595,9 @@ def main(argv: list[str] | None = None) -> int:
     # an LLM call. A process interruption can then be resumed without
     # reconstructing an unrecorded design.
     document["aggregate"] = aggregate_runs(
-        document.get("runs") or [], scheduled_run_keys=planned_run_keys
+        document.get("runs") or [],
+        config=document["config"],
+        scheduled_run_keys=planned_run_keys,
     )
     atomic_write_text(
         output, json.dumps(document, indent=2, allow_nan=False) + "\n"
@@ -1549,7 +1613,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         document.setdefault("runs", []).extend(entries)
         document["aggregate"] = aggregate_runs(
-            document["runs"], scheduled_run_keys=planned_run_keys
+            document["runs"],
+            config=document["config"],
+            scheduled_run_keys=planned_run_keys,
         )
         atomic_write_text(
             output, json.dumps(document, indent=2, allow_nan=False) + "\n"
@@ -1590,6 +1656,7 @@ def main(argv: list[str] | None = None) -> int:
                     })
                     document["aggregate"] = aggregate_runs(
                         document.get("runs") or [],
+                        config=document["config"],
                         scheduled_run_keys=planned_run_keys,
                     )
                     atomic_write_text(
@@ -1609,7 +1676,9 @@ def main(argv: list[str] | None = None) -> int:
 
     document["completed_at"] = datetime.now(timezone.utc).isoformat()
     document["aggregate"] = aggregate_runs(
-        document["runs"], scheduled_run_keys=planned_run_keys
+        document["runs"],
+        config=document["config"],
+        scheduled_run_keys=planned_run_keys,
     )
     integrity_errors = _final_integrity_errors(
         specs, task_bindings, provenance

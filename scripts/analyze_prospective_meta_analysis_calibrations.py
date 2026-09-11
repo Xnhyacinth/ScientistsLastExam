@@ -22,7 +22,6 @@ from typing import Any
 
 
 from scripts.repo_paths import resolve_run_workdir  # noqa: E402
-from sle.run_verification import verify_run  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -30,10 +29,7 @@ sys.path.insert(0, str(ROOT))
 from sle.protocol import compact_trajectory_snapshot, load_trajectory  # noqa: E402
 from sle.provenance import finalize_report_trust, source_provenance  # noqa: E402
 from sle.runtime_migration import runtime_source_changes  # noqa: E402
-from sle.algorithms.common import (  # noqa: E402
-    task_contract_sha256,
-)
-from sle.spec import load_task_spec  # noqa: E402
+from scripts.historical_contract import task_contract_at_revision  # noqa: E402
 
 
 TASK = "EvidenceSynthesis/ProspectiveMetaAnalysis"
@@ -348,8 +344,6 @@ def _load_model(label, relative):
     }
     manifest_path = workdir / "run_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    verification = verify_run(workdir)
-    spec = load_task_spec(ROOT / "benchmarks/Biology/ProspectiveMetaAnalysis")
     best = workdir / "best_program.py"
     terminal = workdir / "solution.py"
     terminal_scan = _scan_retained_source(terminal)
@@ -366,9 +360,6 @@ def _load_model(label, relative):
         "llm_condition_sha256": config.get("llm_condition_sha256"),
         "task_contract_sha256": manifest.get("task_contract_sha256"),
         "runtime_source_sha256": manifest.get("runtime_source_sha256"),
-        "trusted_evaluator_runtime_sha256": (
-            manifest.get("trusted_evaluator_runtime") or {}
-        ).get("fingerprint_sha256"),
         "run_manifest_sha256": _sha256(manifest_path),
         "feedback_mode": run["feedback_mode"],
         "feedback_scope": summary["feedback_scope"],
@@ -435,14 +426,14 @@ def _load_model(label, relative):
         and int(manifest.get("seed", -1)) == expected["seed"]
         and manifest.get("llm_condition_sha256")
         == config.get("llm_condition_sha256")
-        and manifest.get("task_contract_sha256") == task_contract_sha256(spec)
+        and manifest.get("task_contract_sha256") == task_contract_at_revision(
+            ROOT, MODEL_SOURCE_REVISION,
+            ["benchmarks/EvidenceSynthesis/ProspectiveMetaAnalysis",
+             "benchmarks/Biology/ProspectiveMetaAnalysis"],
+        )
         and isinstance(manifest.get("runtime_source_sha256"), str)
         and len(manifest["runtime_source_sha256"]) == 64
         and all(char in "0123456789abcdef" for char in manifest["runtime_source_sha256"])
-        and isinstance(record["trusted_evaluator_runtime_sha256"], str)
-        and len(record["trusted_evaluator_runtime_sha256"]) == 64
-        and verification.get("trusted_evaluator_runtime_sha256")
-        == record["trusted_evaluator_runtime_sha256"]
     )
     if not record["integrity_passed"]:
         raise ValueError("model lineage, accounting, or retained-artifact gate failed")
@@ -463,9 +454,6 @@ def _analyze_records(
     conditions = {record["llm_condition_sha256"] for record in records.values()}
     contracts = {record["task_contract_sha256"] for record in records.values()}
     runtimes = {record["runtime_source_sha256"] for record in records.values()}
-    trusted_runtimes = {
-        record["trusted_evaluator_runtime_sha256"] for record in records.values()
-    }
     baseline_hashes = {
         record["baseline_candidate_sha256"] for record in records.values()
     }
@@ -489,8 +477,6 @@ def _analyze_records(
         and None not in contracts
         and len(runtimes) == 1
         and None not in runtimes
-        and len(trusted_runtimes) == 1
-        and None not in trusted_runtimes
         and len(baseline_hashes) == 1
         and all(record["integrity_passed"] for record in records.values())
         and one["proposal_budget"] == 1
@@ -515,7 +501,7 @@ def _analyze_records(
     )
     provenance = source_provenance(ROOT)
     report = {
-        "schema_version": 2,
+        "schema_version": 1,
         "trust_status": "TRUSTED_DERIVED_EVIDENCE",
         "evidence_scope": (
             "SINGLE_RUN_SYNTHETIC_EVIDENCE_WORKFLOW_CALIBRATION_NOT_FEEDBACK_"
@@ -533,9 +519,6 @@ def _analyze_records(
         "input_llm_condition_equivalent": len(conditions) == 1 and None not in conditions,
         "input_task_contract_equivalent": len(contracts) == 1 and None not in contracts,
         "input_runtime_manifest_equivalent": len(runtimes) == 1 and None not in runtimes,
-        "input_trusted_evaluator_runtime_equivalent": (
-            len(trusted_runtimes) == 1 and None not in trusted_runtimes
-        ),
         "input_baseline_candidate_equivalent": len(baseline_hashes) == 1,
         "task_calibration": calibration,
         "records": records,

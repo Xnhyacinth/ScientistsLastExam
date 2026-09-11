@@ -291,6 +291,9 @@ def _score_split(recover, worlds):
     rows = []
     for world in worlds:
         try:
+            reset = getattr(recover, "reset_session", None)
+            if callable(reset):
+                reset()
             raw = recover(_observation(world))
         except Exception as exc:  # noqa: BLE001 - candidate faults are scored, not raised
             rows.append({"key": world["key"], "valid": False,
