@@ -1,89 +1,97 @@
-# AffineLoopRankingCertificate — prove a loop ranks, do not just run it
+# AffineLoopRankingCertificate — prove a nested loop ranks, do not just run it
 
 ## The question
 
-A rational affine while-loop over real states is published in full: a conjunction of linear
-guards `g_i · x + d_i ≥ 0` and an update `x := A x + b`. A linear ranking
-function `ρ(x) = r · x + s` with a positive `delta` is a proof that **every**
-guard-satisfying state descends by at least `delta`, independently of any
-start state you might simulate.
+A nested-reset rational affine transition system over real states is published in full.
+Each transition has linear guards `g_i · x + d_i ≥ 0` and an update `x := A x + b`.
+These loops are the Bradley–Manna–Sipma nested-reset family: an inner progress step
+together with a reset that copies a large outer block onto the inner block. A **single**
+linear ranking function is incomplete on this family (the Colón–Sipma / Podelski–Rybalchenko
+1-ranking Farkas LP is infeasible). Submit a **lexicographic tuple** of linear ranking
+functions that proves every transition descends in the lexicographic order.
 
-Submit exact rationals. `r` must have 1-norm exactly 1 so that `delta` is
-comparable across directions. Floats are rejected, not rounded: a numerical
-LP dump is not a certificate. The two implications are proved by Farkas
-multipliers, not by sampling states.
+Submit exact rationals. Each component's slope `r` must have 1-norm exactly 1 so that
+component decreases are comparable. Floats are rejected, not rounded. The implications
+are proved by Farkas multipliers, not by sampling states.
 
 ## What you implement
 
 ```python
 def build_ranking(instance):
     ...
-    return {"r": [[num, den], ...], "s": [num, den], "delta": [num, den],
-            "nonneg_lambdas": [[num, den], ...],
-            "decrease_lambdas": [[num, den], ...]}
+    return {
+        "components": [{"r": [[num, den], ...], "s": [num, den], "delta": [num, den]}, ...],
+        "decrease_index": [int, ...],  # one index per transition
+        "nonneg_lambdas": [  # [transition][component][guard]
+            [[[num, den], ...], ...],
+            ...
+        ],
+        "decrease_lambdas": [
+            [[[num, den], ...], ...],
+            ...
+        ],
+    }
 ```
 
-Let `ρ(x) = r·x + s`. The multipliers must witness, in exact `Fraction`
-arithmetic:
+Let `ρ_j(x) = r_j · x + s_j`. For transition `t` with active index `i = decrease_index[t]`:
 
-1. `ρ ≥ 0` on the guard polyhedron: `r = Σ λ_i g_i` and
-   `s - Σ λ_i d_i ≥ 0` with `λ ≥ 0`.
-2. `ρ(x) - ρ(Ax+b) ≥ delta` on the same polyhedron, with a second multiplier
-   vector `μ ≥ 0`.
+1. For every `j ≤ i`, `ρ_j ≥ 0` on the guard polyhedron of `t` (Farkas with `nonneg_lambdas[t][j]`).
+2. For every `j < i`, `ρ_j(x) - ρ_j(A_t x + b_t) ≥ 0` on that polyhedron (weak prefix).
+3. `ρ_i(x) - ρ_i(A_t x + b_t) ≥ delta_i > 0` on that polyhedron.
 
-Four mixed-sign transitions use dimensions 8, 10, 12 and 16. Each instance
-has 2n guards: cyclic pairwise sums and rotated (2, skip-3) half-spaces, not
-n independent coordinate inequalities `x_i ≥ 1`. A differs from identity and
-has a negative skip term, so the decrease depends on the state, Farkas
-multipliers are not unique functions of `r`, and a column enumeration of
-`(I-A^T)^{-1}` does not produce a unit-1-norm certificate. For a valid
-certificate the score is
-`min(max(0,(delta-1/10000)/(optimal_delta-1/10000)),1)`, averaged over the loops.
-The uniform ranking at delta=1/10000 is valid and scores exactly zero. `optimal_delta`
-is an evaluator-only exactly verified Farkas LP optimum, not a public instance field.
-A failed certificate scores zero. Rational transitions are checked over all real states;
-no claim is made that the update maps every integer vector to another integer vector.
+Every component must be the active decrease of at least one transition. At most
+`max_components` components. Four nested-reset systems use dimensions 6, 8, 9 and 12
+(two 2-level loops and two 3-level loops). Progressing blocks use overcomplete mixed-sign
+guards, not `n` coordinate inequalities, so Farkas multipliers are search variables.
+
+The score of a valid certificate is
+`min(max(0, (Q - Q0) / (Q* - Q0)), 1)`, averaged over the systems, where `Q` is the sum
+of the proven component deltas, `Q0` is `n_levels / 10000`, and `Q*` is an evaluator-only
+verified nested lex ranking (independent exact phase rankings). `Q*` is **not** a
+1-ranking Farkas LP optimum: that LP is infeasible on every instance. A failed certificate
+scores zero. Rational transitions are checked over all real states.
 
 ### `instance` keys
 
 | key | meaning |
 |---|---|
 | `name` | instance label |
-| `dimension` | 8, 10, 12 or 16 |
-| `guards` | list of `{g, d}` with `g·x + d ≥ 0`; each entry `[numerator, denominator]` |
-| `A` | affine update matrix, same rational encoding |
-| `b` | affine update offset |
+| `dimension` | 6, 8, 9 or 12 |
+| `transitions` | list of `{name, guards, A, b}`; `guards` are `{g, d}` with `g·x + d ≥ 0` |
 | `max_numerator` | 10**18 |
 | `max_denominator` | 10**18 |
+| `max_components` | 3 |
 
 ### submission keys
 
 | key | meaning |
 |---|---|
-| `r` | ranking slope, 1-norm exactly 1 |
-| `s` | ranking constant |
-| `delta` | positive uniform decrease |
-| `nonneg_lambdas` | Farkas multipliers for `ρ ≥ 0`, one per guard |
-| `decrease_lambdas` | Farkas multipliers for the decrease |
+| `components` | lex tuple; each entry has slope `r` (1-norm 1), constant `s`, positive `delta` |
+| `decrease_index` | which component strictly decreases on each transition |
+| `nonneg_lambdas` | Farkas multipliers for `ρ_j ≥ 0`, indexed `[transition][component][guard]` |
+| `decrease_lambdas` | Farkas multipliers for prefix non-increase and the active decrease |
 
 ## Relation and distinction
 
-- Not `ControlTheory/LyapunovDecayCertificate`: that is a **continuous**
-  quadratic Lyapunov function for a switched ODE. This is a **discrete**
-  linear ranking function for an rational affine loop, with a 1-norm
-  normalisation that Lyapunov does not need.
-- Not `Algorithm/GraphFromDistances`: that recovers a graph from queries.
-  This submits a proof of termination, not a graph.
-- Not `Algorithm/MatrixMultiplicationRank`: a bilinear decomposition, not a
-  ranking function.
+- Not `DiscreteGeometry/SpherePackingCertificate`: that certifies a Cohn–Elkies packing
+  bound. This certifies lexicographic descent of an affine program.
+- Not `QuantumFoundations/BellBoundCertificate`: that is an exact SOS bound on a Bell
+  functional. This is a discrete ranking tuple for a loop.
+- Not `InformationTheory/ShannonCapacityCertificate`: that certifies an interval for an
+  odd-cycle capacity. This certifies program termination ranking.
+- Not `Algorithm/GraphFromDistances`: that recovers a graph from queries. This submits a
+  proof of ranking, not a graph.
 
-Other exact-certificate neighbours are SpherePackingCertificate, BellBoundCertificate and
+`ControlTheory/LyapunovDecayCertificate` is not in this inventory. Other exact-certificate
+neighbours on main are SpherePackingCertificate, BellBoundCertificate and
 ShannonCapacityCertificate. They bound geometric, quantum or information-theoretic objects;
-this task certifies program descent. These loop optima are known and the score is clipped.
+this task certifies nested affine-program descent.
 
 ## Scoring
 
-The formula above uses each instance's exact optimum. Malformed submissions, floats,
-a ranking with nonunit 1-norm, or false Farkas identities score zero.
+The formula above uses each instance's hidden verified lex quality `Q*`. Malformed
+submissions, floats, a ranking with nonunit 1-norm, a 1-ranking that does not cover every
+reset, or false Farkas identities score zero.
 `sle.contract_lint` is importable and free to call for shape checks; the evaluator verifies
-both Farkas identities independently in exact arithmetic.
+the lex Farkas identities independently in exact arithmetic.
+`valid` is 1.0 only when every instance has a valid certificate, otherwise 0.0.

@@ -94,7 +94,7 @@ class ExamTaxonomyTests(unittest.TestCase):
         )
         self.assertEqual(
             tax["tasks"]["ScientificComputing/AffineLoopRankingCertificate"].get("note"),
-            "exact_rational_linear_ranking_not_a_lyapunov_ode",
+            "exact_rational_lex_ranking_not_a_1ranking_lp",
         )
 
 

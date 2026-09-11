@@ -524,14 +524,15 @@ tasks:
   ScientificComputing/AffineLoopRankingCertificate:
     status: candidate
     reason: >-
-      Certificate-bound cell that is not a continuous Lyapunov function and not
-      a graph reconstruction: an exact rational linear ranking function with
-      Farkas multipliers proves a uniform decrease for an overcomplete mixed-sign
-      rational affine loop at 1-norm 1. The uniform ranking at a token rate is valid and
-      scores exactly zero. Candidate, not certified. No frontier searcher draw.
+      Certificate-bound cell that is not a packing, Bell, or capacity certificate:
+      an exact rational lexicographic ranking tuple with Farkas multipliers proves
+      descent for nested-reset affine loops that are not 1-ranking complete. The
+      uniform nested ranking at a token rate is valid and scores exactly zero.
+      Candidate, not certified. No frontier searcher draw.
     citation_ids:
       - doi:10.1007/3-540-45319-9_17
-      - doi:10.1007/978-3-540-24622-0_20
+      - doi:10.1007/11513988_24
+      - doi:10.1145/2629488
   Mathematics/RamseyLowerBound:
     status: candidate
     reason: >-

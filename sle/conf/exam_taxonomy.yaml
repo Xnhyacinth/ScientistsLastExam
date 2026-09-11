@@ -72,7 +72,7 @@ tasks:
   Exoplanets/TransmissionSpectrumSpecies: {form: discovery, kind: substance, note: which_molecules_are_present_under_a_budget_with_an_unidentifiable_regime}
   DiscreteGeometry/SpherePackingCertificate: {form: optimization, analogue: certificate_bound, note: exact_rational_Cohn_Elkies_bound_not_a_packing_construction}
   QuantumFoundations/BellBoundCertificate: {form: optimization, analogue: certificate_bound, note: exact_rational_SOS_bound_on_a_Bell_functional_not_a_construction}
-  ScientificComputing/AffineLoopRankingCertificate: {form: optimization, analogue: certificate_bound, note: exact_rational_linear_ranking_not_a_lyapunov_ode}
+  ScientificComputing/AffineLoopRankingCertificate: {form: optimization, analogue: certificate_bound, note: exact_rational_lex_ranking_not_a_1ranking_lp}
   QuantumFoundations/FourSettingMomentCertificate: {form: optimization, analogue: certificate_bound, note: i4422_moment_subset_not_i3322_word_budget_sos}
   InformationTheory/ShannonCapacityCertificate: {form: optimization, analogue: certificate_bound, note: two_sided_interval_for_an_open_capacity_lower_side_is_a_code_upper_side_is_exact_rational}
   Mathematics/NonlinearCodeRecords: {form: optimization, analogue: combinatorial}

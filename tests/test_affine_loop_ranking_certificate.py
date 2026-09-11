@@ -34,73 +34,38 @@ class AffineLoopRankingCertificateTests(unittest.TestCase):
     def test_public_instances_do_not_disclose_the_score_one_optimum(self):
         for instance in self.evaluator.INSTANCES:
             published = self.evaluator.public_instance(instance)
+            self.assertNotIn("score_one_quality", published)
             self.assertNotIn("optimal_delta", published)
-            self.assertNotIn("nonneg_lambdas", published)
-            self.assertNotIn("decrease_lambdas", published)
+            self.assertNotIn("n_levels", published)
 
-    def test_guards_are_overcomplete_and_not_coordinate_axes(self):
+    def test_progressing_guards_are_overcomplete_and_not_coordinate_axes(self):
         for instance in self.evaluator.INSTANCES:
             n = instance["dimension"]
-            guards = self.evaluator._parse_guards(instance["guards"], n)
-            self.assertGreater(len(guards), n)
+            depth = len(instance["transitions"])
+            width = n // depth
+            inner = instance["transitions"][0]
+            guards = self.evaluator._parse_guards(inner["guards"], n)
+            self.assertGreater(len(guards), width)
             for slope, _ in guards:
                 ones = sum(1 for item in slope if item == 1)
                 zeros = sum(1 for item in slope if item == 0)
                 self.assertFalse(ones == 1 and zeros == n - 1 and sum(slope) == 1)
 
-    def test_instances_require_state_dependent_decrease(self):
+    def test_progressing_blocks_are_mixed_sign_and_not_identity(self):
         for instance in self.evaluator.INSTANCES:
             n = instance["dimension"]
-            a = self.evaluator._matrix(instance["A"], "A", n, n)
+            inner = instance["transitions"][0]
+            a = self.evaluator._matrix(inner["A"], "A", n, n)
             self.assertTrue(any(a[i][j] != int(i == j) for i in range(n) for j in range(n)))
             self.assertTrue(any(a[i][j] < 0 for i in range(n) for j in range(n)))
 
-    def test_inverse_of_i_minus_at_is_not_a_nonnegative_simplex(self):
+    def test_instances_are_not_one_ranking_complete(self):
         for instance in self.evaluator.INSTANCES:
             n = instance["dimension"]
-            a = self.evaluator._matrix(instance["A"], "A", n, n)
-            matrix = [[Fraction(i == j) - a[j][i] for j in range(n)] for i in range(n)]
-            inverse = [row[:] + [Fraction(i == j) for j in range(n)]
-                       for i, row in enumerate(matrix)]
-            for k in range(n):
-                pivot = next(i for i in range(k, n) if inverse[i][k])
-                inverse[k], inverse[pivot] = inverse[pivot], inverse[k]
-                scale = inverse[k][k]
-                inverse[k] = [value / scale for value in inverse[k]]
-                for i in range(n):
-                    if i != k:
-                        scale = inverse[i][k]
-                        inverse[i] = [x - scale * y for x, y in zip(inverse[i], inverse[k])]
-            self.assertTrue(any(inverse[i][n + j] < 0 for i in range(n) for j in range(n)))
-
-    def test_farkas_multipliers_are_not_unique_functions_of_r(self):
-        for instance in self.evaluator.INSTANCES:
-            n = instance["dimension"]
-            m = len(instance["guards"])
-            r = [Fraction(1, n)] * n
-            pairwise = [Fraction(1, 2 * n)] * n + [Fraction(0)] * (m - n)
-            rotated = [Fraction(0)] * n + [Fraction(1, 3 * n)] * n
-            self.assertNotEqual(pairwise, rotated)
-            guards = self.evaluator._parse_guards(instance["guards"], n)
-            self.assertTrue(self.evaluator._farkas(r, Fraction(0), guards, pairwise))
-            self.assertTrue(self.evaluator._farkas(r, Fraction(0), guards, rotated))
-
-    def test_axis_enumeration_cannot_certify_the_coupled_transition(self):
-        for instance in self.evaluator.INSTANCES:
-            n = instance["dimension"]
-            m = len(instance["guards"])
-            guards = self.evaluator._parse_guards(instance["guards"], n)
-            a = self.evaluator._matrix(instance["A"], "A", n, n)
-            b = self.evaluator._vector(instance["b"], "b", n)
-            for j in range(n):
-                r = [Fraction(i == j) for i in range(n)]
-                lam = r + [Fraction(0)] * (m - n)
-                mu = [r[k] - sum(a[i][k] * r[i] for i in range(n)) for k in range(n)]
-                mu = mu + [Fraction(0)] * (m - n)
-                holds, _ = self.evaluator.certificate_holds(
-                    guards, a, b, r, Fraction(0), Fraction(1, 10000), lam, mu
-                )
-                self.assertFalse(holds)
+            transitions = self.evaluator._parse_transitions(instance["transitions"], n)
+            witness = self.lp.exact_maximum_delta(transitions)
+            self.assertTrue(witness is None or not witness.get("feasible")
+                            or witness.get("delta", 0) <= 0)
 
     def test_inverse_column_enum_does_not_reach_score_one(self):
         reference = self.evaluator.evaluate(self.reference.build_ranking)
@@ -109,57 +74,92 @@ class AffineLoopRankingCertificateTests(unittest.TestCase):
         self.assertLess(metrics["combined_score"], reference["combined_score"])
         self.assertLess(metrics["feasibility_rate"], 1.0)
 
-    def test_stored_optima_match_an_independent_exact_farkas_lp(self):
-        for instance in self.evaluator.INSTANCES:
-            n = instance["dimension"]
-            guards = self.evaluator._parse_guards(instance["guards"], n)
-            a = self.evaluator._matrix(instance["A"], "A", n, n)
-            b = self.evaluator._vector(instance["b"], "b", n)
-            witness = self.lp.exact_maximum_delta(guards, a, b)
-            self.assertEqual(witness["delta"], Fraction(*instance["optimal_delta"]))
-            holds, reason = self.evaluator.certificate_holds(
-                guards, a, b, witness["r"], witness["s"], witness["delta"],
-                witness["nonneg_lambdas"], witness["decrease_lambdas"],
-            )
-            self.assertTrue(holds, reason)
-            self.assertTrue(any(x > 0 for x in witness["decrease_lambdas"]))
+    def test_one_ranking_farkas_lp_does_not_reach_score_one(self):
+        reference = self.evaluator.evaluate(self.reference.build_ranking)
 
         def lp_ranking(instance):
-            hidden = next(item for item in self.evaluator.INSTANCES
-                           if item["name"] == instance["name"])
-            n = hidden["dimension"]
-            guards = self.evaluator._parse_guards(hidden["guards"], n)
-            a = self.evaluator._matrix(hidden["A"], "A", n, n)
-            b = self.evaluator._vector(hidden["b"], "b", n)
-            witness = self.lp.exact_maximum_delta(guards, a, b)
-            ratio = lambda x: [x.numerator, x.denominator]
-            return {
-                "r": [ratio(x) for x in witness["r"]],
-                "s": ratio(witness["s"]),
-                "delta": ratio(witness["delta"]),
-                "nonneg_lambdas": [ratio(x) for x in witness["nonneg_lambdas"]],
-                "decrease_lambdas": [ratio(x) for x in witness["decrease_lambdas"]],
-            }
+            return self.lp.one_ranking_as_lex(instance, self.evaluator)
 
         metrics = self.evaluator.evaluate(lp_ranking)
+        self.assertLess(metrics["combined_score"], 1.0)
+        self.assertLess(metrics["combined_score"], reference["combined_score"])
+        self.assertNotEqual(metrics["combined_score"], 1.0)
+
+    def test_hidden_ceiling_matches_the_verified_phase_lex_ranking(self):
+        metrics = self.evaluator.evaluate(self.lp.phase_lex_ranking)
+        self.assertEqual(metrics["valid"], 1.0)
         self.assertEqual(metrics["feasibility_rate"], 1.0)
         self.assertEqual(metrics["combined_score"], 1.0)
+        for row, instance in zip(metrics["per_instance"], self.evaluator.INSTANCES):
+            self.assertEqual(row["proven_quality"], list(instance["score_one_quality"]))
 
     def test_floats_are_rejected_and_score_zero(self):
         def floats(instance):
             dimension = int(instance["dimension"])
-            n_guards = len(instance["guards"])
+            n_guards = len(instance["transitions"][0]["guards"])
             return {
-                "r": [1.0] + [0.0] * (dimension - 1),
-                "s": 0.0,
-                "delta": 0.0001,
-                "nonneg_lambdas": [1.0] + [0.0] * (n_guards - 1),
-                "decrease_lambdas": [0.0] * n_guards,
+                "components": [{
+                    "r": [1.0] + [0.0] * (dimension - 1),
+                    "s": 0.0,
+                    "delta": 0.0001,
+                }],
+                "decrease_index": [0] * len(instance["transitions"]),
+                "nonneg_lambdas": [[[1.0] + [0.0] * (n_guards - 1)]],
+                "decrease_lambdas": [[[0.0] * n_guards]],
             }
 
         metrics = self.evaluator.evaluate(floats)
         self.assertEqual(metrics["valid"], 0.0)
         self.assertEqual(metrics["combined_score"], 0.0)
+
+    def test_uniform_search_ablation_is_below_the_reference(self):
+        def uniform_honest(instance):
+            depth, width = self.reference._levels(instance)
+            decrease_index = list(range(depth - 1, -1, -1))
+            chosen = []
+            for level in range(depth):
+                ranking = self.reference._block_vector(
+                    depth, width, level, [Fraction(1, width)] * width)
+                t_index = next(i for i, active in enumerate(decrease_index) if active == level)
+                witness = self.reference._honest_delta(
+                    ranking, instance["transitions"][t_index])
+                chosen.append({"r": ranking, **witness})
+            components = [{
+                "r": [[x.numerator, x.denominator] for x in item["r"]],
+                "s": [item["s"].numerator, item["s"].denominator],
+                "delta": [item["delta"].numerator, item["delta"].denominator],
+            } for item in chosen]
+            nonneg = []
+            decrease = []
+            for t_index, trans in enumerate(instance["transitions"]):
+                active = decrease_index[t_index]
+                lam_row = []
+                mu_row = []
+                for level in range(depth):
+                    if level > active:
+                        zeros = [[0, 1]] * len(trans["guards"])
+                        lam_row.append(zeros)
+                        mu_row.append(zeros)
+                        continue
+                    witness = self.reference._honest_delta(chosen[level]["r"], trans)
+                    lam_row.append([[x.numerator, x.denominator] for x in witness["lam"]])
+                    mu_row.append([[x.numerator, x.denominator] for x in witness["mu"]])
+                nonneg.append(lam_row)
+                decrease.append(mu_row)
+            return {
+                "components": components,
+                "decrease_index": decrease_index,
+                "nonneg_lambdas": nonneg,
+                "decrease_lambdas": decrease,
+            }
+
+        ablation = self.evaluator.evaluate(uniform_honest)
+        reference = self.evaluator.evaluate(self.reference.build_ranking)
+        self.assertEqual(ablation["valid"], 1.0)
+        self.assertEqual(reference["valid"], 1.0)
+        self.assertLess(ablation["combined_score"], reference["combined_score"])
+        self.assertGreater(ablation["combined_score"], 0.5)
+        self.assertLess(reference["combined_score"], 1.0)
 
     def test_uniform_baseline_is_valid_and_below_the_reference(self):
         baseline = self.evaluator.evaluate(self.baseline.build_ranking)
@@ -168,22 +168,39 @@ class AffineLoopRankingCertificateTests(unittest.TestCase):
         self.assertEqual(reference["valid"], 1.0)
         self.assertLess(baseline["combined_score"], reference["combined_score"])
         self.assertEqual(baseline["combined_score"], 0.0)
-        self.assertGreater(reference["combined_score"], 0.3)
-        self.assertLess(reference["combined_score"], 0.8)
+        self.assertGreater(reference["combined_score"], 0.5)
+        self.assertLess(reference["combined_score"], 1.0)
+
+    def test_valid_requires_every_instance(self):
+        def fail_last(instance):
+            if instance["name"] == self.evaluator.INSTANCES[-1]["name"]:
+                return {"components": []}
+            return self.baseline.build_ranking(instance)
+
+        metrics = self.evaluator.evaluate(fail_last)
+        self.assertGreater(metrics["feasibility_rate"], 0.0)
+        self.assertLess(metrics["feasibility_rate"], 1.0)
+        self.assertEqual(metrics["valid"], 0.0)
+        self.assertEqual(metrics["combined_score"], 0.0)
 
     def test_malformed_submissions_score_zero_without_raising(self):
         metrics = self.evaluator.evaluate(lambda *_args: "not a mapping")
         self.assertEqual(metrics["valid"], 0.0)
         self.assertEqual(metrics["combined_score"], 0.0)
 
-    def test_this_is_not_a_lyapunov_ode_or_a_distance_graph(self):
+    def test_this_is_not_a_packing_bell_or_capacity_certificate(self):
         from sle.registry import find_task
         spec = find_task(
             "ScientificComputing/AffineLoopRankingCertificate", include_uncertified=True
         )
+        packing = find_task("DiscreteGeometry/SpherePackingCertificate", include_uncertified=True)
+        bell = find_task("QuantumFoundations/BellBoundCertificate", include_uncertified=True)
+        shannon = find_task("InformationTheory/ShannonCapacityCertificate", include_uncertified=True)
         graph = find_task("Algorithm/GraphFromDistances", include_uncertified=True)
         self.assertEqual(spec.entrypoint, "build_ranking")
-        self.assertNotEqual(spec.task_id, "ControlTheory/LyapunovDecayCertificate")
+        self.assertNotEqual(spec.task_id, packing.task_id)
+        self.assertNotEqual(spec.task_id, bell.task_id)
+        self.assertNotEqual(spec.task_id, shannon.task_id)
         self.assertNotEqual(spec.task_dir, graph.task_dir)
 
 

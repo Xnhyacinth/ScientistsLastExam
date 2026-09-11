@@ -7,7 +7,7 @@ oracle_type: analytical
 score_mode: clipped
 gpu_required: false
 eval_time_seconds: 8
-science_metric: proven_linear_ranking_decrease
-reference_baseline: uniform rational ranking at delta = 1/10000
-reference_sota: discrete uniform-plus-pairwise ranking; per-instance exact Farkas LP optima define score one
-citation: "Colon and Sipma, TACAS 2001; Podelski and Rybalchenko, VMCAI 2004"
+science_metric: proven_lexicographic_ranking_decrease
+reference_baseline: uniform nested ranking at delta=1/10000 per level
+reference_sota: discrete uniform-plus-pairwise lex search; score one is a verified nested lex ranking, not a 1-ranking Farkas LP
+citation: "Colon and Sipma, TACAS 2001, LNCS 2031 pp.67-81; Bradley, Manna and Sipma, CAV 2005; Ben-Amram and Genaim, JACM 2014"

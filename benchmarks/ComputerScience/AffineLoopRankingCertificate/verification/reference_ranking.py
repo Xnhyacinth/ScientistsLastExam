@@ -1,16 +1,37 @@
-"""Feasible discrete search over uniform and pairwise ranking slopes.
+"""Discrete lex search: uniform and adjacent pairwise slopes on each nested block.
 
-Uses only the public guards and affine update. It never solves the full Farkas LP
-over mixed-support rankings, so coupled directions beyond these local moves remain.
+The search is over public transitions only. A 1-ranking Farkas LP on the whole
+system is not used. Pairwise directions can beat the uniform ablation when the
+offset is peaked.
 """
 from fractions import Fraction
+
+
+def _frac(value):
+    return Fraction(*value) if isinstance(value, (list, tuple)) else Fraction(value)
+
+
+def _ratio(value):
+    return [value.numerator, value.denominator]
+
+
+def _zeros(n):
+    return [Fraction(0)] * n
+
+
+def _levels(instance):
+    depth = len(instance["transitions"])
+    width = instance["dimension"] // depth
+    return depth, width
 
 
 def _gaussian(matrix, rhs):
     work = [list(row) + [value] for row, value in zip(matrix, rhs)]
     n = len(rhs)
     for k in range(n):
-        pivot = next(i for i in range(k, n) if work[i][k])
+        pivot = next((i for i in range(k, n) if work[i][k]), None)
+        if pivot is None:
+            return None
         work[k], work[pivot] = work[pivot], work[k]
         scale = work[k][k]
         work[k] = [value / scale for value in work[k]]
@@ -21,82 +42,188 @@ def _gaussian(matrix, rhs):
     return [row[-1] for row in work]
 
 
-def _rotated_multipliers(target):
-    n = len(target)
-    matrix = [[Fraction(0)] * n for _ in range(n)]
-    for k in range(n):
-        matrix[k][k] = Fraction(2)
-        matrix[k][(k - 3) % n] = Fraction(1)
-    return _gaussian(matrix, target)
+def _block_vector(depth, width, level, local):
+    ranking = _zeros(depth * width)
+    for index, value in enumerate(local):
+        ranking[level * width + index] = value
+    return ranking
 
 
-def _parse(instance):
-    n = instance["dimension"]
-    a = [[Fraction(*value) for value in row] for row in instance["A"]]
-    b = [Fraction(*value) for value in instance["b"]]
-    intercepts = []
-    for item in instance["guards"]:
-        intercept = item["d"]
-        intercepts.append(Fraction(*intercept) if isinstance(intercept, (list, tuple))
-                          else Fraction(intercept))
-    return n, len(instance["guards"]), a, b, intercepts
+def _pairwise_lambdas(r, guards):
+    n = len(r)
+    lambdas = _zeros(len(guards))
+    support = [index for index, item in enumerate(r) if item]
+    if not support:
+        return lambdas
+    # Adjacent 2-support: one pairwise guard.
+    if len(support) == 2 and support[1] - support[0] in (1, n - 1) and r[support[0]] == r[support[1]]:
+        need = r[support[0]]
+        for index, item in enumerate(guards):
+            slope = [_frac(entry) for entry in item["g"]]
+            ones = [j for j, entry in enumerate(slope) if entry == 1]
+            if _frac(item["d"]) == -2 and sorted(ones) == support and all(
+                    entry in (0, 1) for entry in slope):
+                lambdas[index] = need
+                return lambdas
+        # wrap-around support {0, n-1} stored unsorted
+        want = set(support)
+        for index, item in enumerate(guards):
+            slope = [_frac(entry) for entry in item["g"]]
+            ones = [j for j, entry in enumerate(slope) if entry == 1]
+            if _frac(item["d"]) == -2 and set(ones) == want and all(
+                    entry in (0, 1) for entry in slope):
+                lambdas[index] = need
+                return lambdas
+        return None
+    if all(r[index] == r[support[0]] for index in support) and support == list(
+            range(support[0], support[-1] + 1)):
+        need = r[support[0]] / 2
+        for index, item in enumerate(guards):
+            slope = [_frac(entry) for entry in item["g"]]
+            ones = [j for j, entry in enumerate(slope) if entry == 1]
+            if (_frac(item["d"]) == -2 and len(ones) == 2
+                    and all(j in support for j in ones)
+                    and all(entry in (0, 1) for entry in slope)):
+                lambdas[index] = need
+        if any(item > 0 for item in lambdas):
+            return lambdas
+        return None
+    return None
 
 
-def _certificate(r, a, b, n, m, intercepts):
-    target = [r[k] - sum(a[i][k] * r[i] for i in range(n)) for k in range(n)]
-    lam = [Fraction(0)] * m
-    mu = [Fraction(0)] * m
-    if all(x == r[0] for x in r) and r[0] > 0:
-        lam = [r[0] / 2] * n + [Fraction(0)] * (m - n)
-        if all(x == target[0] for x in target):
-            mu = [target[0] / 2] * n + [Fraction(0)] * (m - n)
-        else:
-            rotated = _rotated_multipliers(target)
-            if any(x < 0 for x in rotated):
-                return None
-            mu = [Fraction(0)] * n + rotated
+def _rotated_lambdas(r, guards):
+    n = len(r)
+    support = [index for index, item in enumerate(r) if item]
+    if not support:
+        return _zeros(len(guards))
+    rotated = []
+    for index, item in enumerate(guards):
+        slope = [_frac(entry) for entry in item["g"]]
+        if _frac(item["d"]) != -3:
+            continue
+        if any(slope[j] != 0 and j not in range(support[0], support[-1] + 1)
+               for j in range(n)):
+            continue
+        rotated.append((index, slope))
+    width = len(support)
+    if len(rotated) != width:
+        return None
+    offset = support[0]
+    matrix = [[rotated[row][1][offset + col] for col in range(width)] for row in range(width)]
+    # G^T λ = r, so columns are slopes; rows are coordinates.
+    matrix = [[rotated[col][1][offset + row] for col in range(width)] for row in range(width)]
+    rhs = [r[offset + row] for row in range(width)]
+    local = _gaussian(matrix, rhs)
+    if local is None or any(item < 0 for item in local):
+        return None
+    lambdas = _zeros(len(guards))
+    for (index, _), value in zip(rotated, local):
+        lambdas[index] = value
+    return lambdas
+
+
+def _multipliers(r, guards):
+    pairwise = _pairwise_lambdas(r, guards)
+    if pairwise is not None:
+        return pairwise
+    return _rotated_lambdas(r, guards)
+
+
+def _honest_delta(ranking, transition):
+    a = [[_frac(value) for value in row] for row in transition["A"]]
+    b = [_frac(value) for value in transition["b"]]
+    guards = transition["guards"]
+    n = len(ranking)
+    lam = _multipliers(ranking, guards)
+    if lam is None:
+        return None
+    target = [ranking[k] - sum(a[i][k] * ranking[i] for i in range(n)) for k in range(n)]
+    if all(item == 0 for item in target):
+        mu = _zeros(len(guards))
+        delta = -sum(ranking[i] * b[i] for i in range(n))
     else:
-        pair = next((i for i in range(n)
-                     if r[i] > 0 and r[(i + 1) % n] == r[i]
-                     and all(r[j] == 0 for j in range(n) if j not in (i, (i + 1) % n))), None)
-        if pair is None:
+        mu = _multipliers(target, guards)
+        if mu is None:
             return None
-        lam[pair] = r[pair]
-        rotated = _rotated_multipliers(target)
-        if any(x < 0 for x in rotated):
-            return None
-        mu = [Fraction(0)] * n + rotated
-    if any(x < 0 for x in lam + mu):
+        delta = (-sum(ranking[i] * b[i] for i in range(n))
+                 - sum(_frac(item["d"]) * mu[j] for j, item in enumerate(guards)))
+    if delta < 0:
         return None
-    delta = -sum(r[i] * b[i] for i in range(n)) - sum(intercepts[j] * mu[j] for j in range(m))
-    if delta <= 0:
-        return None
-    s = sum(intercepts[j] * lam[j] for j in range(m))
+    s = sum(_frac(item["d"]) * lam[j] for j, item in enumerate(guards))
     if s < 0:
         s = Fraction(0)
-    ratio = lambda x: [x.numerator, x.denominator]
-    return {"r": [ratio(x) for x in r], "s": ratio(s), "delta": ratio(delta),
-            "nonneg_lambdas": [ratio(x) for x in lam],
-            "decrease_lambdas": [ratio(x) for x in mu],
-            "_delta": delta}
+    return {"lam": lam, "mu": mu, "s": s, "delta": delta}
+
+
+def _local_directions(width):
+    directions = [[Fraction(1, width)] * width]
+    for index in range(width):
+        local = _zeros(width)
+        local[index] = Fraction(1, 2)
+        local[(index + 1) % width] = Fraction(1, 2)
+        directions.append(local)
+    return directions
 
 
 def build_ranking(instance):
-    n, m, a, b, intercepts = _parse(instance)
-    directions = [[Fraction(1, n)] * n]
-    for index in range(n):
-        ranking = [Fraction(0)] * n
-        ranking[index] = Fraction(1, 2)
-        ranking[(index + 1) % n] = Fraction(1, 2)
-        directions.append(ranking)
-    best = None
-    for ranking in directions:
-        witness = _certificate(ranking, a, b, n, m, intercepts)
-        if witness is None:
-            continue
-        if best is None or witness["_delta"] > best["_delta"]:
-            best = witness
-    if best is None:
-        raise ValueError("no feasible pairwise ranking")
-    best.pop("_delta")
-    return best
+    depth, width = _levels(instance)
+    transitions = instance["transitions"]
+    decrease_index = list(range(depth - 1, -1, -1))
+    chosen = []
+    for level in range(depth):
+        active_transition = next(
+            t_index for t_index, active in enumerate(decrease_index) if active == level)
+        best = None
+        for local in _local_directions(width):
+            ranking = _block_vector(depth, width, level, local)
+            witness = _honest_delta(ranking, transitions[active_transition])
+            if witness is None:
+                continue
+            if best is None or witness["delta"] > best["delta"]:
+                best = dict(witness)
+                best["r"] = ranking
+        if best is None:
+            raise ValueError("no feasible ranking on level %d" % level)
+        chosen.append(best)
+    components = []
+    for item in chosen:
+        components.append({
+            "r": [_ratio(value) for value in item["r"]],
+            "s": _ratio(item["s"]),
+            "delta": _ratio(item["delta"]),
+        })
+    nonneg = []
+    decrease = []
+    for t_index, transition in enumerate(transitions):
+        active = decrease_index[t_index]
+        lam_row = []
+        mu_row = []
+        for level in range(depth):
+            ranking = chosen[level]["r"]
+            if level > active:
+                lam_row.append([[0, 1]] * len(transition["guards"]))
+                mu_row.append([[0, 1]] * len(transition["guards"]))
+                continue
+            witness = _honest_delta(ranking, transition)
+            if witness is None:
+                raise ValueError("prefix certificate failed on transition %d level %d"
+                                 % (t_index, level))
+            if level == active and witness["delta"] != chosen[level]["delta"]:
+                # The active transition is the one the component was chosen on.
+                pass
+            need = chosen[level]["delta"] if level == active else Fraction(0)
+            if level < active and witness["delta"] < 0:
+                raise ValueError("prefix increased")
+            # Recompute multipliers at the claimed need by reusing honest mu/lam.
+            # For prefix, honest_delta used the maximum; Farkas for need=0 is weaker
+            # and the same μ still witness a nonnegative decrease.
+            lam_row.append([_ratio(value) for value in witness["lam"]])
+            mu_row.append([_ratio(value) for value in witness["mu"]])
+        nonneg.append(lam_row)
+        decrease.append(mu_row)
+    return {
+        "components": components,
+        "decrease_index": decrease_index,
+        "nonneg_lambdas": nonneg,
+        "decrease_lambdas": decrease,
+    }
