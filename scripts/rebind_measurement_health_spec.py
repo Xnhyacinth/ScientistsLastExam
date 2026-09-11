@@ -222,6 +222,25 @@ def main(argv: list[str] | None = None) -> int:
                 refused.append((task_id, "behavioural change in %s"
                                 % ", ".join(verdict["behavioural_files_changed"][:3])))
                 continue
+        if not binding_changed:
+            justification = "evidence re-measured against the current runtime"
+        elif verdict.get("declarative_change_only"):
+            justification = (
+                "declarative-only difference from %s, verified by "
+                "_package_mismatch_explanation" % (revision or "")[:12]
+            )
+        elif task_id in inert:
+            justification = (
+                "behavioural change measured inert for the frozen artifact; "
+                "inertness report SHA-256 %s; this is not equivalence for other candidates"
+                % sha256_of(args.inertness)
+            )
+        else:
+            justification = (
+                "behavioural change with evidence re-measured against the current runtime: %s; "
+                "other carried checks must still verify their own binding"
+                % ", ".join(remeasured)
+            )
         updates.append({
             "task": task_id,
             # Recorded before the rebinding so the ledger says plainly that runs made against the
@@ -237,12 +256,7 @@ def main(argv: list[str] | None = None) -> int:
             "runtime_contract_sha256": current_contract,
             "maturity_contract_sha256": _maturity_contract_sha256(spec_obj),
             "superseded_task_package_sha256": frozen_package,
-            "justification": (
-                "evidence re-measured against the current runtime"
-                if not binding_changed else
-                "declarative-only difference from %s, verified by "
-                "_package_mismatch_explanation" % (revision or "")[:12]
-            ),
+            "justification": justification,
         })
 
     for task_id, why in refused:

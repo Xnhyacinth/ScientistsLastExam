@@ -1,0 +1,18 @@
+{
+  "candidate_sha256": "429cbb85cc16eb05747415c6cb589de8377b5a8a23597ebef8bb2f101c4a5f95",
+  "derivation": "entire reference_solver.py unchanged + SimpleNamespace mapping helpers + exact original _candidate factory + fixed infer_aquifer bridge; no evaluator import and no run_sweep",
+  "factory_source_lines": [
+    23,
+    84
+  ],
+  "factory_source_sha256": "29e9b82a93c7889721fea0451022f901f80abe56d9c7b065b09d21d6d8dadd0c",
+  "fixed_thresholds": [
+    2.0,
+    -3.0,
+    -4.0
+  ],
+  "parameter_source": "references/known_best.md Ablations and shortcut probe; explicitly best development-selected settings",
+  "reference_source_sha256": "ab2734e7b8048cd03ab6a431b58f8a0872f996cc13f8ed61fe5c1a1b71e77df6",
+  "shortcut_driver_sha256": "3a99b21ea5bce2b23f62d652c5de90a3fbd7242a04bec275f72263f5cf86c40f",
+  "task_head": "dbc2182268a44b26e383cc950457fd5f7d5aa8d1"
+}

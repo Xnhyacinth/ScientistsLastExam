@@ -8,6 +8,9 @@ import subprocess
 import sys
 import numpy as np
 import pytest
+from _sandbox_tools import skip_unless_sandbox
+from sle import frontier_eval_entrypoint
+from sle.metric_visibility import SEARCH_VISIBLE_KEYS
 
 TASK = Path(__file__).resolve().parents[1]/"benchmarks/Biology/MetagenomeCompositionAssignment"
 
@@ -319,6 +322,7 @@ def test_initial_screen_confounds_groups_but_followups_separate_them():
             assert max(distances) >= ev.RESOLUTION_THRESHOLD
 
 
+@skip_unless_sandbox("bwrap")
 def test_task_local_wrapper_runs_real_sandbox_and_seals_heldout_metrics(tmp_path):
     metrics_path = tmp_path/"metrics.json"
     completed = subprocess.run(
@@ -330,55 +334,56 @@ def test_task_local_wrapper_runs_real_sandbox_and_seals_heldout_metrics(tmp_path
     assert completed.returncode == 0, completed.stderr
     public = json.loads(metrics_path.read_text())
     assert json.loads(completed.stdout) == public
-    assert set(public) <= set(wrapper.SEARCH_VISIBLE_KEYS)
+    assert set(public) <= set(SEARCH_VISIBLE_KEYS)
     assert public["combined_score"] == public["raw_score"] == 0
     assert public["valid"] == 1
     assert not any(key.startswith("heldout_") for key in public)
     assert "per_world" not in public
 
 
-def test_task_local_wrapper_has_no_shared_entrypoint_dependency():
+def test_task_local_wrapper_uses_shared_trusted_entrypoint():
     source = (TASK/"frontier_eval/run_eval.py").read_text()
-    assert "frontier_eval_entrypoint" not in source
-    assert '"-m",\n        "sle",\n        "eval"' in source
+    assert "sle/frontier_eval_entrypoint.py" in source
+    assert 'import evaluator' not in source and 'CandidateProxy' not in source
 
 
 def test_task_local_wrapper_strips_credentials(monkeypatch):
     monkeypatch.setenv("DEMO_API_KEY", "secret")
     monkeypatch.setenv("AUTHORIZATION", "secret")
     monkeypatch.setenv("DATABASE_PASSWORD", "secret")
-    monkeypatch.setenv(wrapper.TRUSTED_DIAGNOSTICS_ENV, "/trusted/operator.log")
+    monkeypatch.setenv("SLE_TRUSTED_EVAL_LOG", "/trusted/operator.log")
     monkeypatch.setenv("SAFE_SETTING", "kept")
-    environment = wrapper._child_environment()
+    environment = frontier_eval_entrypoint.child_environment(wrapper.ROOT)
     assert "DEMO_API_KEY" not in environment
     assert "AUTHORIZATION" not in environment
     assert "DATABASE_PASSWORD" not in environment
-    assert wrapper.TRUSTED_DIAGNOSTICS_ENV not in environment
+    assert "SLE_TRUSTED_EVAL_LOG" not in environment
     assert environment["SAFE_SETTING"] == "kept"
     assert environment["PYTHONPATH"] == str(wrapper.ROOT)
 
 
 def test_task_local_wrapper_treats_child_failure_as_infrastructure(
         tmp_path, monkeypatch, capsys):
-    output = tmp_path/"metrics.json"
-    trusted_log = tmp_path/"trusted.jsonl"
+    output = tmp_path/"public"/"metrics.json"
+    output.parent.mkdir()
+    trusted = tmp_path/"private"
     output.write_text('{"combined_score": 1}')
-    monkeypatch.setenv(wrapper.TRUSTED_DIAGNOSTICS_ENV, str(trusted_log))
 
     class Failed:
         returncode = 17
         stdout = ""
         stderr = "/hidden/evaluator.py:9 secret-source-line"
 
-    monkeypatch.setattr(wrapper.subprocess, "run", lambda *args, **kwargs: Failed())
-    result = wrapper.main([
+    monkeypatch.setattr(frontier_eval_entrypoint.subprocess, "run", lambda *args, **kwargs: Failed())
+    result = frontier_eval_entrypoint.run(wrapper.TASK_ID, wrapper.ROOT, wrapper.EVAL_TIMEOUT_S, [
         "--candidate", str(TASK/"solution.py"),
         "--metrics-out", str(output),
+        "--full-metrics-dir", str(trusted),
     ])
     captured = capsys.readouterr()
     assert result == 2 and not output.exists()
     assert "secret-source-line" not in captured.err
-    diagnostic = json.loads(trusted_log.read_text())
-    assert diagnostic["stage"] == "child_process"
+    diagnostic = json.loads((trusted/"last_infrastructure_failure.json").read_text())
+    assert diagnostic["stage"] == "launching trusted evaluation"
     assert diagnostic["returncode"] == 17
-    assert diagnostic["stderr_tail"].endswith("secret-source-line")
+    assert diagnostic["stderr"].endswith("secret-source-line")

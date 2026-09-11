@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "evidence_scope": "SCIENTIFIC_RUNTIME_ENVIRONMENT_SNAPSHOT_ONLY",
+  "created_at": "2026-09-11T04:15:35.659965+00:00",
+  "source_provenance": {
+    "git_available": true,
+    "git_revision": "c29f7076934aea551b3e76479eb64260d810bc90",
+    "source_tree_dirty": false,
+    "source_changes": [],
+    "source_scope": [
+      "sle",
+      "scripts",
+      "tests",
+      "benchmarks",
+      "requirements-upstream.txt"
+    ],
+    "command": [
+      "/usr/bin/python3",
+      "-"
+    ]
+  },
+  "python": "3.8.10 (default, Nov  7 2024, 13:10:47) \n[GCC 9.4.0]",
+  "executable": "/usr/bin/python3",
+  "platform": "Linux-5.15.0-1075-azure-x86_64-with-glibc2.29",
+  "packages": {
+    "numpy": "1.24.4",
+    "scipy": "1.10.1",
+    "PyYAML": "6.0.3",
+    "astropy": "5.2.2",
+    "networkx": "3.1",
+    "nmrsim": "0.6.0.post1",
+    "stim": "1.13.0",
+    "pymatching": "2.4.0",
+    "qutip": "4.7.6",
+    "rdkit": "2024.3.5",
+    "sympy": "1.13.3",
+    "ViennaRNA": "2.7.2"
+  },
+  "module_available": {
+    "numpy": true,
+    "scipy": true,
+    "yaml": true,
+    "astropy": true,
+    "networkx": true,
+    "nmrsim": true,
+    "stim": true,
+    "pymatching": true,
+    "qutip": true,
+    "rdkit": true,
+    "sympy": true,
+    "RNA": true
+  },
+  "bwrap": "bubblewrap 0.4.0",
+  "test_runner": {
+    "python": "/usr/bin/python3",
+    "pytest": "8.3.5",
+    "isolated_target": "/tmp/sle-pytest38-20260911",
+    "scientific_packages_modified": false
+  }
+}

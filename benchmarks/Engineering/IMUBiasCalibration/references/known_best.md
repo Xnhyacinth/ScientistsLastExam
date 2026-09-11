@@ -104,8 +104,8 @@ actual chat request, greedy_rewrite with normal feedback and calibration role:
 
 All eleven review-era runs and their fifteen proposals, including the failures, are compactly
 recorded in `experiments/imu_bias_calibration_active_deepseek_2026-09-08.json`. No failed
-draws were silently excluded. Scientific code was frozen before the final draws; later
-documentation adds the measured ladder to Task.md, without changing candidate input data,
+draws were silently excluded. Scientific code was frozen before the final draws; the measured ladder is recorded
+here, not in Task.md, without changing candidate input data,
 scoring or search-visible keys. These small-sample checks do not replace independent review.
 
 ## Construction errors

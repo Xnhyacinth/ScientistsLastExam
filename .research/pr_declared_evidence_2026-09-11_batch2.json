@@ -1,0 +1,970 @@
+{
+  "observed_at_utc": "2026-09-11T08:14:48.960408+00:00",
+  "base_revision": "3069479717c2d0db0b040babb42390bdcbb60cb1",
+  "snapshot_file_sha256": "ac894c37a4fcc48703b834d23d570dcbffe42043161de60474748766f3f35056",
+  "open_pr_count": 34,
+  "rows": [
+    {
+      "pr": 83,
+      "head": "2dd3302fb759d3a4ca5eaa9d21910a82335bf229",
+      "title": "task: ClockSyncInversion, bound every clock's offset from charged two-way exchanges or decline",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/ComputerScience/ClockSyncInversion",
+          "task_id": "DistributedSystems/ClockSyncInversion",
+          "task_type": null,
+          "card_sha256": "76165c6e73f17ef9f114776719904c487b20d88b604d6ced89bfafaaee2631cc",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 82,
+      "head": "7d59e684485db9df3a54303ed956b8bb7025856d",
+      "title": "task: ComputerArchitecture/CacheReplacementPolicyID, identify a cache set's replacement policy from noisy hit and miss runs",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/ComputerScience/CacheReplacementPolicyID",
+          "task_id": "ComputerArchitecture/CacheReplacementPolicyID",
+          "task_type": null,
+          "card_sha256": "8e973f90cc83ad3af34453ca50146700e50e4907f39e39416b1979028b063abc",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 80,
+      "head": "4bb95061846a28a3025f4eb05cdd52210e12b11a",
+      "title": "task: DataPrivacy/SparseVectorAudit, audit a deployed sparse vector technique against its (ε, δ) claim",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/ComputerScience/SparseVectorAudit",
+          "task_id": "DataPrivacy/SparseVectorAudit",
+          "task_type": null,
+          "card_sha256": "52c59d72ec20b6d5469d246c1f9217fb06732b7dc804412c9eb87f56bf736007",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 79,
+      "head": "e58a2b2147cc2d4d661cb545584e3f6d6eb04194",
+      "title": "LDMismatchFineMapping: fine-map a locus whose public LD panel is wrong",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Biology/LDMismatchFineMapping",
+          "task_id": "PopulationGenetics/LDMismatchFineMapping",
+          "task_type": null,
+          "card_sha256": "9f5796e13b14cfdb04657732ff07697ed1532b23b8f6772918902443b4abc5de",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 74,
+      "head": "8193c5aa6abff91ff8cbbce9f617518ff3bb9b61",
+      "title": "Add Geophysics/FocalMechanismStressInversion candidate",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/EarthScience/FocalMechanismStressInversion",
+          "task_id": "Geophysics/FocalMechanismStressInversion",
+          "task_type": null,
+          "card_sha256": "6ef605308bed7e9d1801f4c1a1109b0dd555eac84623206fb979b8a6dc2e7e4b",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 73,
+      "head": "c0d1f3e2419c4dc334587dcf1be4b9777bf632be",
+      "title": "Add Neuroscience/NeuralReportAttribution candidate",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Biology/NeuralReportAttribution",
+          "task_id": "Neuroscience/NeuralReportAttribution",
+          "task_type": null,
+          "card_sha256": "d6859a8b2c7e9570875292c9e1b031e372637ce64c51dd636833d2e7be647457",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 72,
+      "head": "8497bd455d3090087e6a15e99fb85f5fae75e5cd",
+      "title": "Add ParticlePhysics/DarkMatterRecoilAttribution candidate",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Physics/DarkMatterRecoilAttribution",
+          "task_id": "ParticlePhysics/DarkMatterRecoilAttribution",
+          "task_type": null,
+          "card_sha256": "0a634cafee58a21747a26ecddd741553d006517148c3594231f25c6a92c2f24f",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 71,
+      "head": "7623c22be5bf464099bc18d81df1534fcf0feb68",
+      "title": "AnomalyZoneSpeciesTree: a species tree the commonest gene tree gets wrong",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Biology/AnomalyZoneSpeciesTree",
+          "task_id": "Phylogenomics/AnomalyZoneSpeciesTree",
+          "task_type": null,
+          "card_sha256": "4407c9cee7d5a136f9add934b4bbb35c1cdc8f4dbfe9cc9c794731becd623cd3",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 60,
+      "head": "dbc2182268a44b26e383cc950457fd5f7d5aa8d1",
+      "title": "Add Hydrology/AquiferPumpingInference candidate",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/EarthScience/AquiferPumpingInference",
+          "task_id": "Hydrology/AquiferPumpingInference",
+          "task_type": null,
+          "card_sha256": "446d9ccc8bcdcd2b2dd2f5bf1f84e06637a0bdb535d674f35e2d9396a6ddde92",
+          "calibration_evidence_status": "current_or_migration_replayed",
+          "calibrator_model_ids": [
+            "deepseek-v4-flash",
+            "deepseek-v4-pro"
+          ],
+          "calibration_runs": [
+            "experiments/aquifer_pumping_deepseek_calibration_2026-09-08.json",
+            "experiments/aquifer_pumping_deepseek_calibration_2026-09-09.json"
+          ],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 59,
+      "head": "7d62a09953e3789f494d5534e29dd90cae3a1280",
+      "title": "Add Neuroscience/SpikeHistoryInference candidate",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Biology/SpikeHistoryInference",
+          "task_id": "Neuroscience/SpikeHistoryInference",
+          "task_type": null,
+          "card_sha256": "ebc46859258bf8e7a91e889d34f8a78aaa4f6bb87224ecf9fbe47bbaab2dcb52",
+          "calibration_evidence_status": "historical_only",
+          "calibrator_model_ids": [
+            "deepseek-v4-flash",
+            "deepseek-v4-pro"
+          ],
+          "calibration_runs": [
+            "experiments/spike_history_inference_deepseek_calibration_2026-09-07.json"
+          ],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 58,
+      "head": "c358c36527e86c912e5592426fc14b495f1aa240",
+      "title": "Add CellBiophysics/FRAPBindingInference candidate",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Biology/FRAPBindingInference",
+          "task_id": "CellBiophysics/FRAPBindingInference",
+          "task_type": null,
+          "card_sha256": "f853bec4b34f7c99b0a08856080c4af964f7ebb59e35f6d637f0b6cecc4d6e33",
+          "calibration_evidence_status": "historical_only",
+          "calibrator_model_ids": [
+            "deepseek-v4-flash",
+            "deepseek-v4-pro"
+          ],
+          "calibration_runs": [
+            "experiments/deepseek_frap_binding_inference_calibration_2026-09-07.json"
+          ],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 57,
+      "head": "43736d7727f94667b0a735ff6246b4d39c9cdbf9",
+      "title": "Add Algorithm/SortingNetworkSize candidate with bound-based scoring",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/ComputerScience/SortingNetworkSize",
+          "task_id": "Algorithm/SortingNetworkSize",
+          "task_type": null,
+          "card_sha256": "97bf656496df7dc18a003a9bd6f8f4303ad2b40faa8b41357596d03281defa23",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 56,
+      "head": "d262d530332dfa1d8971c4cb54369de88aebdb6c",
+      "title": "Add Mathematics/FootballPoolCovering candidate with bound-based scoring",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Mathematics/FootballPoolCovering",
+          "task_id": "Mathematics/FootballPoolCovering",
+          "task_type": null,
+          "card_sha256": "7400074ed311b2cf031f77e433062d9fc1da778b0e40d541247b3b52ba2c4cf1",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 55,
+      "head": "86dcdb767ec678e886dcb3ea774456b36a57fbaa",
+      "title": "Add Paleoclimate/ChronologyAssimilation candidate",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/EarthScience/ChronologyAssimilation",
+          "task_id": "Paleoclimate/ChronologyAssimilation",
+          "task_type": null,
+          "card_sha256": "cc68eb350e2aa6812eca9afa4efb21c65e4a13ad86010accfc8a5048502e8b63",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 53,
+      "head": "95df0854b818a0c9422dd87ace7d4d8b51318e2a",
+      "title": "Add Algorithm/ScalingLawIdentification candidate",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/ComputerScience/ScalingLawIdentification",
+          "task_id": "Algorithm/ScalingLawIdentification",
+          "task_type": null,
+          "card_sha256": "c03fa9784fa942c133132fbb3b4f2e29bf3ef4381010f61ace9bccc1841fb33b",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 52,
+      "head": "0310ab21079dbb0aee55e364cd0a007f47e99216",
+      "title": "Add Mathematics/EllipticCurveRecovery candidate",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Mathematics/EllipticCurveRecovery",
+          "task_id": "Mathematics/EllipticCurveRecovery",
+          "task_type": null,
+          "card_sha256": "4d073ad7224771fa0dc0731da3d63bd534f4a13763e4e5a9db67dcee3ad95191",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 51,
+      "head": "898e28e3b812b36eba02e4b8792a8e28432cd805",
+      "title": "Add WaterDistribution/DistributionNetworkTopology candidate",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Engineering/DistributionNetworkTopology",
+          "task_id": "WaterDistribution/DistributionNetworkTopology",
+          "task_type": null,
+          "card_sha256": "74382344c635107c8aaae8198347b944be7f0d8eea9ff949b324b5fa8e2f78f6",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 48,
+      "head": "4feb3eae885e271de24e83a402d9ecf91be2a7de",
+      "title": "Add Gravitation/TransientChirpInference candidate",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Physics/TransientChirpInference",
+          "task_id": "Gravitation/TransientChirpInference",
+          "task_type": null,
+          "card_sha256": "61ac2e314123d5f3494c8ef65ed4b31d10ffa6c71b409b8bccbb007303889333",
+          "calibration_evidence_status": "current_or_migration_replayed",
+          "calibrator_model_ids": [
+            "deepseek-v4-flash",
+            "deepseek-v4-pro"
+          ],
+          "calibration_runs": [
+            "experiments/transient_chirp_deepseek_calibration_2026-09-07.json",
+            "experiments/transient_chirp_deepseek_review_2026-09-08.json"
+          ],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 47,
+      "head": "30501b1ab634b82b8a45adec7cddbb47baaf67d8",
+      "title": "feat(physics): add F6 spin-glass candidate with exact integer scoring",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Physics/F6SpinGlassGroundState",
+          "task_id": "Physics/F6SpinGlassGroundState",
+          "task_type": null,
+          "card_sha256": "ad01e77e26bfc86cbe909828dcb5930d3274b4891ba95c7740ccb7c2954684ef",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 46,
+      "head": "c713e8be579cc251d517e61eed7a44abd67cd624",
+      "title": "Add Exoplanets/MicrolensingEventCharacterization candidate",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Physics/MicrolensingEventCharacterization",
+          "task_id": "Exoplanets/MicrolensingEventCharacterization",
+          "task_type": null,
+          "card_sha256": "95db765e075d4cf5d1f6ad726b40c2841d2223716d5e6b5d24a57c23ca4e7928",
+          "calibration_evidence_status": "current_or_migration_replayed",
+          "calibrator_model_ids": [
+            "deepseek-v4-flash",
+            "deepseek-v4-pro"
+          ],
+          "calibration_runs": [
+            "experiments/microlensing_deepseek_calibration_2026-09-07.json"
+          ],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 36,
+      "head": "92f0adbf95b72e4b0c1122187502413f264ed828",
+      "title": "feat(tasks): add Chowla, MUB6, and dephrasure candidates",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Mathematics/ChowlaCosineCertificate",
+          "task_id": "Mathematics/ChowlaCosineCertificate",
+          "task_type": null,
+          "card_sha256": "9b6a10427229a2975347cdbae4e87e2e8d4173f844cad63a4e63dd1982183c1a",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Physics/DephrasureCodeDesign",
+          "task_id": "QuantumFoundations/DephrasureCodeDesign",
+          "task_type": null,
+          "card_sha256": "c0e82d9aa2db50013496283da113ab3bdd9691039a2ae7aa6ae7863571bf00d2",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Physics/MutuallyUnbiasedBases6",
+          "task_id": "QuantumFoundations/MutuallyUnbiasedBases6",
+          "task_type": null,
+          "card_sha256": "76571cd8ce9cdfacfbce3f7daab0c546c35c0a03a54e689d5b570895da4a2f95",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 31,
+      "head": "92c5d38c8006b375e0b9d71c02620c1b8f345a19",
+      "title": "feat(tasks): add queens primal and mixed-moment SOS candidates",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Engineering/MiplibPrimalIncumbent",
+          "task_id": "DiscreteOptimization/MiplibPrimalIncumbent",
+          "task_type": null,
+          "card_sha256": "fc877096d2a7ab2a0565ea9d4acc5a1c6426d87825a5a2d91eec7cdac485d5a7",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 30,
+      "head": "90366563a7605e8f6eb6226200b1463615419b4a",
+      "title": "feat(tasks): add coupled affine-loop ranking certificate candidate",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/ComputerScience/AffineLoopRankingCertificate",
+          "task_id": "ScientificComputing/AffineLoopRankingCertificate",
+          "task_type": null,
+          "card_sha256": "11673e8760663236f36980102f5f300d443507002971ebe8ff8360ba31151ed0",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 29,
+      "head": "ef719091606846b27c8ae604178b1d414f60941e",
+      "title": "feat(tasks): add Glen flow-law discovery candidate",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/EarthScience/GlenFlowLawDiscovery",
+          "task_id": "Glaciology/GlenFlowLawDiscovery",
+          "task_type": null,
+          "card_sha256": "92e9365fc64a01f19a81c5f3ed7466f81bfcf2ab4e72178068a3b72c66e0b8c4",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 27,
+      "head": "609b8ae8d5fb06686e921aa927d376c2b769ff5a",
+      "title": "feat(tasks): add exact Lyapunov decay certificate candidate",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Engineering/LyapunovDecayCertificate",
+          "task_id": "ControlTheory/LyapunovDecayCertificate",
+          "task_type": null,
+          "card_sha256": "738b4bea26ede859e2b98bd305ebdf97d96d3c0fb06090de781870dbc6ea5d88",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 26,
+      "head": "76876ebff03a37ce1ad2fe76cf3d859c29164bc1",
+      "title": "feat(tasks): add Chemistry falloff and diblock discovery candidates",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Chemistry/DiblockMorphologyDiscovery",
+          "task_id": "PolymerScience/DiblockMorphologyDiscovery",
+          "task_type": null,
+          "card_sha256": "4b1fc240ecbcc2f6c803fb35339587ab47796490a87873bf48e448b5344ec44b",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Chemistry/UnimolecularFalloffLaw",
+          "task_id": "ChemicalKinetics/UnimolecularFalloffLaw",
+          "task_type": null,
+          "card_sha256": "c657a34490fbc834569f3716f27dbabdfe46433665db3c3d86657a7460607ef6",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 22,
+      "head": "b794555695de612329a6ca80f74409ce3d5477a7",
+      "title": "Add 4 Chemistry/Biology candidates (split from #9)",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Biology/HodgkinHuxleyCurrentID",
+          "task_id": "Electrophysiology/HodgkinHuxleyCurrentID",
+          "task_type": null,
+          "card_sha256": "c8a6236cc55e439a5c834f8a7c2c346b46d06c100e2df007c8b3d9d22b6c27bf",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Chemistry/ChronoamperometryLawID",
+          "task_id": "Electrochemistry/ChronoamperometryLawID",
+          "task_type": null,
+          "card_sha256": "474f8b6be31077d70e3a5e453957231d302d8aef298645842f3bdb17fafc0adf",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Chemistry/MassFragmentationTree",
+          "task_id": "Spectroscopy/MassFragmentationTree",
+          "task_type": null,
+          "card_sha256": "549fe2922b1129c931fafabb94b8da072aa0a9a5722b460dc31282ecd25150a1",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Chemistry/ThermochemicalCycleAudit",
+          "task_id": "ChemicalProcess/ThermochemicalCycleAudit",
+          "task_type": null,
+          "card_sha256": "9cf319ec72ab1c79a298785d4440255e87838406760f4598bc0042671e2bf26c",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 21,
+      "head": "5a4972eab5506dc03a000f97342cecda45fd8547",
+      "title": "Add 2 Engineering candidates (split from #9)",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Engineering/CompositeLaminateStacking",
+          "task_id": "AerospaceStructures/CompositeLaminateStacking",
+          "task_type": null,
+          "card_sha256": "32af2297b092cbbd59e8d8965140dec6e6efd33395c84a7035a1002056d71362",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Engineering/WakeAwareFarmCoDesign",
+          "task_id": "WindEnergy/WakeAwareFarmCoDesign",
+          "task_type": null,
+          "card_sha256": "8fa3ff8b6f90adb7bfbb87e4c8a794a4fc144c13d2e0790672a9c09c7d5f5b67",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 20,
+      "head": "33b0ab0c6717354e2ecb8fc9657b42fa8facd641",
+      "title": "Add WavePropagation/ActiveFullWaveformInversion candidate",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/EarthScience/ActiveFullWaveformInversion",
+          "task_id": "WavePropagation/ActiveFullWaveformInversion",
+          "task_type": null,
+          "card_sha256": "c5c6432b3654a5963c5439bb465845f88526863bd98f56e249c523078a8c3208",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 18,
+      "head": "97d01c359f9c55dbae36b8de6e60464a3ee7fe08",
+      "title": "feat(tasks): add Golden Gate assembly frontier candidate",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Biology/GoldenGateAssemblyFrontier",
+          "task_id": "SyntheticBiology/GoldenGateAssemblyFrontier",
+          "task_type": null,
+          "card_sha256": "e24e01a34b96e917855fbbc536c3051ae50bfa584e0cbace8228a5b11e545192",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 17,
+      "head": "5bf41028801cb02800ffdcc8f2102c10b8b371d3",
+      "title": "feat(frontier): add trusted lifetime credit framework",
+      "is_draft": true,
+      "changed_tasks": [],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 16,
+      "head": "d586ef76b5c9735419e5ee63d27a049ec069594c",
+      "title": "feat(tasks): add two clipped Chemistry frontier candidates",
+      "is_draft": true,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Chemistry/OpenVocabularyReactionNetworkDiscovery",
+          "task_id": "ChemicalKinetics/OpenVocabularyReactionNetworkDiscovery",
+          "task_type": null,
+          "card_sha256": "75a24eaf6142b2f812f8de980bef51b94dfc239be4b31a4897592bb5eae8110f",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Chemistry/ProcessMicrostructurePropertyDesign",
+          "task_id": "MaterialsScience/ProcessMicrostructurePropertyDesign",
+          "task_type": null,
+          "card_sha256": "b5b5481ce3f3a798d4aa08c1881fb930a09f2016f0422683861d0f07d677687d",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 15,
+      "head": "4c1dbcaf5b47b151e9a6e0ff8e28fcff88a3da2b",
+      "title": "Add KissingNumber dims 5-6 and seven new candidate tasks from HorizonMath",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Mathematics/AutocorrelationSequence",
+          "task_id": "Mathematics/AutocorrelationSequence",
+          "task_type": null,
+          "card_sha256": "c1e82ad4e2959a7e81704cc42eb757aea18e8940b34824246a1eb704a7d10a5e",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Mathematics/BinaryCodeRecords",
+          "task_id": "Mathematics/BinaryCodeRecords",
+          "task_type": null,
+          "card_sha256": "73079d1bae2bc3cd09654c82c68a522a7b48f07bca2c33f36a37320c77570a92",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Mathematics/ConstantWeightCode",
+          "task_id": "Mathematics/ConstantWeightCode",
+          "task_type": null,
+          "card_sha256": "4585850fd9d06b8e6bc620caa40360ad0553467fb3ea43a2314b45e70077372f",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Mathematics/CoveringDesignBlocks",
+          "task_id": "Mathematics/CoveringDesignBlocks",
+          "task_type": null,
+          "card_sha256": "94bd16145b47db943532c3006e2c59e97cfb4805d9d740f22344be5f3c51747e",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Mathematics/DifferenceBasisRatio",
+          "task_id": "Mathematics/DifferenceBasisRatio",
+          "task_type": null,
+          "card_sha256": "ef6e7a989c9ceb65f7ac5471b5ca6c6cd4f1c311e9f5317f22f21f8a3aa24442",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Mathematics/KissingNumber",
+          "task_id": "Mathematics/KissingNumber",
+          "task_type": null,
+          "card_sha256": "bcf1fe8b83bb4b57f8d6bce0bb1b47a4fe745497e0479b91ba2b4a28ae163574",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Mathematics/MeritFactorSequence",
+          "task_id": "Mathematics/MeritFactorSequence",
+          "task_type": null,
+          "card_sha256": "6e2e29926d699781969847f158a55aa1658d5d95ad61b14b66f821c29483885c",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        },
+        {
+          "package": "benchmarks/Mathematics/TammesSphericalCode",
+          "task_id": "Mathematics/TammesSphericalCode",
+          "task_type": null,
+          "card_sha256": "ca88c4bf7884b263d78dd7240e41ff3f5ecf7c0fe71d3b3c1681b59a316989c2",
+          "calibration_evidence_status": "missing",
+          "calibrator_model_ids": [],
+          "calibration_runs": [],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    },
+    {
+      "pr": 11,
+      "head": "f56031a1363aaee41e5883617758a7daea9a85d4",
+      "title": "feat(Physics): add transit timing variation attribution task",
+      "is_draft": false,
+      "changed_tasks": [
+        {
+          "package": "benchmarks/Physics/TransitTimingAttribution",
+          "task_id": "Exoplanets/TransitTimingAttribution",
+          "task_type": null,
+          "card_sha256": "e94f4329c4e16706f0f971e0f4c38a8231919cfdad1ffc82592688fea747cedc",
+          "calibration_evidence_status": "historical_only",
+          "calibrator_model_ids": [
+            "deepseek-v4-flash",
+            "deepseek-v4-pro"
+          ],
+          "calibration_runs": [
+            "experiments/transit_timing_deepseek_flash_2026-09-05.json",
+            "experiments/transit_timing_deepseek_calibration_2026-09-06.json"
+          ],
+          "frozen_before_eval": false,
+          "shortcut_contract_present": false,
+          "reference_expected_score": null,
+          "status": "declaration_only_unverified"
+        }
+      ],
+      "head_review_scope": "read-only changed task-card declarations at exact remote head; no oracle execution or model evidence validation"
+    }
+  ]
+}

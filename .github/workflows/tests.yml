@@ -16,10 +16,16 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   sandbox:
     runs-on: ubuntu-22.04
+    env:
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      NUMEXPR_NUM_THREADS: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,9 +44,20 @@ jobs:
         run: |
           /usr/bin/python3 --version
           sudo /usr/bin/python3 -m pip install --upgrade pip
-          sudo /usr/bin/python3 -m pip install "numpy==1.24.4" "scipy==1.10.1" pyyaml pytest
+          # The required world-isolation tests generate real oracle worlds before probing
+          # CandidateProxy. Their trusted-parent dependencies must exist on a fresh runner.
+          # Match the tested g450 versions, including nmrsim's sparse/plotting dependency
+          # chain; this does not change any task's candidate-package allowlist or mounts.
+          sudo /usr/bin/python3 -m pip install \
+            "numpy==1.24.4" "scipy==1.10.1" pyyaml pytest \
+            "nmrsim==0.6.0.post1" "qutip==4.7.6" "networkx==3.1" "sympy==1.13.3" \
+            "mpmath==1.3.0" "sparse==0.15.5" "numba==0.58.1" "llvmlite==0.41.1" \
+            "matplotlib==3.7.5" "packaging==24.2" "contourpy==1.1.1" "cycler==0.12.1" \
+            "fonttools==4.57.0" "kiwisolver==1.4.7" "pillow==10.4.0" "pyparsing==3.1.4" \
+            "python-dateutil==2.9.0.post0" "six==1.17.0"
           # The sandbox resolves site-packages for the interpreter it execs; prove they are there.
           /usr/bin/python3 -c "import numpy, scipy, yaml; print(numpy.__file__)"
+          /usr/bin/python3 -c "import nmrsim, qutip, networkx, sympy, sparse, numba, llvmlite"
       - name: Inventory and card audits
         run: |
           /usr/bin/python3 scripts/audit_tasks.py --output /tmp/certification.json
@@ -48,12 +65,39 @@ jobs:
       - name: Test suite
         # The exit code is the gate. Never pipe this into anything.
         #
-        # SLE_REQUIRE_FROZEN_INVENTORY is set on main and not on a pull request. The frozen
+        # SLE_REQUIRE_FROZEN_INVENTORY is set on maintainer pushes/manual runs and same-repository PRs.
+        # Fork contributions may arrive before the maintainer refreshes frozen evidence. The frozen
         # certification and baseline documents can only be regenerated on a Linux host with the
         # candidate sandbox, by a maintainer, so a task PR necessarily arrives with its tasks
-        # outside them. Failing the contributor's run for that tests nothing about their work and
+        # outside them. Failing a fork contributor's run for that tests nothing about their work and
         # trains everyone to ignore a red check. Failing main for it is exactly right: by then
-        # the refresh is the maintainer's own step, and skipping it is the regression.
+        # the refresh is the maintainer's own step, and skipping it is the regression. Maintainer
+        # integration branches must pass that same check before they reach main.
         env:
-          SLE_REQUIRE_FROZEN_INVENTORY: ${{ github.ref == 'refs/heads/main' && '1' || '0' }}
-        run: /usr/bin/python3 -m pytest tests/ -q -p no:cacheprovider
+          SLE_REQUIRE_FROZEN_INVENTORY: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && '1' || '0' }}
+        run: /usr/bin/python3 -m pytest tests/ -q -p no:cacheprovider --junitxml=/tmp/sle-tests.xml
+      # Keep the fixed admission/isolation list separate from historical checks that need private runs.
+      # Missing or skipped required tests fail coverage even if pytest otherwise exits successfully.
+      - name: Report executed and unavailable checks
+        if: always()
+        run: |
+          /usr/bin/python3 scripts/summarize_test_coverage.py --junit /tmp/sle-tests.xml \
+            --required-tests .github/required_admission_tests.json \
+            --output /tmp/sle-test-coverage.json --markdown-output /tmp/sle-test-coverage.md
+      - name: Publish coverage summary
+        if: always()
+        run: |
+          if [ -f /tmp/sle-test-coverage.md ]; then
+            cat /tmp/sle-test-coverage.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Test execution evidence unavailable; inspect the failed setup or test step.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Preserve execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-execution-evidence
+          path: |
+            /tmp/sle-tests.xml
+            /tmp/sle-test-coverage.json
+          if-no-files-found: error

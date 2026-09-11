@@ -6,12 +6,13 @@ from pathlib import Path
 
 from sle.certification import certification_status
 from sle.registry import list_tasks
-from scripts.audit_tasks import LINEAGE_STATUSES, _task_card_issues, audit
+from scripts.audit_tasks import LINEAGE_STATUSES, _normalized_oracle, _task_card_issues, audit
 
 # Tasks built inside this repository, whose builder model, scaffold and red-team history are
 # recorded on the card rather than reconstructed after the fact. Everything else is inherited.
 RECORDED_LINEAGE = {
     "Ecology/OccupancyDetectionDesign",
+    "DataPrivacy/SparseVectorAudit",
     "Physics/CriticalPhenomenaLab",
     "SystemsBiology/EnzymeKineticsLaw",
     "ParticlePhysics/DiscrepantMeasurements",
@@ -56,6 +57,18 @@ RECORDED_LINEAGE = {
 
 
 class TaskCardAuditTests(unittest.TestCase):
+    def test_oracle_comparison_ignores_only_text_docstrings(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "evaluator.py"
+            body = "def evaluate(solver):\n    return solver()\n"
+            path.write_text(body)
+            bare = _normalized_oracle(path)
+            path.write_text('"A different scientific description."\n' + body)
+            self.assertEqual(_normalized_oracle(path), bare)
+            for expression in ('b"bytes are not a docstring"', '42', 'True'):
+                path.write_text(expression + "\n" + body)
+                self.assertNotEqual(_normalized_oracle(path), bare)
+
     def test_every_nonquarantined_task_has_a_valid_card(self):
         checked = 0
         for spec in list_tasks(None):
