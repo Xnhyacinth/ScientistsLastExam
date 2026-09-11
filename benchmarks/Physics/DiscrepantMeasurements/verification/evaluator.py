@@ -346,6 +346,9 @@ def _evaluate_world(synthesize_evidence, spec, split, index):
         "split_tests_used": 0,
     }
     try:
+        reset = getattr(synthesize_evidence, "reset_session", None)
+        if callable(reset):
+            reset()
         submission = synthesize_evidence(problem, tests)
         estimate, uncertainty, diagnosis, culprit, confidence, abstain = _validate_submission(
             submission)

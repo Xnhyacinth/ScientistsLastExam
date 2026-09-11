@@ -102,6 +102,7 @@ tasks:
   Gravitation/PTAHellingsDowns: {form: discovery, kind: evidence, note: hd_orf_not_lookelsewhere_bump}
   Mathematics/HeavyTailEvidence: {form: discovery, kind: evidence, note: clauset_tails_not_lookelsewhere}
   EvidenceSynthesis/ProspectiveMetaAnalysis: {form: discovery, kind: evidence}
+  DataPrivacy/SparseVectorAudit: {form: discovery, kind: evidence, note: audit_a_claimed_epsilon_delta_from_charged_runs_of_a_deployed_mechanism_not_a_trials_factor_or_a_measurement_conflict}
   # --- discovery / substance --------------------------------------------------
   MaterialsScience/PhaseDiagramDiscovery: {form: discovery, kind: substance}
   Physics/HiddenCouplingNetwork: {form: discovery, kind: structure}

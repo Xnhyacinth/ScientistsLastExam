@@ -4,6 +4,9 @@ import importlib.util
 import unittest
 from pathlib import Path
 
+from scripts.audit_historical_records import audit_named
+from scripts.repo_paths import resolve_run_workdir
+
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "scripts/analyze_calorimeter_v2_calibrations.py"
@@ -312,7 +315,7 @@ class CalorimeterAnalysisTests(unittest.TestCase):
                 (ROOT / relative).read_text(encoding="utf-8")
             )
             raw_paths.append(
-                Path(document["runs"][0]["workdir"]) / "trajectory.jsonl"
+                resolve_run_workdir(document["runs"][0]["workdir"], ROOT) / "trajectory.jsonl"
             )
         if not all(path.is_file() for path in raw_paths):
             self.skipTest("ignored raw trajectories are unavailable")
@@ -322,7 +325,20 @@ class CalorimeterAnalysisTests(unittest.TestCase):
             # The reports are committed; the run directories they point at are not.
             self.skipTest("the runs this analysis reads are not in this checkout: %s"
                           % missing)
-        self.assertTrue(report["execution_passed"])
+        archive = audit_named("calorimeter_v2", ROOT)
+        self.assertEqual(archive["status"], "passed", archive)
+        self.assertEqual(archive["passed_run_count"], 3)
+        self.assertFalse(report["execution_passed"])
+        self.assertFalse(report["trusted_evidence"])
+        self.assertFalse(report["passed"])
+        self.assertFalse(report["input_task_runtime_source_equivalent"])
+        migration = report["input_task_runtime_source_migration"]
+        self.assertFalse(migration["accepted"])
+        self.assertTrue(migration["checks"]["report_hash_matches"])
+        self.assertTrue(migration["checks"]["report_passed_clean"])
+        self.assertFalse(migration["checks"]["runtime_change_scope_matches"])
+        self.assertFalse(migration["checks"]["current_runtime_hashes_match"])
+        self.assertTrue(all(record["integrity_passed"] for record in report["records"].values()))
         self.assertEqual(
             report["proposal_hurdle_summary"]["proposal_count"], 7
         )

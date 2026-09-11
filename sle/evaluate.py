@@ -23,7 +23,7 @@ from .spec import TaskSpec
 # evaluating for exactly that reason; the main path did not, so every `sle eval`, every cohort
 # run and every calibration handed the parent's full environment, API keys included, to
 # contributor code. One list, used by both, so the two cannot drift apart again.
-CREDENTIAL_MARKERS = ("API_KEY", "AUTHORIZATION", "TOKEN")
+CREDENTIAL_MARKERS = ("API_KEY", "AUTHORIZATION", "TOKEN", "SECRET", "PASSWORD", "CREDENTIAL")
 
 
 def without_credentials(environment: dict[str, str]) -> dict[str, str]:
@@ -132,7 +132,8 @@ def evaluate_candidate(
                 pass
             proc.wait()
             return {"combined_score": INVALID_SCORE, "valid": 0.0, "timeout": 1.0,
-                    "error_message": "eval timeout > %ss" % timeout_s}
+                    "error_message": "trusted evaluator supervision timed out",
+                    "infrastructure_failure": 1.0}
         if proc.returncode != 0 or not result_path.is_file():
             if "candidate timeout" in (stderr or ""):
                 return {"combined_score": INVALID_SCORE, "valid": 0.0, "timeout": 1.0,
@@ -143,10 +144,10 @@ def evaluate_candidate(
             # protect - but without it the abort says only "process failure", and two runs died
             # that way under concurrent cohorts with nothing to diagnose from.
             detail = (stderr or "").strip().splitlines()
+            print("trusted evaluator process failure (rc=%s): %s" % (
+                proc.returncode, " | ".join(detail[-3:])[:400] or "no stderr"), file=sys.stderr)
             return {"combined_score": INVALID_SCORE, "valid": 0.0,
-                    "error_message": "trusted evaluator process failure (rc=%s): %s"
-                                     % (proc.returncode, " | ".join(detail[-3:])[:400]
-                                        or "no stderr"),
+                    "error_message": "trusted evaluator process failure",
                     "infrastructure_failure": 1.0}
         try:
             raw = json.loads(result_path.read_text(encoding="utf-8"))
@@ -171,5 +172,7 @@ def evaluate_candidate(
                     }
             return metrics
         except Exception as exc:
+            print("invalid trusted metrics: %s" % exc, file=sys.stderr)
             return {"combined_score": INVALID_SCORE, "valid": 0.0,
-                    "error_message": "invalid trusted metrics: %s" % exc}
+                    "error_message": "invalid trusted metrics",
+                    "infrastructure_failure": 1.0}

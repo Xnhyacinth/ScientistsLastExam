@@ -1,0 +1,308 @@
+{
+  "after_plan": {
+    "artifact_pack_sha256": "4352faecc615a1494f9914f36a884107c084f22b7e823be591d813be0eb4ab81",
+    "model_calls": 0,
+    "planned_calls": 4,
+    "repeats": 2,
+    "reviewer_script_sha256": "dcba3fa3c659a465c5d81531be3b27b2e0389b67b00a5fb5d257a58c67a62631",
+    "runtime_source_sha256": "e29d3b1d7b0e0f9f5b1b09a8c0a45ace098ad8790547d0333c1940e0a421bea9",
+    "source_revision": "69eed8fd3b94c2b1b7fbb8225e734ba022ca0c0d",
+    "tasks": {
+      "StructuralEngineering/TrussWeightMinimization": {
+        "candidate_sha256": "61d1073ad2b6d62ce8fd4a70c2c8dace00082b959f2b554ca9b87e6ca66382bf",
+        "task_contract_sha256": "d65533033f04ee612aac4d5c6c5616d4eb47584976f2edf95311770d5a91c684",
+        "task_package_sha256": "21a72e41ed4f3fd7c63838a3b11fa64fb2bc73eb71bec95c68fe99e408394fb9"
+      },
+      "Thermodynamics/HeatExchangerDesign": {
+        "candidate_sha256": "5ef7f3122546589af264e52a00abb2cf5538aeac991ddcc051ce6198d562dfd8",
+        "task_contract_sha256": "0b3b6ef12661f5d057ddf0819188f0fdc5a7fe9fba10109cbb876d1fb8fb7af6",
+        "task_package_sha256": "dbebeae3e7ebeea513676d9b78929878bc13a1c92143ffa61cd0249c4ef7d868"
+      }
+    },
+    "timeout_s": 300
+  },
+  "before_plan": {
+    "artifact_pack_sha256": "4352faecc615a1494f9914f36a884107c084f22b7e823be591d813be0eb4ab81",
+    "model_calls": 0,
+    "planned_calls": 4,
+    "repeats": 2,
+    "reviewer_script_sha256": "dcba3fa3c659a465c5d81531be3b27b2e0389b67b00a5fb5d257a58c67a62631",
+    "runtime_source_sha256": "8159a99d54894dd304e3ac48956cd05d4389f12a041f5d5d86a2c079641c2c86",
+    "source_revision": "3069479717c2d0db0b040babb42390bdcbb60cb1",
+    "tasks": {
+      "StructuralEngineering/TrussWeightMinimization": {
+        "candidate_sha256": "61d1073ad2b6d62ce8fd4a70c2c8dace00082b959f2b554ca9b87e6ca66382bf",
+        "task_contract_sha256": "cf794ed8ff58324af6509926f4e2364e47a16b6ab8eb2b1a32350852f9d7dea4",
+        "task_package_sha256": "dc4b9e260cf42bbe2a117bf7206e16259d743b56e1c7818b7fcc6dc7d2a2ebeb"
+      },
+      "Thermodynamics/HeatExchangerDesign": {
+        "candidate_sha256": "5ef7f3122546589af264e52a00abb2cf5538aeac991ddcc051ce6198d562dfd8",
+        "task_contract_sha256": "c953e11a6dd7019aa696371a32d452a6c893dca20974644c39b74b05a49ff99e",
+        "task_package_sha256": "944ca6e9ab8ec689a1ae77c8083303af7581884bb8b851151a0b2d6d621d556e"
+      }
+    },
+    "timeout_s": 300
+  },
+  "completed_evaluations": 8,
+  "model_calls": 0,
+  "passed": true,
+  "planned_evaluations": 8,
+  "rows": [
+    {
+      "after": {
+        "candidate_sha256": "61d1073ad2b6d62ce8fd4a70c2c8dace00082b959f2b554ca9b87e6ca66382bf",
+        "task_contract_sha256": "d65533033f04ee612aac4d5c6c5616d4eb47584976f2edf95311770d5a91c684",
+        "task_package_sha256": "21a72e41ed4f3fd7c63838a3b11fa64fb2bc73eb71bec95c68fe99e408394fb9"
+      },
+      "after_records": [
+        {
+          "file_sha256": "ea2642900a2b35b143442be2f9c1f39fd2e74eefe9445bf137d674d63ecc2fe9",
+          "full_metrics_sha256": "48c71bf2f9b0dec5b5e21c499efe3db9e6740e3ede6e2646e1a2b6cfc3ab59a3",
+          "per_instance_sha256": "5210964182f16736e691dd252d9a4acb0cad10655d75f2b53843e94b3c4e34d9",
+          "repeat": 1,
+          "scalar_metric_count": 12,
+          "scalar_metrics": {
+            "combined_score": 0.6114935558376748,
+            "development_score": 0.6114935558376748,
+            "development_validation_gap": 0.07539600270851676,
+            "feasibility_rate": 1.0,
+            "heldout_feasibility_rate": 1.0,
+            "heldout_policy_score": 0.4223478862036328,
+            "heldout_robustness_score": 0.07788103926987092,
+            "mean_shifted_case_feasibility_rate": 0.75,
+            "mean_shifted_constraint_feasibility_rate": 0.9887152777777778,
+            "raw_score": 0.6114935558376748,
+            "robustness_score": 0.5360975531291581,
+            "valid": 1.0
+          },
+          "task": "StructuralEngineering/TrussWeightMinimization",
+          "wall_seconds": 19.396333349868655
+        },
+        {
+          "file_sha256": "ea2642900a2b35b143442be2f9c1f39fd2e74eefe9445bf137d674d63ecc2fe9",
+          "full_metrics_sha256": "48c71bf2f9b0dec5b5e21c499efe3db9e6740e3ede6e2646e1a2b6cfc3ab59a3",
+          "per_instance_sha256": "5210964182f16736e691dd252d9a4acb0cad10655d75f2b53843e94b3c4e34d9",
+          "repeat": 2,
+          "scalar_metric_count": 12,
+          "scalar_metrics": {
+            "combined_score": 0.6114935558376748,
+            "development_score": 0.6114935558376748,
+            "development_validation_gap": 0.07539600270851676,
+            "feasibility_rate": 1.0,
+            "heldout_feasibility_rate": 1.0,
+            "heldout_policy_score": 0.4223478862036328,
+            "heldout_robustness_score": 0.07788103926987092,
+            "mean_shifted_case_feasibility_rate": 0.75,
+            "mean_shifted_constraint_feasibility_rate": 0.9887152777777778,
+            "raw_score": 0.6114935558376748,
+            "robustness_score": 0.5360975531291581,
+            "valid": 1.0
+          },
+          "task": "StructuralEngineering/TrussWeightMinimization",
+          "wall_seconds": 19.678592471405864
+        }
+      ],
+      "before": {
+        "candidate_sha256": "61d1073ad2b6d62ce8fd4a70c2c8dace00082b959f2b554ca9b87e6ca66382bf",
+        "task_contract_sha256": "cf794ed8ff58324af6509926f4e2364e47a16b6ab8eb2b1a32350852f9d7dea4",
+        "task_package_sha256": "dc4b9e260cf42bbe2a117bf7206e16259d743b56e1c7818b7fcc6dc7d2a2ebeb"
+      },
+      "before_records": [
+        {
+          "file_sha256": "ea2642900a2b35b143442be2f9c1f39fd2e74eefe9445bf137d674d63ecc2fe9",
+          "full_metrics_sha256": "48c71bf2f9b0dec5b5e21c499efe3db9e6740e3ede6e2646e1a2b6cfc3ab59a3",
+          "per_instance_sha256": "5210964182f16736e691dd252d9a4acb0cad10655d75f2b53843e94b3c4e34d9",
+          "repeat": 1,
+          "scalar_metric_count": 12,
+          "scalar_metrics": {
+            "combined_score": 0.6114935558376748,
+            "development_score": 0.6114935558376748,
+            "development_validation_gap": 0.07539600270851676,
+            "feasibility_rate": 1.0,
+            "heldout_feasibility_rate": 1.0,
+            "heldout_policy_score": 0.4223478862036328,
+            "heldout_robustness_score": 0.07788103926987092,
+            "mean_shifted_case_feasibility_rate": 0.75,
+            "mean_shifted_constraint_feasibility_rate": 0.9887152777777778,
+            "raw_score": 0.6114935558376748,
+            "robustness_score": 0.5360975531291581,
+            "valid": 1.0
+          },
+          "task": "StructuralEngineering/TrussWeightMinimization",
+          "wall_seconds": 17.615509148687124
+        },
+        {
+          "file_sha256": "ea2642900a2b35b143442be2f9c1f39fd2e74eefe9445bf137d674d63ecc2fe9",
+          "full_metrics_sha256": "48c71bf2f9b0dec5b5e21c499efe3db9e6740e3ede6e2646e1a2b6cfc3ab59a3",
+          "per_instance_sha256": "5210964182f16736e691dd252d9a4acb0cad10655d75f2b53843e94b3c4e34d9",
+          "repeat": 2,
+          "scalar_metric_count": 12,
+          "scalar_metrics": {
+            "combined_score": 0.6114935558376748,
+            "development_score": 0.6114935558376748,
+            "development_validation_gap": 0.07539600270851676,
+            "feasibility_rate": 1.0,
+            "heldout_feasibility_rate": 1.0,
+            "heldout_policy_score": 0.4223478862036328,
+            "heldout_robustness_score": 0.07788103926987092,
+            "mean_shifted_case_feasibility_rate": 0.75,
+            "mean_shifted_constraint_feasibility_rate": 0.9887152777777778,
+            "raw_score": 0.6114935558376748,
+            "robustness_score": 0.5360975531291581,
+            "valid": 1.0
+          },
+          "task": "StructuralEngineering/TrussWeightMinimization",
+          "wall_seconds": 16.790123829618096
+        }
+      ],
+      "full_metrics_sha256": "48c71bf2f9b0dec5b5e21c499efe3db9e6740e3ede6e2646e1a2b6cfc3ab59a3",
+      "metrics_compared": 13,
+      "metrics_moved": [],
+      "per_instance_sha256": "5210964182f16736e691dd252d9a4acb0cad10655d75f2b53843e94b3c4e34d9",
+      "status": "inert",
+      "task": "StructuralEngineering/TrussWeightMinimization"
+    },
+    {
+      "after": {
+        "candidate_sha256": "5ef7f3122546589af264e52a00abb2cf5538aeac991ddcc051ce6198d562dfd8",
+        "task_contract_sha256": "0b3b6ef12661f5d057ddf0819188f0fdc5a7fe9fba10109cbb876d1fb8fb7af6",
+        "task_package_sha256": "dbebeae3e7ebeea513676d9b78929878bc13a1c92143ffa61cd0249c4ef7d868"
+      },
+      "after_records": [
+        {
+          "file_sha256": "b721142e4990e1201c327552d67868fcdab74abf8235751d2a0774f094b8d3ce",
+          "full_metrics_sha256": "88088b0a40121917960c9611ca9f1641476032127efbb515e53d5a6d769abfd1",
+          "per_instance_sha256": "4fa72242e972e562536419ce38119ffee56d28d0c598d5d9e486bc43174f131d",
+          "repeat": 1,
+          "scalar_metric_count": 16,
+          "scalar_metrics": {
+            "combined_score": 0.12605369117948312,
+            "development_exact_score": 0.12605369117948312,
+            "development_false_promotion_rate": 0.041666666666666664,
+            "development_proxy_exact_rank_correlation": 0.9702380952380952,
+            "development_proxy_score": 0.17278642948803255,
+            "feasibility_rate": 0.96875,
+            "heldout_exact_score": 0.2799105449467131,
+            "heldout_false_promotion_rate": 0.125,
+            "heldout_feasibility_rate": 1.0,
+            "heldout_proxy_exact_rank_correlation": 1.0,
+            "heldout_proxy_score": 0.28856627015973413,
+            "heldout_robustness_score": 0.2535595138166759,
+            "heldout_structural_validity_rate": 1.0,
+            "raw_score": 0.12605369117948312,
+            "robustness_score": 0.12965473087328608,
+            "valid": 1.0
+          },
+          "task": "Thermodynamics/HeatExchangerDesign",
+          "wall_seconds": 10.5840186458081
+        },
+        {
+          "file_sha256": "b721142e4990e1201c327552d67868fcdab74abf8235751d2a0774f094b8d3ce",
+          "full_metrics_sha256": "88088b0a40121917960c9611ca9f1641476032127efbb515e53d5a6d769abfd1",
+          "per_instance_sha256": "4fa72242e972e562536419ce38119ffee56d28d0c598d5d9e486bc43174f131d",
+          "repeat": 2,
+          "scalar_metric_count": 16,
+          "scalar_metrics": {
+            "combined_score": 0.12605369117948312,
+            "development_exact_score": 0.12605369117948312,
+            "development_false_promotion_rate": 0.041666666666666664,
+            "development_proxy_exact_rank_correlation": 0.9702380952380952,
+            "development_proxy_score": 0.17278642948803255,
+            "feasibility_rate": 0.96875,
+            "heldout_exact_score": 0.2799105449467131,
+            "heldout_false_promotion_rate": 0.125,
+            "heldout_feasibility_rate": 1.0,
+            "heldout_proxy_exact_rank_correlation": 1.0,
+            "heldout_proxy_score": 0.28856627015973413,
+            "heldout_robustness_score": 0.2535595138166759,
+            "heldout_structural_validity_rate": 1.0,
+            "raw_score": 0.12605369117948312,
+            "robustness_score": 0.12965473087328608,
+            "valid": 1.0
+          },
+          "task": "Thermodynamics/HeatExchangerDesign",
+          "wall_seconds": 10.60657306946814
+        }
+      ],
+      "before": {
+        "candidate_sha256": "5ef7f3122546589af264e52a00abb2cf5538aeac991ddcc051ce6198d562dfd8",
+        "task_contract_sha256": "c953e11a6dd7019aa696371a32d452a6c893dca20974644c39b74b05a49ff99e",
+        "task_package_sha256": "944ca6e9ab8ec689a1ae77c8083303af7581884bb8b851151a0b2d6d621d556e"
+      },
+      "before_records": [
+        {
+          "file_sha256": "b721142e4990e1201c327552d67868fcdab74abf8235751d2a0774f094b8d3ce",
+          "full_metrics_sha256": "88088b0a40121917960c9611ca9f1641476032127efbb515e53d5a6d769abfd1",
+          "per_instance_sha256": "4fa72242e972e562536419ce38119ffee56d28d0c598d5d9e486bc43174f131d",
+          "repeat": 1,
+          "scalar_metric_count": 16,
+          "scalar_metrics": {
+            "combined_score": 0.12605369117948312,
+            "development_exact_score": 0.12605369117948312,
+            "development_false_promotion_rate": 0.041666666666666664,
+            "development_proxy_exact_rank_correlation": 0.9702380952380952,
+            "development_proxy_score": 0.17278642948803255,
+            "feasibility_rate": 0.96875,
+            "heldout_exact_score": 0.2799105449467131,
+            "heldout_false_promotion_rate": 0.125,
+            "heldout_feasibility_rate": 1.0,
+            "heldout_proxy_exact_rank_correlation": 1.0,
+            "heldout_proxy_score": 0.28856627015973413,
+            "heldout_robustness_score": 0.2535595138166759,
+            "heldout_structural_validity_rate": 1.0,
+            "raw_score": 0.12605369117948312,
+            "robustness_score": 0.12965473087328608,
+            "valid": 1.0
+          },
+          "task": "Thermodynamics/HeatExchangerDesign",
+          "wall_seconds": 6.69653151370585
+        },
+        {
+          "file_sha256": "b721142e4990e1201c327552d67868fcdab74abf8235751d2a0774f094b8d3ce",
+          "full_metrics_sha256": "88088b0a40121917960c9611ca9f1641476032127efbb515e53d5a6d769abfd1",
+          "per_instance_sha256": "4fa72242e972e562536419ce38119ffee56d28d0c598d5d9e486bc43174f131d",
+          "repeat": 2,
+          "scalar_metric_count": 16,
+          "scalar_metrics": {
+            "combined_score": 0.12605369117948312,
+            "development_exact_score": 0.12605369117948312,
+            "development_false_promotion_rate": 0.041666666666666664,
+            "development_proxy_exact_rank_correlation": 0.9702380952380952,
+            "development_proxy_score": 0.17278642948803255,
+            "feasibility_rate": 0.96875,
+            "heldout_exact_score": 0.2799105449467131,
+            "heldout_false_promotion_rate": 0.125,
+            "heldout_feasibility_rate": 1.0,
+            "heldout_proxy_exact_rank_correlation": 1.0,
+            "heldout_proxy_score": 0.28856627015973413,
+            "heldout_robustness_score": 0.2535595138166759,
+            "heldout_structural_validity_rate": 1.0,
+            "raw_score": 0.12605369117948312,
+            "robustness_score": 0.12965473087328608,
+            "valid": 1.0
+          },
+          "task": "Thermodynamics/HeatExchangerDesign",
+          "wall_seconds": 6.538036163896322
+        }
+      ],
+      "full_metrics_sha256": "88088b0a40121917960c9611ca9f1641476032127efbb515e53d5a6d769abfd1",
+      "metrics_compared": 17,
+      "metrics_moved": [],
+      "per_instance_sha256": "4fa72242e972e562536419ce38119ffee56d28d0c598d5d9e486bc43174f131d",
+      "status": "inert",
+      "task": "Thermodynamics/HeatExchangerDesign"
+    }
+  ],
+  "schema_version": 1,
+  "scope": "Only the two predetermined frozen candidate artifacts; full sandbox metrics and per_instance equal before/after. No general equivalence or new model evidence.",
+  "source_reports": [
+    {
+      "file_sha256": "c8c14c3eddfa99a44759a44adf261cb02ba75e4a6d454fc9194f3ded409ed552",
+      "name": "frozen-before-isolation"
+    },
+    {
+      "file_sha256": "587d531439b13cd3e2e378d1e5691df1cdd4247162f4f5e6600273e1a4c8ee77",
+      "name": "frozen-after-isolation"
+    }
+  ]
+}

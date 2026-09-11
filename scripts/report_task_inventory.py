@@ -44,6 +44,7 @@ CHINESE_NAMES = {
     "Catalysis/CatalystDeactivationLab": "催化剂失活实验室",
     "CausalDiscovery/InterventionalSCM": "干预式结构因果模型",
     "CausalDiscovery/SurvivorshipConfoundedDesign": "幸存者偏差下的效应估计",
+    "DataPrivacy/SparseVectorAudit": "稀疏向量技术的差分隐私审计",
     "ChemicalKinetics/ReactionMechanismFitting": "反应机理辨识",
     "ChemicalProcess/DistillationColumnDesign": "精馏塔设计",
     "Chemistry/LennardJonesCluster": "Lennard-Jones 团簇",
@@ -157,6 +158,9 @@ CHINESE_BRIEFS = {
     "CausalDiscovery/SurvivorshipConfoundedDesign": (
         "每一行数据都已被结果相关的筛选选中,在幸存者表里估计真实处理效应",
         "处理效应恢复;混杂开启的伪关联须识别,无 T→Y 边时不得宣称效应"),
+    "DataPrivacy/SparseVectorAudit": (
+        "对一个声称满足 (ε, δ) 差分隐私的稀疏向量技术部署实现做黑盒审计:在运行次数预算内选择相邻查询向量与输出事件,给出违反见证或判定没有违反;实现可能偏离公开规范,且并非每处偏离都构成违反",
+        "见证的精确隐私损失对照构造者锚点评分;损失不超过 ε 的见证记误发现并扣一个世界,分数标尺锚在全拒答为零"),
     "ChemicalKinetics/ReactionMechanismFitting": (
         "自选温度、初始混合与采样时刻,从公开一阶反应库里认出稀疏反应网络与其温度依赖",
         "机制恢复 + 外推;库外世界须拒答"),
@@ -538,22 +542,88 @@ def render(rows: list[dict]) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
+README_START = "<!-- task-inventory:start -->"
+README_END = "<!-- task-inventory:end -->"
+
+
+CHINESE_COUNT_WORDS = {
+    1: "一", 2: "二", 3: "三", 4: "四", 5: "五",
+    6: "六", 7: "七", 8: "八", 9: "九",
+}
+
+
+def render_readme_counts(rows: list[dict]) -> str:
+    forms = Counter(r["form"] for r in rows)
+    statuses = Counter(r["status"] for r in rows)
+    opt_cells = Counter(r["cell"] for r in rows if r["form"] == "optimization")
+    disc_cells = Counter(r["cell"] for r in rows if r["form"] == "discovery")
+    disciplines = sorted({r["discipline"] for r in rows})
+    opt_named = (
+        "engineering_design", "combinatorial", "molecular_design", "certificate_bound",
+    )
+    status_bits = []
+    for status in ("certified", "candidate"):
+        if statuses.get(status):
+            status_bits.append("%d 个 %s" % (statuses[status], status))
+    for status, count in sorted(statuses.items()):
+        if status not in ("certified", "candidate"):
+            status_bits.append("%d 个 %s" % (count, status))
+    lines = [
+        README_START, "",
+        "当前 %d 个任务包,横跨 %d 个学科,%s。" % (
+            len(rows), len(disciplines), "、".join(status_bits)),
+        "这一段的每个数字都由 `tests/test_readme_inventory_counts.py` 对着注册表核,改不动就是改错了。",
+        "",
+        "optimization(%d 个):在受约束的设计空间里把目标做得更好。分%s类:" % (
+            forms["optimization"], CHINESE_COUNT_WORDS[len(opt_named)]),
+        "工程设计(换热器、桁架、薄膜、解码器等 %d 题)、开放组合纪录(圆堆积、cap set、Ramsey、kissing、"
+        % opt_cells["engineering_design"],
+        "张量秩、超排列等 %d 题,无上限)、分子与大分子设计(%d 题)、证书上界(%d 题,产物是可验证的论证本身,"
+        % (opt_cells["combinatorial"], opt_cells["molecular_design"],
+           opt_cells["certificate_bound"]),
+        "分数是论证证明出的界有多强)。",
+        "分数由做出来的东西有多好决定;公开纪录是 score = 1 的见证,不是封顶。",
+        "",
+        "discovery(%d 个):从受预算约束的观测里恢复一个机制,或判断根本没有机制可恢复。"
+        % forms["discovery"],
+        "分五类:公式 %d、结构 %d、证据 %d、物质 %d、参数反演 %d。每题包含三种世界:"
+        % (disc_cells["formula"], disc_cells["structure"], disc_cells["evidence"],
+           disc_cells["substance"], disc_cells["parameter_inversion"]),
+        "机制在候选可表达的模型族内(该找出来)、机制在族外、根本没有机制(后两种该拒答)。",
+        "候选看不到自己面对的是哪一类。",
+        "", README_END,
+    ]
+    return "\n".join(lines)
+
+
+def update_readme_counts(text: str, rows: list[dict]) -> str:
+    if text.count(README_START) != 1 or text.count(README_END) != 1:
+        raise ValueError("README requires exactly one task-inventory marker pair")
+    start, end = text.index(README_START), text.index(README_END) + len(README_END)
+    if end <= start:
+        raise ValueError("README task-inventory markers are out of order")
+    return text[:start] + render_readme_counts(rows) + text[end:]
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--check", action="store_true", help="exit 1 if TASKS.md differs from the registry")
+    ap.add_argument("--check", action="store_true", help="check TASKS.md and README counts")
     ap.add_argument("--output", type=Path, default=OUTPUT)
+    ap.add_argument("--readme", type=Path, default=ROOT / "README.md")
     args = ap.parse_args(argv)
-    content = render(build_rows())
-    if args.check:
-        current = args.output.read_text() if args.output.exists() else ""
-        if current != content:
-            print("%s is stale; run: python scripts/report_task_inventory.py" % args.output.relative_to(ROOT))
-            return 1
-        print("%s is current" % args.output.relative_to(ROOT))
-        return 0
-    args.output.write_text(content)
-    print("wrote %s (%d tasks)" % (args.output.relative_to(ROOT), content.count("| [`")))
-    return 0
+    rows = build_rows()
+    outputs = {args.output: render(rows),
+               args.readme: update_readme_counts(args.readme.read_text(), rows)}
+    stale = []
+    for path, content in outputs.items():
+        if args.check:
+            if not path.is_file() or path.read_text() != content:
+                stale.append(path)
+                print("%s is stale; run: python scripts/report_task_inventory.py" % path)
+        else:
+            path.write_text(content)
+            print("wrote %s" % path)
+    return 1 if stale else 0
 
 
 if __name__ == "__main__":

@@ -276,6 +276,9 @@ def _evaluate_world(attribute, spec, split, index):
     base = {"split": split, "world_index": int(index), "kind": world["kind"],
             "true_scaling_factor": world["beta"], "control_years_used": 0}
     try:
+        reset = getattr(attribute, "reset_session", None)
+        if callable(reset):
+            reset()
         submission = attribute(problem, controls)
         claim, confidence, abstain = _validate_submission(submission)
         if controls.violated:

@@ -398,6 +398,9 @@ def _evaluate_world(discover_kinetics, spec, split, index):
     assay = _Assay(world, ASSAY_BUDGET)
     problem = dict(PUBLIC_PROBLEM)
     try:
+        reset = getattr(discover_kinetics, "reset_session", None)
+        if callable(reset):
+            reset()
         submission = discover_kinetics(problem, assay)
         law, parameters, confidence, abstain = _validate_submission(submission)
         if assay.violated:

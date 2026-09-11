@@ -37,6 +37,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from sle.task_versions import version_class  # noqa: E402
+from scripts.reporting_trajectory import read_events, read_incumbents, trajectory_selection_evidence
 
 # Published list prices per million tokens, used only to report what a comparison cost. Absent
 # for a model means the cost column is blank rather than guessed.
@@ -82,57 +83,88 @@ def known_conditions() -> dict[str, str]:
 
 
 def read_runs(runs_root: Path) -> list[dict]:
+    """Read each run with its recorded selection and comparison conditions."""
     conditions = known_conditions()
     out = []
-    # Recursive, because two drivers write into this tree at different depths: `run_cohort.sh`
-    # puts a run one level down and `batch_evolve.py` nests it by task, algorithm, mode and seed.
-    # A fixed-depth glob finds the first and silently finds nothing in the second, which reads as
-    # a model that was never run rather than as a layout this did not expect. Run identity comes
-    # from the manifest, so depth carries no meaning here anyway.
-    for trajectory in sorted(runs_root.rglob("trajectory.jsonl")):
-        workdir = trajectory.parent
-        manifest = workdir / "run_manifest.json"
-        if not manifest.is_file():
-            continue
+    for manifest in sorted(runs_root.rglob("run_manifest.json")):
+        workdir = manifest.parent
         try:
             document = json.loads(manifest.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        except (OSError, ValueError) as exc:
+            out.append({"status": "invalid_manifest", "run_directory": str(workdir),
+                        "error": "%s: %s" % (manifest, exc)})
             continue
-        rows = []
-        for line in trajectory.read_text(encoding="utf-8").splitlines():
-            if not line.strip():
-                continue
-            try:
-                rows.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
-        proposals = [r for r in rows if int(r.get("step", 0) or 0) > 0]
-        if not proposals:
-            continue
-        scores = [float(r.get("score") or 0.0) for r in proposals if r.get("valid")]
-        usage = {}
-        for row in reversed(rows):
-            if row.get("llm"):
-                usage = row["llm"]
-                break
-        out.append({
-            "task": str(document.get("task_id")),
+        run = {
+            "task": str(document.get("task_id") or "unrecorded"),
             "model": (str((document.get("llm_condition") or {}).get("model") or "")
-                      or conditions.get(str(document.get("llm_condition_sha256") or ""),
-                                        "unrecorded")),
-            "mode": str(document.get("feedback_mode")),
-            "seed": document.get("seed"),
-            "best": max(scores) if scores else 0.0,
-            "valid": len(scores),
-            "proposals": len(proposals),
-            "input_tokens": int(usage.get("input_tokens", 0) or 0),
-            "output_tokens": int(usage.get("output_tokens", 0) or 0),
-            # The equivalence class, not the raw hash: sixteen tasks record two hashes that are
-            # the same task, and comparing on the hash discarded that evidence.
+                      or conditions.get(str(document.get("llm_condition_sha256") or ""), "unrecorded")),
+            "condition": document.get("llm_condition_sha256") or "unrecorded",
+            "runtime": document.get("runtime_source_sha256") or "unrecorded",
+            "algorithm": document.get("algorithm") or "unrecorded",
+            "budget": document.get("budget"),
+            "mode": str(document.get("feedback_mode")), "seed": document.get("seed"),
+            "run_directory": str(workdir.resolve()), "endpoint": "incumbent",
             "contract": version_class(str(document.get("task_id")),
-                                      str(document.get("task_package_sha256") or ""))[:14],
-        })
+                                      str(document.get("task_package_sha256") or "unknown"))[:14],
+            "input_tokens": 0, "output_tokens": 0,
+        }
+        trajectory = workdir / "trajectory.jsonl"
+        try:
+            rows = read_events(trajectory)
+            selected = read_incumbents(trajectory)
+            if not selected:
+                raise ValueError("empty trajectory")
+            proposals = rows[1:]
+            valid = sum(bool(row.get("valid")) for row in proposals)
+            summary_path = workdir / "summary.json"
+            summary = json.loads(summary_path.read_text()) if summary_path.is_file() else {}
+            # ensure_run_manifest does not record the proposal budget. The runner
+            # records it in summary.json; trajectory length is the observed count,
+            # never a substitute for the planned horizon.
+            recorded_budget = summary.get("budget")
+            if run["budget"] is not None and recorded_budget is not None and run["budget"] != recorded_budget:
+                raise ValueError("manifest and summary proposal budgets disagree")
+            if run["budget"] is None:
+                run["budget"] = recorded_budget
+                run["budget_source"] = "summary.json" if recorded_budget is not None else "unrecorded"
+            else:
+                run["budget_source"] = "run_manifest.json"
+            if run["budget"] is not None and (type(run["budget"]) is not int or run["budget"] < 0):
+                raise ValueError("recorded proposal budget must be a nonnegative integer")
+            for field, expected in (("task_id", run["task"]), ("algorithm", run["algorithm"]),
+                                    ("seed", run["seed"]), ("feedback_mode", run["mode"])):
+                if field in summary and summary[field] != expected:
+                    raise ValueError("summary identity differs from manifest: " + field)
+            def usage_total(field):
+                values = [(event.get("llm") or {}).get(field) for event in proposals]
+                return sum(values) if all(type(v) is int and v >= 0 for v in values) else None
+            status = "protocol_incomplete" if summary.get("protocol_incomplete") or not valid else "ok"
+            if status == "ok" and run["budget"] is not None and len(proposals) != run["budget"]:
+                status = "incomplete_proposal_horizon"
+            run.update(
+                status=status,
+                best=float(selected[-1]["score"]), valid=valid, proposals=len(proposals),
+                observed_budget=len(proposals),
+                selection_evidence=trajectory_selection_evidence(rows),
+                input_tokens=usage_total("input_tokens"),
+                output_tokens=usage_total("output_tokens"),
+            )
+        except (OSError, ValueError) as exc:
+            run.update(status="invalid_trajectory", error="%s: %s" % (trajectory, exc))
+        out.append(run)
     return out
+
+
+def comparison_scope(run: dict) -> tuple:
+    return (run["contract"], run["runtime"], run["algorithm"],
+            run["budget"], run.get("observed_budget"), run["endpoint"])
+
+
+def attributable_score_run(run: dict) -> bool:
+    return (run.get("status") == "ok"
+            and all(run.get(field) not in (None, "", "unknown", "unrecorded")
+                    for field in ("model", "condition", "runtime", "algorithm", "contract", "budget"))
+            and run.get("selection_evidence", {}).get("status") == "recorded")
 
 
 def spearman(a: list[float], b: list[float]) -> float | None:
@@ -171,8 +203,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="admission_criterion.json, to compare verdicts as well as scores")
     args = ap.parse_args(argv)
 
-    runs = read_runs(Path(args.runs))
-    models = sorted({r["model"] for r in runs if r["model"] != "unrecorded"})
+    run_records = read_runs(Path(args.runs))
+    runs = [r for r in run_records if attributable_score_run(r)]
+    models = sorted({r["model"] for r in run_records if r.get("model", "unrecorded") != "unrecorded"})
     if len(models) < 2:
         print("only %d model(s) with a recorded condition: %s"
               % (len(models), ", ".join(models) or "none"))
@@ -184,16 +217,15 @@ def main(argv: list[str] | None = None) -> int:
     # change as a model difference - on one task the gap looked like 18x. The hash was recorded
     # all along; nothing was checking it at comparison time.
     contracts: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
-    # Separately over every arm, because a verdict is computed from both arms while the score
-    # ranking uses only the open-loop one. Keying the verdict check off the open-loop map dropped
-    # every task a model had only run under `normal`.
-    all_arm_contracts: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+    scopes = defaultdict(lambda: defaultdict(set))
+    model_conditions = defaultdict(lambda: defaultdict(set))
     for run in runs:
         if run["model"] == "unrecorded":
             continue
-        all_arm_contracts[run["task"]][run["model"]].add(run["contract"])
         if run["mode"] in OPEN_LOOP_MODES:
             contracts[run["task"]][run["model"]].add(run["contract"])
+            scopes[run["task"]][run["model"]].add(comparison_scope(run))
+            model_conditions[run["task"]][run["model"]].add(run["condition"])
 
     # Open-loop score per (model, task, contract), averaged over seeds. The open-loop arm is the
     # right axis for a ranking: it is what the task yields to independent sampling, independent of
@@ -201,14 +233,29 @@ def main(argv: list[str] | None = None) -> int:
     scores: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
     tokens: dict[str, list[tuple[int, int]]] = defaultdict(list)
     validity: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    for run in run_records:
+        if "model" in run:
+            tokens[run["model"]].append((run["input_tokens"], run["output_tokens"]))
     for run in runs:
-        tokens[run["model"]].append((run["input_tokens"], run["output_tokens"]))
         if run["model"] == "unrecorded":
             continue
         if run["mode"] in OPEN_LOOP_MODES:
             scores[run["model"]][run["task"]].append(run["best"])
         validity[run["model"]][run["mode"]].append(
             run["valid"] / run["proposals"] if run["proposals"] else 0.0)
+
+    score_groups = defaultdict(list)
+    for run in runs:
+        if run["mode"] in OPEN_LOOP_MODES:
+            score_groups[(run["task"], run["model"], run["condition"], comparison_scope(run))].append(run)
+    score_rows = [
+        {"task": task, "model": model, "llm_condition_sha256": condition,
+         "task_version": scope[0], "runtime_source_sha256": scope[1], "algorithm": scope[2],
+         "budget": scope[3], "observed_budget": scope[4], "endpoint": scope[5],
+         "n": len(group), "mean": st.mean(run["best"] for run in group),
+         "run_directories": [run["run_directory"] for run in group]}
+        for (task, model, condition, scope), group in score_groups.items()
+    ]
 
     print("=== open-loop score, compared pairwise on shared task versions ===")
     # Pairwise rather than across all models at once. Requiring every model to share a contract
@@ -219,7 +266,11 @@ def main(argv: list[str] | None = None) -> int:
         for task in sorted(set(scores[first]) & set(scores[second])):
             a_contracts = contracts[task][first]
             b_contracts = contracts[task][second]
-            if len(a_contracts) == 1 and a_contracts == b_contracts:
+            a_scopes, b_scopes = scopes[task][first], scopes[task][second]
+            if (len(a_contracts) == 1 and a_contracts == b_contracts
+                    and len(a_scopes) == 1 and a_scopes == b_scopes
+                    and len(model_conditions[task][first]) == 1
+                    and len(model_conditions[task][second]) == 1):
                 out.append(task)
         return out
 
@@ -265,84 +316,96 @@ def main(argv: list[str] | None = None) -> int:
     print("=== cost ===")
     cost_rows = []
     for model in sorted(tokens):
-        total_in = sum(a for a, _ in tokens[model])
-        total_out = sum(b for _, b in tokens[model])
+        total_in = sum(a for a, _ in tokens[model]) if all(a is not None for a, _ in tokens[model]) else None
+        total_out = sum(b for _, b in tokens[model]) if all(b is not None for _, b in tokens[model]) else None
         price = PRICES.get(model)
-        dollars = (total_in / 1e6 * price[0] + total_out / 1e6 * price[1]) if price else None
+        dollars = (total_in / 1e6 * price[0] + total_out / 1e6 * price[1]) if price and total_in is not None and total_out is not None else None
         cost_rows.append({"model": model, "runs": len(tokens[model]),
                           "input_tokens": total_in, "output_tokens": total_out,
                           "estimated_usd": dollars})
-        print("  %-20s %3d runs  in=%9d  out=%9d  %s"
+        print("  %-20s %3d runs  in=%9s  out=%9s  %s"
               % (model[:20], len(tokens[model]), total_in, total_out,
                  "$%.2f" % dollars if dollars is not None else "no published price"))
 
-    verdicts: dict[str, dict[str, str]] = {}
-    stated_versions: dict[str, dict[str, str]] = {}
-    comparable: dict[str, dict[str, str]] = {}
+    verdicts, comparable = {}, {}
+    verdict_rows, ambiguous_legacy_verdicts = [], []
     if args.admission and Path(args.admission).is_file():
         report = json.loads(Path(args.admission).read_text(encoding="utf-8"))
-        for row in report.get("rows", []):
-            model = row.get("model", "unrecorded")
-            # Skip runs recorded before the manifest carried a model. "We do not know which model"
-            # cannot agree or disagree with anything.
+        grouped_legacy = defaultdict(list)
+        by_scope = defaultdict(dict)
+        for source in report.get("rows", []):
+            model = source.get("model", "unrecorded")
             if model == "unrecorded":
                 continue
-            verdicts.setdefault(row["task"], {})[model] = row["verdict"]
-            # The admission report now states which version of the task a verdict was reached
-            # against. Prefer it over the version inferred from the run tree: it is the same
-            # fact, recorded by the report that formed the verdict rather than reconstructed.
-            stated = row.get("task_version")
-            if stated:
-                stated_versions.setdefault(row["task"], {})[model] = str(stated)
-        # Grouped by task version, not filtered on global agreement across every model. An
-        # earlier version required all models to share one version and so dropped a whole task
-        # whenever a third model had run a different one - discarding the claude/gpt-5.5
-        # comparison on six tasks where those two had in fact run the same version.
-        by_version: dict[tuple[str, str], dict[str, str]] = defaultdict(dict)
-        unknown_version = 0
-        for task, per_model in verdicts.items():
-            for model, state in per_model.items():
-                version = stated_versions.get(task, {}).get(model)
-                if version is None:
-                    seen = all_arm_contracts[task][model]
-                    version = next(iter(seen)) if len(seen) == 1 else None
-                if version is None:
-                    unknown_version += 1
-                    continue
-                by_version[(task, version)][model] = state
-        comparable = {"%s @%s" % (task, version): models_here
-                      for (task, version), models_here in by_version.items()
-                      if len(models_here) > 1}
+            row = dict(source)
+            task = row["task"]
+            grouped_legacy[(task, model)].append(row)
+            candidates = [run for run in runs if run["task"] == task and run["model"] == model
+                          and (not row.get("task_version") or run["contract"] == row["task_version"])]
+            for field, run_field in (("task_version", "contract"), ("runtime_source_sha256", "runtime"),
+                                     ("algorithm", "algorithm"), ("budget", "budget"),
+                                     ("llm_condition_sha256", "condition")):
+                if row.get(field) is None:
+                    values = {run[run_field] for run in candidates}
+                    row[field] = next(iter(values)) if len(values) == 1 else None
+            row["endpoint"] = row.get("endpoint") or "incumbent"
+            fields = ("task_version", "runtime_source_sha256", "algorithm", "budget",
+                      "llm_condition_sha256")
+            row["comparison_status"] = (
+                "comparable" if all(row.get(field) not in (None, "", "unknown", "unrecorded")
+                                    for field in fields) else "unresolved_identity")
+            verdict_rows.append(row)
+            if row["comparison_status"] != "comparable":
+                continue
+            scope = (task, row["task_version"], row["runtime_source_sha256"],
+                     row["algorithm"], row["budget"], row["endpoint"])
+            model_condition = model + "@" + row["llm_condition_sha256"]
+            if model_condition in by_scope[scope]:
+                raise ValueError("duplicate admission verdict identity: %s %s" % (scope, model_condition))
+            by_scope[scope][model_condition] = row["verdict"]
+        # Preserve the old convenience view only when no row would be discarded.
+        for (task, model), entries in sorted(grouped_legacy.items()):
+            if len(entries) == 1:
+                verdicts.setdefault(task, {})[model] = entries[0]["verdict"]
+            else:
+                ambiguous_legacy_verdicts.append({"task": task, "model": model, "row_count": len(entries)})
+        comparable = {
+            "%s @%s runtime=%s algorithm=%s budget=%s endpoint=%s" % scope: values
+            for scope, values in by_scope.items()
+            if len({name.rsplit("@", 1)[0] for name in values}) > 1
+        }
         contested = {k: v for k, v in comparable.items() if len(set(v.values())) > 1}
         agreed = {k: v for k, v in comparable.items() if len(set(v.values())) == 1}
-        split = sorted({task for task, _v in by_version
-                        if len({v for t, v in by_version if t == task}) > 1})
+        versions = defaultdict(set)
+        for row in verdict_rows:
+            versions[row["task"]].add(row.get("task_version"))
+        split = [task for task, values in versions.items() if len(values) > 1]
         print()
-        print("=== verdict agreement, within a task version ===")
-        print("  task versions carrying a verdict from more than one model: %d"
-              % len(comparable))
+        print("=== verdict agreement, within task version, runtime, algorithm and budget ===")
         print("  agree: %d   disagree: %d" % (len(agreed), len(contested)))
         if split:
-            print("  %d task(s) exist in more than one version here, so a pair of models that "
-                  "ran\n  different versions of one is not compared on it: %s"
-                  % (len(split), ", ".join(t.split("/")[-1] for t in split[:5])
-                     + (" ..." if len(split) > 5 else "")))
-        if unknown_version:
-            print("  %d verdict(s) skipped: the version they were reached against is not "
-                  "recorded" % unknown_version)
+            print("  tasks carrying more than one version:", ", ".join(sorted(split)))
         for task, per_model in sorted(contested.items()):
-            print("    %-34s %s" % (task.split("/")[-1][:34],
-                                    "; ".join("%s=%s" % kv for kv in sorted(per_model.items()))))
+            print("  %s: %s" % (task, per_model))
 
     Path(args.output).write_text(json.dumps({
-        "schema_version": 1,
+        "schema_version": 2,
+        "endpoint": "incumbent",
+        "run_records": run_records,
+        "excluded_run_count": len(run_records) - len(runs),
         "note": "score ranking and admission verdicts are reported separately; they can disagree",
         "models": models,
         "shared_tasks": shared,
         "pairwise": comparisons,
-        "open_loop_scores": {m: {t: st.mean(v) for t, v in scores[m].items()} for m in scores},
+        "score_rows": score_rows,
+        # Legacy convenience view has a value only where a task/model has one scope.
+        "open_loop_scores": {m: {t: st.mean(v) for t, v in scores[m].items()
+                                  if len(scopes[t][m]) == 1 and len(model_conditions[t][m]) == 1}
+                             for m in scores},
         "cost": cost_rows,
         "verdicts": verdicts,
+        "verdict_rows": verdict_rows,
+        "ambiguous_legacy_verdicts": ambiguous_legacy_verdicts,
         "verdicts_same_version": comparable,
     }, indent=2), encoding="utf-8")
     print()

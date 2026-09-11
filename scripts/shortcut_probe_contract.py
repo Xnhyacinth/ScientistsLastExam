@@ -1,0 +1,136 @@
+"""Execute declared cheap candidates through the same sandbox as submissions.
+
+This checks a measured upper guard; it does not certify difficulty or discover new
+shortcuts. Declarations live in TASK_CARD.yaml, never in a candidate's output.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+from pathlib import Path
+
+import yaml
+
+ROOT = Path(__file__).resolve().parents[1]
+MIGRATION = ROOT / "schemas" / "shortcut_probe_migration.json"
+
+
+def _number(value):
+    return type(value) in (int, float) and math.isfinite(value)
+
+
+def _candidate(root, value):
+    if not isinstance(value, str) or not value or Path(value).is_absolute():
+        raise ValueError("candidate must be a task-relative path")
+    path = (root / value).resolve()
+    try:
+        path.relative_to(root.resolve())
+    except ValueError as exc:
+        raise ValueError("candidate path escapes the task package") from exc
+    if not path.is_file():
+        raise ValueError("candidate must be an existing file within the task package: " + value)
+    if path.suffix != ".py":
+        raise ValueError("candidate must be Python source")
+    return path
+
+
+def validate_contract(contract, task_dir):
+    """Validate structure even when measurements have explicitly not been supplied."""
+    if not isinstance(contract, dict) or contract.get("schema_version") != 1:
+        raise ValueError("shortcut_probe requires schema_version: 1")
+    if contract.get("metric") != "combined_score":
+        raise ValueError("shortcut_probe metric must be combined_score")
+    margin, tolerance = contract.get("relative_margin"), contract.get("score_tolerance")
+    if not _number(margin) or not 0 < margin < 1:
+        raise ValueError("relative_margin must be finite and between zero and one")
+    if not _number(tolerance) or not 0 <= tolerance < 0.05:
+        raise ValueError("score_tolerance must be finite and in [0, 0.05)")
+    probes = contract.get("probes")
+    if not isinstance(probes, list) or not probes:
+        raise ValueError("at least one shortcut probe is required")
+    entries = [contract.get("reference"), *probes]
+    names = set()
+    paths = set()
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict) or "expected_score" not in entry:
+            raise ValueError("every candidate needs an expected_score (null means unmeasured)")
+        if index:
+            name = entry.get("id")
+            if not isinstance(name, str) or not name or name in names:
+                raise ValueError("probe ids must be nonempty and unique")
+            names.add(name)
+        path = _candidate(task_dir, entry.get("candidate"))
+        if path in paths:
+            raise ValueError("reference and probes must name distinct candidates")
+        paths.add(path)
+        if entry["expected_score"] is not None and not _number(entry["expected_score"]):
+            raise ValueError("expected_score must be finite or null")
+    return entries
+
+
+def inspect_probe(spec, evaluate, *, timeout_s=180.0, skip_eval=False):
+    result = {"status": "pending", "passed": False, "observations": [],
+              "scope": "declared shortcut guard only; independent model calibration still required"}
+    try:
+        card = yaml.safe_load((spec.task_dir / "TASK_CARD.yaml").read_text()) or {}
+        if not isinstance(card, dict):
+            raise ValueError("task card root must be a mapping")
+    except (OSError, ValueError, yaml.YAMLError) as exc:
+        result.update(status="failed", detail="cannot read task card: " + str(exc))
+        return result
+    contract = card.get("shortcut_probe")
+    if contract is None:
+        migration = json.loads(MIGRATION.read_text()).get("tasks", {}).get(spec.task_id)
+        result.update(status="migration_pending" if migration else "failed",
+                      detail=migration or "new task is missing TASK_CARD.yaml shortcut_probe")
+        return result
+    try:
+        entries = validate_contract(contract, spec.task_dir)
+    except (ValueError, OSError) as exc:
+        result.update(status="failed", detail=str(exc))
+        return result
+    result["contract_sha256"] = hashlib.sha256(
+        json.dumps(contract, sort_keys=True, allow_nan=False).encode()).hexdigest()
+    if skip_eval:
+        result.update(status="skipped", detail="shortcut candidates were not evaluated")
+        return result
+    errors = []
+    scores = []
+    for index, entry in enumerate(entries):
+        path = _candidate(spec.task_dir, entry["candidate"])
+        observation = {"id": "reference" if index == 0 else entry["id"],
+                       "candidate": entry["candidate"], "expected_score": entry["expected_score"],
+                       "source_sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        try:
+            metrics = evaluate(spec, path, timeout_s=timeout_s)
+            repeat = evaluate(spec, path, timeout_s=timeout_s)
+            score = metrics.get("combined_score")
+            if metrics.get("infrastructure_failure") or repeat.get("infrastructure_failure"):
+                raise ValueError("infrastructure failure is not a probe measurement")
+            if metrics != repeat:
+                raise ValueError("full probe metrics are nondeterministic")
+            if metrics.get("valid") != 1 or not _number(score):
+                raise ValueError("shortcut/reference must be a valid finite-scoring candidate")
+            observation["measured_score"] = score
+            scores.append(score)
+            expected = entry["expected_score"]
+            if expected is not None and abs(score - expected) > contract["score_tolerance"]:
+                raise ValueError("measured score does not match the task-card declaration")
+        except Exception as exc:
+            observation["error"] = str(exc)
+            errors.append(observation["id"] + ": " + str(exc))
+        result["observations"].append(observation)
+    if errors:
+        result.update(status="failed", detail="; ".join(errors))
+    elif any(entry["expected_score"] is None for entry in entries):
+        result.update(status="unmeasured_declaration", detail="record and independently review measured declarations in a separate task-card change")
+    elif scores[0] <= 0:
+        result.update(status="failed", detail="reference must score above zero")
+    else:
+        threshold = scores[0] * (1 - contract["relative_margin"])
+        result.update(reference_score=scores[0], probe_best=max(scores[1:]), threshold=threshold)
+        result["passed"] = max(scores[1:]) < threshold
+        result.update(status="passed" if result["passed"] else "failed",
+                      detail="best declared shortcut must be strictly below the reference margin")
+    return result
