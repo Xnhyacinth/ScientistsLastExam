@@ -96,7 +96,7 @@ def _fixed_instance_shortcut_scan(path: Path) -> dict[str, Any]:
     }
     string_literals = {
         node.value for node in ast.walk(tree)
-        if isinstance(node, ast.Str)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
     }
     forbidden_hits = sorted(forbidden_literals & string_literals)
     source_hits = sorted(term for term in (

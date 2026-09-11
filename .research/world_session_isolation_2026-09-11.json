@@ -1,0 +1,486 @@
+{
+  "schema_version": 1,
+  "scope": "ENGINEERING_WORLD_SESSION_ISOLATION_ONLY",
+  "source": {
+    "base_revision": "3069479717c2d0db0b040babb42390bdcbb60cb1",
+    "before_test_revision": "554d5004891fd7252a643841d88a8835ee0beea4",
+    "fixed_revision": "06246029139b44c8fca10478e07957953ef6e027",
+    "runtime_source_sha256": "8159a99d54894dd304e3ac48956cd05d4389f12a041f5d5d86a2c079641c2c86",
+    "runtime_source_unchanged": true,
+    "fixture_sha256": "28544c40c4f1c2f90f5de9b196d839a19922da36f1fb658c75b2bd2253cc33dc"
+  },
+  "environment": {
+    "host": "g450",
+    "python": "/usr/bin/python3 (3.8.10)",
+    "numpy": "1.24.4",
+    "scipy": "1.10.1",
+    "pytest_target": "/tmp/sle-pytest38-20260911",
+    "numeric_threads": 1,
+    "sandbox": "real CandidateProxy / bubblewrap"
+  },
+  "scope_counts": {
+    "tasks": 20,
+    "world_boundaries": 44,
+    "same_world_test_owned_callbacks": 88,
+    "scientific_evaluate_candidate_calls": 0,
+    "model_draws": 0
+  },
+  "before": {
+    "junit_file": "/tmp/sle-world-isolation-before-20260911.xml",
+    "junit_sha256": "b3e306e302a4dba68f10cff4c95050670f85ed800d13993c7fd8167a9644682f",
+    "counts": {
+      "passed": 0,
+      "failed": 20,
+      "error": 0,
+      "skipped": 0
+    },
+    "tests": [
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_BlackBoxGroupIdentification",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_DiscrepantMeasurements",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_EnzymeKineticsLaw",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_ForcedSignalAttribution",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_GraphFromDistances",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_GravityInversion",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_HamiltonianLearning",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_HeatExchangerDesign",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_HiddenCouplingNetwork",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_InterventionalSCM",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_ModalDamageAttribution",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_NMRSpectrumFitting",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_OccupancyDetectionDesign",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_PhaseDiagramDiscovery",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_RadialVelocityPlanets",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_ReactionMechanismFitting",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_SequenceLawRecovery",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_SpinSystemInference",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_TrussWeightMinimization",
+        "status": "failed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_UPbConcordiaInference",
+        "status": "failed"
+      }
+    ]
+  },
+  "after": {
+    "junit_file": "/tmp/sle-world-isolation-after-20260911.xml",
+    "junit_sha256": "93b34900ac6d6b5a7b7d700355dd6ddea0e7e610c81851e35fb01227583bf66d",
+    "counts": {
+      "passed": 20,
+      "failed": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "tests": [
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_BlackBoxGroupIdentification",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_DiscrepantMeasurements",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_EnzymeKineticsLaw",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_ForcedSignalAttribution",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_GraphFromDistances",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_GravityInversion",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_HamiltonianLearning",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_HeatExchangerDesign",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_HiddenCouplingNetwork",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_InterventionalSCM",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_ModalDamageAttribution",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_NMRSpectrumFitting",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_OccupancyDetectionDesign",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_PhaseDiagramDiscovery",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_RadialVelocityPlanets",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_ReactionMechanismFitting",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_SequenceLawRecovery",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_SpinSystemInference",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_TrussWeightMinimization",
+        "status": "passed"
+      },
+      {
+        "test": "tests.test_world_session_isolation.WorldSessionIsolationTests::test_UPbConcordiaInference",
+        "status": "passed"
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "task_id": "SystemsBiology/EnzymeKineticsLaw",
+      "package": "Biology/EnzymeKineticsLaw",
+      "boundary": "_evaluate_world",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "24849f1f48031f046e8887eb69191d51a75ee069681b03478f995282fa50300f",
+      "fixed_task_package_sha256": "7214fb6b48dac795003e3b8e8933c30e9e446e02f48a2636579ac7f3cfa76fea",
+      "before_evaluator_sha256": "e4e7d761752fadee57536431f7ddf2cef28ef7cbc80b980f90c2c51a6666ee0b",
+      "fixed_evaluator_sha256": "e1db1dbacb7291b3fb4e1d92c199a10f628c977631a9cd226c3fa15b1509fbd4",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "Ecology/OccupancyDetectionDesign",
+      "package": "Biology/OccupancyDetectionDesign",
+      "boundary": "_evaluate_world",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "94c2bb0e4d2a5afc85078ec88837e0c5034dafd14f7d8cc141d549f3ce03dacc",
+      "fixed_task_package_sha256": "344a737c5fbc17ca4963cf96f6dcdedb4b55bed1c87720f1bdb0592bc0e8b85b",
+      "before_evaluator_sha256": "8c1e30c493d606d60b058d5886cf424ff651306e96cede9874316b91f1890841",
+      "fixed_evaluator_sha256": "9710185d57b7723371b07e07adad3299c288681c25246b8b19c420188e134ec0",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "Spectroscopy/NMRSpectrumFitting",
+      "package": "Chemistry/NMRSpectrumFitting",
+      "boundary": "_score_instance",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "692ac37c2a5a164920bf160b0e815861971b24c685014931637acabebff1ac7f",
+      "fixed_task_package_sha256": "964ab0a48f0159bc80203f3ac8adab162f1d85ad3ce73d98e0d6d69217bb0b92",
+      "before_evaluator_sha256": "31ea253065d2bfd8d6b385df2f14f904dc8c16134bfc0db21e2e735ccd830100",
+      "fixed_evaluator_sha256": "44391d8db7fd8c2af2b15277727d737f26dec3aceecd94b4d403e0c23d8c5ebb",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "MaterialsScience/PhaseDiagramDiscovery",
+      "package": "Chemistry/PhaseDiagramDiscovery",
+      "boundary": "_evaluate_world",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "401364f58702e666bac62c9d39c683baded36d32789945b1d13dc8ce082b19ee",
+      "fixed_task_package_sha256": "ab36230e63860d1abe5480ccbf6bfba907344d099b7709654056a84b1eec34a1",
+      "before_evaluator_sha256": "3375858be4fcf3eaeda7d7e02cd0ac2291423eac87a780e65df00980d82821d5",
+      "fixed_evaluator_sha256": "3fa1799f3d1d617f81e27cb4b0c7c7c6d885ebe80567c26e4a964658be5c54a4",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "ChemicalKinetics/ReactionMechanismFitting",
+      "package": "Chemistry/ReactionMechanismFitting",
+      "boundary": "_evaluate_world",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "276034e70cb55040ebc1cf7213f07684f693208d911ab65fad079bce844b6e1c",
+      "fixed_task_package_sha256": "21f674c4ebc1fbd72a8d26ffc199f96fee8b529ac89a3d2d23672fc4336dca3b",
+      "before_evaluator_sha256": "f7a09d422b6b3e7b8dc6e46876ffb01269867efe8312190cb7ed921918873426",
+      "fixed_evaluator_sha256": "f4c5440806521614c9f8f988c041e2c53e925d1278fa8fd2d25b42c4393f64fe",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "Spectroscopy/SpinSystemInference",
+      "package": "Chemistry/SpinSystemInference",
+      "boundary": "_score_split",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "67b2f2a09db6cc3214f634f96c8631b55923b3d5ae91c875c1dd4635323ef1be",
+      "fixed_task_package_sha256": "a5e1d25306db2cbada758183aff519edadce99a0ff5420a4031315eab6b2bfe1",
+      "before_evaluator_sha256": "8b1e8916cebb35b69356237765ba09e61ca08ffcd400009262560036eee0751c",
+      "fixed_evaluator_sha256": "8c8c960b8665f42ffe642ba969f7e4c5ba372d9382d159d351c7f575837fb930",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "Algorithm/GraphFromDistances",
+      "package": "ComputerScience/GraphFromDistances",
+      "boundary": "_score_split",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "5f5a73e7f3f9785984f3d849be889053fd50d4a3ba66890a9cc67343c65bfbc5",
+      "fixed_task_package_sha256": "1dd28eeac5606a5c0acf9e39d6eacaf70cf7923a0c26b816088539af2c9e61a5",
+      "before_evaluator_sha256": "ad53626a843f1e4cae9da424bdc0ed990c47c93938067f1dfd38474b5d9dffb9",
+      "fixed_evaluator_sha256": "01e1030bf3dec980e715edf5f44f1a9b3c795309e64fa260acfe194deb0a01c1",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "CausalDiscovery/InterventionalSCM",
+      "package": "ComputerScience/InterventionalSCM",
+      "boundary": "evaluate",
+      "actual_test_world_boundaries": 6,
+      "before_task_package_sha256": "119b69bf8eed725d718921c094f037218becdf4d17f62b34686a77c39bc2f97a",
+      "fixed_task_package_sha256": "ff6ed0135e25bf8ea9241f71b3eb04719f57ed3db164c3cbb1906d8b5ae81560",
+      "before_evaluator_sha256": "c251ca5fb8f5ea799c767f778e3349aef7d4a55dddf5d2604d161b719e71dfcd",
+      "fixed_evaluator_sha256": "e9af8d41473b2c3d01beeaa5eaec49671a4b6eccbf62c4de2691b0858c2af526",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "ClimateScience/ForcedSignalAttribution",
+      "package": "EarthScience/ForcedSignalAttribution",
+      "boundary": "_evaluate_world",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "e5970601197682bb34c2eabfb8e6bf207a471caa8a5cbd76998ea62176e6d78e",
+      "fixed_task_package_sha256": "07e4fbdbbecca3ba7116ae149d8d0b0b9c2404fdfdb93ce71d42d9eca34087e8",
+      "before_evaluator_sha256": "3fce3ea4f08a259cb0a0d35b1f092ef042a72ece565c18b9121fc0a2f26e49fd",
+      "fixed_evaluator_sha256": "a0c040c76d172a41b6c5da11f7364033b3c5bb3ed79789c4aff75016e3665316",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "Geophysics/GravityInversion",
+      "package": "EarthScience/GravityInversion",
+      "boundary": "_evaluate_world",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "08a3a14cafc51675ec5514ee26826481299e8a01de99158510a0e9de39bd8f55",
+      "fixed_task_package_sha256": "fc01c02e70abb545394ba91ea13899aecc78744b73ca2a01b902d75e7cff2634",
+      "before_evaluator_sha256": "3c587344f5404072762a2fa5f613a13e369fc3abb522df296303244f05c95d8c",
+      "fixed_evaluator_sha256": "73dc52e0b8beb6b68ef44b5871eae82a6b8afc18d889a6b909f2187bbc3f4ad8",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "Geophysics/UPbConcordiaInference",
+      "package": "EarthScience/UPbConcordiaInference",
+      "boundary": "_evaluate_world",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "1429f49fc0ae3817dacf4ec8fd96081e5a0a96b03446e8499672f0e67b936c8a",
+      "fixed_task_package_sha256": "9ba287a85c3cf87420189f35aa5d5b670c2c3c098e94a8b889377de866d61963",
+      "before_evaluator_sha256": "ec8cafd5e99b3925e08b9c0a9d5e7a3874a22fd936035cb98998961e6eeb95b8",
+      "fixed_evaluator_sha256": "9d8542421ce43eeb2a541abbb5426757fbcd75b77bc787d19e96e424aeda70bb",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "Thermodynamics/HeatExchangerDesign",
+      "package": "Engineering/HeatExchangerDesign",
+      "boundary": "_score_instance",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "944ca6e9ab8ec689a1ae77c8083303af7581884bb8b851151a0b2d6d621d556e",
+      "fixed_task_package_sha256": "dbebeae3e7ebeea513676d9b78929878bc13a1c92143ffa61cd0249c4ef7d868",
+      "before_evaluator_sha256": "71ecad6da98a73e446f9840dc0c871895900da52232680ad6525e7557fa64dc6",
+      "fixed_evaluator_sha256": "0139fad11d6a1f4018b9502f2b0dbfb5ba705757aa80ac3592b9c97dd58ea41b",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "StructuralEngineering/ModalDamageAttribution",
+      "package": "Engineering/ModalDamageAttribution",
+      "boundary": "_evaluate_world",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "4699fbb4be1ad1b81f00f2e0fde6b69514bf30129006496f0d70e592277c1226",
+      "fixed_task_package_sha256": "dfb121382533701ea2a9179fb4061f992de85b6fd8ec01432dfdc488807275a9",
+      "before_evaluator_sha256": "e6e5824e61a16a437885fff57e736c5da1bf1086bf6e7f8b93747932afcc43ed",
+      "fixed_evaluator_sha256": "d82e9b430841be4d62cfe101ff53b5c6395624c7e81c9dd56d2d1b168c67e638",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "StructuralEngineering/TrussWeightMinimization",
+      "package": "Engineering/TrussWeightMinimization",
+      "boundary": "_score_instance",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "dc4b9e260cf42bbe2a117bf7206e16259d743b56e1c7818b7fcc6dc7d2a2ebeb",
+      "fixed_task_package_sha256": "21a72e41ed4f3fd7c63838a3b11fa64fb2bc73eb71bec95c68fe99e408394fb9",
+      "before_evaluator_sha256": "fc746deb18f3a3db1ec4b357be90555024b083de9beec86d4ff890cd68306d71",
+      "fixed_evaluator_sha256": "9350dae9fc89aa55baffc53b9cb656cb418030fce958df16a2b7996409187dd7",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "Mathematics/BlackBoxGroupIdentification",
+      "package": "Mathematics/BlackBoxGroupIdentification",
+      "boundary": "_evaluate_world",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "e8839bcbeed9d3815efd155db9e1b0e1a4f3caa1fca43ad85ee3468bc73a2910",
+      "fixed_task_package_sha256": "4e5651ab34613103b221caebbf5463296f6b8af834cc3dcbcc7649fa674b2bc3",
+      "before_evaluator_sha256": "9148441981e1b1a4040dc21e79b87fa9acc9cd4025622ce9d20ea267bad419cc",
+      "fixed_evaluator_sha256": "47d849f313c6223f71c8107cb5bc5ff32376756ff683776e05c76483a2641097",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "Mathematics/SequenceLawRecovery",
+      "package": "Mathematics/SequenceLawRecovery",
+      "boundary": "_score_split",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "aeaa69768b8e3af6f3b342d8f9ffd42ed39c7d09b5a467d33049b34c76087e73",
+      "fixed_task_package_sha256": "3397d29c24755fdc73ff13f70ea24caa8db01b53ff243b880902e5ab8394850b",
+      "before_evaluator_sha256": "5d10e2d93234ba3c6cc36148d2bde00ff63a0cb68eac860eb0eecee4152bbe73",
+      "fixed_evaluator_sha256": "fb9b8b566a08ef7e9c4298449b7cbf034721387eca8a53cf5be88134ba2500b1",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "ParticlePhysics/DiscrepantMeasurements",
+      "package": "Physics/DiscrepantMeasurements",
+      "boundary": "_evaluate_world",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "4dfd144717692cc7e6ca682c0638e31d7307f74872a5594a5a1f388c04e1cb42",
+      "fixed_task_package_sha256": "1ef99224f700fd3f68cebfae1a4413be7b4518121862213d6994eccfffaaad97",
+      "before_evaluator_sha256": "acc5e6a30b94d6fb60a9bd4bd5d5de190d0fa75547355910510a5c2512c7389c",
+      "fixed_evaluator_sha256": "c521ef4e1beb23f087d1594b9b36ae944dcb1cc0e4caa9cfdf77265d525339fc",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "QuantumDynamics/HamiltonianLearning",
+      "package": "Physics/HamiltonianLearning",
+      "boundary": "_score_split",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "3c638577f19bb8e0ff40f0d868af0f47f2e6ce50596d0ab551ea1bea74f7e817",
+      "fixed_task_package_sha256": "48d6e9fa1cf66838ae0e884b467e9c49ddb9bdc7496d584596cb921346c15613",
+      "before_evaluator_sha256": "7b9bf00a78d5f78a6f0851ff34db41bc6b1e3bbe60d00ec2a2ebf9ba2b6072f8",
+      "fixed_evaluator_sha256": "567cf5f16f32c4a732d98e2fb556507340bc784162c411a94262c29fc868fd73",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "Physics/HiddenCouplingNetwork",
+      "package": "Physics/HiddenCouplingNetwork",
+      "boundary": "_evaluate_world",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "3a634c42950939bc2ad031a8aa2fb6f04bf05135cc17be026afe6e1f17755d00",
+      "fixed_task_package_sha256": "7af56700d5747404c8d7ebf63b5f71cefd6fbfedcdbfe2f2db9323b961120e4a",
+      "before_evaluator_sha256": "d9332c27dc4e7a8ced6254a148e479ecc64a6c270ee6027eace96fee5c7b36e8",
+      "fixed_evaluator_sha256": "20f4b7b644b163b6a2b62e14be2e7981d62b478fdbc8d9c325d920cbf3ddc82b",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    },
+    {
+      "task_id": "Exoplanets/RadialVelocityPlanets",
+      "package": "Physics/RadialVelocityPlanets",
+      "boundary": "_score_split",
+      "actual_test_world_boundaries": 2,
+      "before_task_package_sha256": "66215a7c01b0c71020be8ffd1fb24d2c4e667b1f8cbe6bfc89a7fde9fafd0a97",
+      "fixed_task_package_sha256": "ba39ba25aad1fe786b290f31f0f2560406cc0938e36975868eca31fb05e40576",
+      "before_evaluator_sha256": "c07037d376f38fae606265b0290393f7aa6e1b34716aba48ee7331de9ead9e72",
+      "fixed_evaluator_sha256": "3cad4b810f4dc4bb8213c3ee7fea722c3a3d31269dfb7eb21245b2579f74e60b",
+      "task_definition_changed": true,
+      "old_evidence_current_compatibility": "not_established"
+    }
+  ],
+  "limits": [
+    "The engineering adapter gives the real worker only a fixed test-owned state probe/callback, then supplies refusal to the original world scorer. Scores are neither asserted nor published.",
+    "One actual development and held-out world per split task, and all six InterventionalSCM worlds, exercise the shared per-world boundary; this is not a full scientific regrade.",
+    "Old records are preserved. Scientific compatibility requires a separate frozen-artifact replay and audited provenance; no version hash, migration declaration or certification has been changed.",
+    "HeatExchangerDesign and TrussWeightMinimization are in the existing frozen-preflight cohort and require independent frozen-artifact source binding before old evidence can be used for the new task package."
+  ],
+  "same_world_runtime_regression": {
+    "source_revision": "06246029139b44c8fca10478e07957953ef6e027",
+    "junit_file": "/tmp/sle-world-isolation-runtime-final-20260911.xml",
+    "junit_sha256": "4c5aaca8688212a2022563e16ae27b879d880e02bf6b3a356a24a8fcd0b043a1",
+    "counts": {
+      "passed": 1,
+      "failed": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "test": "tests.test_secure_eval.SecureEvaluationTests::test_top_level_instances_get_fresh_process_and_tmpfs_state"
+  },
+  "required_test_coverage": {
+    "tool": "scripts/summarize_test_coverage.py",
+    "required_tests_source": "fixed CASES tuple in tests/test_world_session_isolation.py, mapped to pytest JUnit class identities",
+    "report_sha256": "9026daf5449697def2912fa860985bc54ee578fe76986e95a6fd7bf3bbf1dbeb",
+    "required_tests_count": 20,
+    "counts": {
+      "passed": 20,
+      "failed": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "passed": true,
+    "coverage_complete": true
+  }
+}

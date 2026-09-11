@@ -526,6 +526,9 @@ def _execute_block(payload: dict[str, Any]) -> dict[str, Any]:
                 "evaluated": result.evaluated,
                 "workdir": str(run_dir),
                 "summary": result.summary,
+                "evidence_identity": json.loads(
+                    (run_dir / "run_manifest.json").read_text(encoding="utf-8")
+                ),
                 "trajectory_snapshot": compact_trajectory_snapshot(
                     run_dir / "trajectory.jsonl", schema_version=2
                 ),
@@ -585,7 +588,39 @@ def _latest_runs(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [latest[key] for key in sorted(latest)]
 
 
-def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
+def task_definitions(specs) -> dict[str, dict]:
+    """Freeze analysis classification with the package that was actually scheduled."""
+    import yaml
+    from scripts.report_task_inventory import build_rows
+
+    inventory = {row["task_id"]: row for row in build_rows()}
+    definitions = {}
+    for spec in specs:
+        row = inventory[spec.task_id]
+        card = spec.task_dir / "TASK_CARD.yaml"
+        content = card.read_bytes() if card.is_file() else b""
+        definitions[spec.task_id] = {
+            "discipline": row["discipline"], "form": row["form"],
+            "score_mode": row["score_mode"],
+            "task_package_sha256": task_package_sha256(spec),
+            "task_card_sha256": hashlib.sha256(content).hexdigest() if content else None,
+            "metric_contract": (yaml.safe_load(content) or {}).get("metric_contract"),
+        }
+    return definitions
+
+
+def planned_run_cells(config: dict[str, Any]) -> set[tuple[str, str, str, int]]:
+    from itertools import product
+
+    dimensions = [config[name] for name in ("tasks", "algorithms", "feedback_modes", "seeds")]
+    if any(not values or len(values) != len(set(values)) for values in dimensions):
+        raise ValueError("run plan dimensions must be nonempty and unique")
+    return set(product(*dimensions))
+
+
+def aggregate_runs(
+    runs: list[dict[str, Any]], *, config: dict[str, Any] | None = None
+) -> dict[str, Any]:
     fields = {
         "best_score": lambda run: run["best"],
         "best_so_far_auc": lambda run: run["summary"]["best_so_far_auc"],
@@ -610,6 +645,18 @@ def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
         key = "%s|%s|%s" % (run["task"], run["algorithm"], run["feedback_mode"])
         groups.setdefault(key, []).append(run)
 
+    planned_counts = {key: len(group) for key, group in groups.items()}
+    if config is not None:
+        cells = planned_run_cells(config)
+        observed = {(r["task"], r["algorithm"], r["feedback_mode"], r["seed"]) for r in current}
+        if observed - cells:
+            raise ValueError("observed run is outside the fixed plan")
+        planned_counts = {}
+        for task, algorithm, mode, seed in cells:
+            key = "%s|%s|%s" % (task, algorithm, mode)
+            groups.setdefault(key, [])
+            planned_counts[key] = planned_counts.get(key, 0) + 1
+    scheduled = sum(planned_counts.values())
     by_condition = {}
     for key, group in sorted(groups.items()):
         successful_group = [
@@ -636,10 +683,11 @@ def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
             # scheduled denominator and retry history are retained separately so
             # a recovered condition cannot erase an earlier failure.
             "n": len(successful_group),
-            "scheduled_n": len(group),
+            "scheduled_n": planned_counts[key],
+            **({"missing_runs": planned_counts[key] - len(group)} if config is not None else {}),
             "successful_runs": len(successful_group),
             "terminal_failed_runs": len(group) - len(successful_group),
-            "completion_rate": len(successful_group) / len(group),
+            "completion_rate": len(successful_group) / planned_counts[key],
             "attempt_count": len(group_attempts),
             "failed_attempts": sum(bool(run.get("error")) for run in group_attempts),
             "protocol_incomplete_attempts": sum(
@@ -668,6 +716,8 @@ def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
         for name, getter in fields.items()
     } if successful else {}
     return {
+        "schema_version": 2,
+        "denominator_scope": "fixed_plan" if config is not None else "observed_runs_only_legacy",
         "attempt_count": len(runs),
         "superseded_attempts": len(runs) - len(current),
         "failed_attempts": failed_attempts,
@@ -679,10 +729,11 @@ def aggregate_runs(runs: list[dict[str, Any]]) -> dict[str, Any]:
         "successful_runs": len(successful),
         "failed_runs": len(current) - len(successful),
         "intent_to_evaluate": {
-            "scheduled_runs": len(current),
+            "scheduled_runs": scheduled,
+            **({"missing_runs": scheduled - len(current)} if config is not None else {}),
             "successful_runs": len(successful),
             "terminal_failed_runs": len(current) - len(successful),
-            "completion_rate": len(successful) / len(current) if current else 0.0,
+            "completion_rate": len(successful) / scheduled if scheduled else 0.0,
             "run_cells_with_any_failed_attempt": sum(
                 any(run.get("error") for run in attempts)
                 for attempts in attempts_by_run.values()
@@ -855,6 +906,8 @@ def main(argv: list[str] | None = None) -> int:
     current_environment = {"python": sys.version, "platform": platform.platform()}
     experiment_config = {
         "tasks": [spec.task_id for spec in specs],
+        "task_definitions": task_definitions(specs),
+        "runtime_source_sha256": runtime_source_sha256(),
         "algorithms": algorithms,
         "feedback_modes": feedback_modes,
         "trajectory_snapshot_schema_version": 2,
@@ -941,6 +994,10 @@ def main(argv: list[str] | None = None) -> int:
     document: dict[str, Any]
     if args.resume and output.is_file():
         document = json.loads(output.read_text(encoding="utf-8"))
+        # Legacy reports remain resumable without inventing historical classifications.
+        for field in ("task_definitions", "runtime_source_sha256"):
+            if field not in (document.get("config") or {}):
+                experiment_config.pop(field, None)
         if document.get("config") != experiment_config:
             raise SystemExit("refusing to resume: experiment config does not match the report")
         if document.get("environment") != current_environment:
@@ -1014,7 +1071,7 @@ def main(argv: list[str] | None = None) -> int:
     # Persist the cohort plan and source provenance before any worker can make
     # an LLM call. A process interruption can then be resumed without
     # reconstructing an unrecorded design.
-    document["aggregate"] = aggregate_runs(document.get("runs") or [])
+    document["aggregate"] = aggregate_runs(document.get("runs") or [], config=document["config"])
     atomic_write_text(
         output, json.dumps(document, indent=2, allow_nan=False) + "\n"
     )
@@ -1023,7 +1080,7 @@ def main(argv: list[str] | None = None) -> int:
         for line in result.get("logs") or []:
             print("  " + line, flush=True)
         document.setdefault("runs", []).extend(result.get("entries") or [])
-        document["aggregate"] = aggregate_runs(document["runs"])
+        document["aggregate"] = aggregate_runs(document["runs"], config=document["config"])
         atomic_write_text(
             output, json.dumps(document, indent=2, allow_nan=False) + "\n"
         )
@@ -1062,7 +1119,7 @@ def main(argv: list[str] | None = None) -> int:
                         "completed_at": datetime.now(timezone.utc).isoformat(),
                     })
                     document["aggregate"] = aggregate_runs(
-                        document.get("runs") or []
+                        document.get("runs") or [], config=document["config"]
                     )
                     atomic_write_text(
                         output,
@@ -1080,7 +1137,7 @@ def main(argv: list[str] | None = None) -> int:
                 retain_block(result)
 
     document["completed_at"] = datetime.now(timezone.utc).isoformat()
-    document["aggregate"] = aggregate_runs(document["runs"])
+    document["aggregate"] = aggregate_runs(document["runs"], config=document["config"])
     execution_passed = (
         document["aggregate"]["failed_runs"] == 0
         and document["aggregate"]["successful_runs"] == total

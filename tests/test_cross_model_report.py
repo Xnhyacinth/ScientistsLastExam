@@ -32,11 +32,17 @@ def write_run(root, cohort, name, task, model, mode, seed, scores, usage=(0, 0),
     (workdir / "run_manifest.json").write_text(json.dumps({
         "task_id": task, "feedback_mode": mode, "seed": seed,
         "llm_condition": {"model": model}, "task_package_sha256": contract,
+        "llm_condition_sha256": "condition:" + model,
+        "runtime_source_sha256": "runtime:v1", "algorithm": "greedy_rewrite",
+        "budget": len(scores),
     }), encoding="utf-8")
-    lines = []
+    lines = [json.dumps({"step": 0, "valid": True, "score": 0.0})]
+    best = 0.0
     for index, score in enumerate(scores, start=1):
         lines.append(json.dumps({"step": index, "valid": True, "score": score,
+                                 "accepted": score > best,
                                  "llm": {"input_tokens": usage[0], "output_tokens": usage[1]}}))
+        best = max(best, score)
     (workdir / "trajectory.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 

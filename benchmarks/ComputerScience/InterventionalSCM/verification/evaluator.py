@@ -207,6 +207,9 @@ def evaluate(discover_mechanism):
         truth, order, noise_scales = _make_world(seed, null=world_index == NULL_WORLD)
         laboratory = _Laboratory(seed, truth, order, noise_scales)
         try:
+            reset = getattr(discover_mechanism, "reset_session", None)
+            if callable(reset):
+                reset()
             submission = discover_mechanism(
                 N_VARIABLES, laboratory.observe, laboratory.intervene, BUDGET_UNITS
             )

@@ -29,10 +29,7 @@ sys.path.insert(0, str(ROOT))
 from sle.protocol import compact_trajectory_snapshot, load_trajectory  # noqa: E402
 from sle.provenance import finalize_report_trust, source_provenance  # noqa: E402
 from sle.runtime_migration import runtime_source_changes  # noqa: E402
-from sle.algorithms.common import (  # noqa: E402
-    task_contract_sha256,
-)
-from sle.spec import load_task_spec  # noqa: E402
+from scripts.historical_contract import task_contract_at_revision  # noqa: E402
 
 
 TASK = "EvidenceSynthesis/ProspectiveMetaAnalysis"
@@ -347,7 +344,6 @@ def _load_model(label, relative):
     }
     manifest_path = workdir / "run_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    spec = load_task_spec(ROOT / "benchmarks/Biology/ProspectiveMetaAnalysis")
     best = workdir / "best_program.py"
     terminal = workdir / "solution.py"
     terminal_scan = _scan_retained_source(terminal)
@@ -430,7 +426,11 @@ def _load_model(label, relative):
         and int(manifest.get("seed", -1)) == expected["seed"]
         and manifest.get("llm_condition_sha256")
         == config.get("llm_condition_sha256")
-        and manifest.get("task_contract_sha256") == task_contract_sha256(spec)
+        and manifest.get("task_contract_sha256") == task_contract_at_revision(
+            ROOT, MODEL_SOURCE_REVISION,
+            ["benchmarks/EvidenceSynthesis/ProspectiveMetaAnalysis",
+             "benchmarks/Biology/ProspectiveMetaAnalysis"],
+        )
         and isinstance(manifest.get("runtime_source_sha256"), str)
         and len(manifest["runtime_source_sha256"]) == 64
         and all(char in "0123456789abcdef" for char in manifest["runtime_source_sha256"])
