@@ -155,39 +155,42 @@ def _row(*entries):
     return [_cell(*entry) if isinstance(entry, tuple) else _cell(entry) for entry in entries]
 
 
+# Four switched plants. Each mode is a rational Hurwitz matrix, and the modes of
+# one instance are pairwise non-conjugate under the symmetric group (distinct
+# characteristic polynomials). They are not a permutation orbit of one matrix:
+# C3 averaging does not collapse the common Gram to a cyclic line.
 INSTANCES = (
     {
-        "name": "braid",
+        "name": "plant",
         "mode_matrices": [
-            [_row(-1, (-12, 25), (-36, 125)), _row(0, (-1, 5), (12, 25)), _row(0, 0, -1)],
-            [_row(-1, 0, 0), _row((-36, 125), -1, (-12, 25)), _row((12, 25), 0, (-1, 5))],
-            [_row((-1, 5), (12, 25), 0), _row(0, -1, 0), _row((-12, 25), (-36, 125), -1)],
-            [_row(-1, 0, 0), _row((12, 25), (-1, 5), 0), _row((-36, 125), (-12, 25), -1)],
+            [_row((-1, 5), (4, 5), 0), _row((-2, 5), -1, 0), _row(0, 0, -2)],
+            [_row(-2, 0, 0), _row(0, (-1, 4), (3, 4)), _row(0, (-2, 5), -1)],
+            [_row(-1, 0, (2, 3)), _row(0, (-3, 2), 0), _row((-1, 3), 0, (-1, 6))],
         ],
     },
     {
-        "name": "cycle",
+        "name": "cascade",
         "mode_matrices": [
-            [_row(-1, (-2, 5), (-1, 5)), _row(0, (-1, 5), (2, 5)), _row(0, 0, -1)],
-            [_row((-1, 5), (2, 5), 0), _row(0, -1, 0), _row((-2, 5), (-1, 5), -1)],
-            [_row(-1, 0, 0), _row((-1, 5), -1, (-2, 5)), _row((2, 5), 0, (-1, 5))],
+            [_row((-1, 4), (5, 6), (1, 5)), _row((-1, 4), -1, (2, 5)), _row(0, 0, (-3, 2))],
+            [_row(-1, 0, 0), _row((3, 5), (-1, 5), 0), _row((1, 6), (1, 3), -2)],
+            [_row((-3, 2), (1, 8), 0), _row((-1, 4), (-1, 4), (3, 5)), _row(0, (-1, 5), -1)],
+            [_row(-2, 0, (3, 5)), _row(0, (-5, 4), 0), _row((-1, 6), (1, 4), (-1, 5))],
         ],
     },
     {
-        "name": "twist",
+        "name": "mixed",
         "mode_matrices": [
-            [_row(-1, (-2, 3), (-4, 15)), _row(0, (-1, 6), (1, 3)), _row(0, 0, -1)],
-            [_row((-1, 6), 0, (1, 3)), _row((-2, 3), -1, (-4, 15)), _row(0, 0, -1)],
-            [_row(-1, 0, 0), _row((1, 3), (-1, 6), 0), _row((-4, 15), (-2, 3), -1)],
-            [_row(-1, (-4, 15), (-2, 3)), _row(0, -1, 0), _row(0, (1, 3), (-1, 6))],
+            [_row((-1, 6), (3, 4), 0), _row((-1, 4), -1, 0), _row(0, 0, (-5, 2))],
+            [_row((-5, 2), 0, 0), _row(0, (-1, 5), (2, 3)), _row(0, (-1, 4), -1)],
+            [_row(-1, 0, (5, 8)), _row(0, -2, 0), _row((-1, 4), 0, (-1, 7))],
         ],
     },
     {
-        "name": "cross",
+        "name": "sparse",
         "mode_matrices": [
-            [_row(-1, (2, 5), (-1, 5)), _row(0, (-1, 5), (-2, 5)), _row(0, 0, -1)],
-            [_row(-1, 0, 0), _row((-1, 5), -1, (2, 5)), _row((-2, 5), 0, (-1, 5))],
-            [_row((-1, 5), (-2, 5), 0), _row(0, -1, 0), _row((2, 5), (-1, 5), -1)],
+            [_row((-1, 7), (3, 5), 0), _row((-1, 4), -1, 0), _row(0, 0, -2)],
+            [_row(-2, 0, 0), _row(0, (-1, 8), (2, 3)), _row(0, (-1, 4), (-5, 4))],
+            [_row((-5, 4), 0, (3, 5)), _row(0, -2, 0), _row((-1, 4), 0, (-1, 9))],
         ],
     },
 )

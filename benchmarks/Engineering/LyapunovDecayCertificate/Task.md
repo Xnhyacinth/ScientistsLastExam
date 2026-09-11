@@ -9,8 +9,12 @@ the `P`-norm, **regardless of how the modes switch**. Finding `P` and `alpha` is
 the work; a numerical simulation of one switching signal is not a certificate.
 
 Submit exact rational `P` and `alpha`. Floats are rejected, not rounded: a
-numerical LMI dump is not a proof. After homogeneity `P` still has five free
-entries, so a two-parameter block-diagonal Gram is not a complete search.
+numerical LMI dump is not a proof. Each published instance is a list of
+independent Hurwitz matrices that are not permutation-conjugate, so averaging
+over the cyclic group does not collapse `P` to a one-parameter line. After
+homogeneity the common Gram is a genuinely five-parameter search: a
+cyclic-symmetric ansatz is legal and cheap, and it is not competitive with a
+catalog that shears different planes independently.
 
 ## What you implement
 
@@ -59,6 +63,11 @@ instance zero.
 - Not `QuantumFoundations/BellBoundCertificate`: that is an SOS identity for a
   Bell functional. This is a common quadratic Lyapunov function for ordinary
   differential equations.
+- Not `QuantumFoundations/FourSettingMomentCertificate`: that is a moment-subset
+  SOS bound for a Bell functional. This is a common quadratic Lyapunov function
+  for ordinary differential equations.
+- Not `InformationTheory/ShannonCapacityCertificate`: that sandwiches an open
+  graph capacity. This proves switching-independent ODE decay.
 - Not the retired `DynamicalSystems/LyapunovControl`: that search was a small-N
   controller, saturated, and is not this certificate.
 

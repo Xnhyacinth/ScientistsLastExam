@@ -139,6 +139,14 @@ def _catalog():
         gram[i][j] = gram[j][i] = value
         if _spd(gram):
             grams.append(gram)
+    # Cyclic-symmetric Grams: p11=p22=p33 and p12=p13=p23 ≠ 0. On a
+    # permutation-orbit family these are the group-average line; they remain in
+    # the catalog after the instance family was changed so that line is no
+    # longer competitive.
+    for value in pair_vals:
+        gram = _upper(value, value, 1, value, 1)
+        if _spd(gram):
+            grams.append(gram)
     for p12, p13, p23 in product(
         (Fraction(-1, 2), Fraction(-1, 3), Fraction(0), Fraction(1, 3), Fraction(1, 2)),
         repeat=3,

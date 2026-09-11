@@ -94,7 +94,7 @@ class ExamTaxonomyTests(unittest.TestCase):
         )
         self.assertEqual(
             tax["tasks"]["ControlTheory/LyapunovDecayCertificate"].get("note"),
-            "exact_rational_common_quadratic_lyapunov_not_a_controller",
+            "exact_rational_switched_lyapunov_clipped_not_sos_packing_moment_or_capacity",
         )
 
 

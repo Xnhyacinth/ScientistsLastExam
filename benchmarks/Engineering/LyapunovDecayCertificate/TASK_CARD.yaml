@@ -17,34 +17,51 @@ citations:
 invariants:
 - a valid certificate is a proof, not a simulation of one switching path
 - the identity Gram is a Lyapunov function because every published mode has a negative numerical abscissa, but the proven rate is small
-- a 3-by-3 Gram with couplings in every plane proves a strictly larger rate on the same modes
+- a Gram that shears different planes independently proves a strictly larger rate than the cyclic group-average line
 - floats are rejected rather than rounded
 - malformed submissions score zero and never raise out of the evaluator
 known_shortcuts: >-
-  After the 3-by-3 redesign, checkpoint-12 probes sit below the reference.
-  Identity Gram with exact bisection of alpha: 0.176288. Owner-style 2-parameter
-  block-diagonal grid P=[[1,b,0],[b,d,0],[0,0,1]] with 725 Grams and rational
-  bisection: 0.206533 in 2.0s (1178 (b,d) pairs in the denser scan, same score).
-  The September 9 constant certificate p11=1, p12=-3/5, p22=1, alpha=59/100,
-  padded with p13=p23=0, p33=1, is infeasible on every instance and scores 0.
-  Reference catalog plus Boyd bisection: 0.366560. A 5488-point 5-DOF rational
-  scan reaches 0.458200 in 15s; that gap is leftover catalog headroom, not a
-  2-parameter exploit. Spectral mean ceiling if every instance hit 2|Re λ_max|
-  is about 0.511.
+  After replacing permutation-orbit plants with independent non-conjugate
+  Hurwitz modes, checkpoint-12 probes sit below the reference. Identity Gram
+  with exact bisection of alpha: 0.265909. Group-average then 1-D cyclic line
+  P=I+c(J−I), 14 Grams, den=1000 bisection: 0.265200 in 0.07s (0.61× reference).
+  Owner-style 2-parameter block-diagonal grid P=[[1,b,0],[b,d,0],[0,0,1]] with
+  725 Grams and rational bisection: 0.299867 in 1.5s (0.69×). The September 9
+  constant certificate p11=1, p12=-3/5, p22=1, alpha=59/100, padded with
+  p13=p23=0, p33=1, is infeasible on every instance and scores 0. Reference
+  catalog of 119 Grams including 7 cyclic-symmetric terms, plus Boyd
+  bisection: 0.437715. The cyclic line does not beat identity bisection on
+  this family; adding those 7 catalog Grams does not raise the shipped score.
+shortcut_probe:
+  schema_version: 1
+  metric: combined_score
+  reference:
+    candidate: verification/reference_lyapunov.py
+    expected_score: 0.437715
+  probes:
+  - id: cyclic_group_average_line
+    candidate: references/cyclic_probe.py
+    expected_score: 0.26519975
+  - id: block_diagonal_grid
+    candidate: references/grid_probe.py
+    expected_score: 0.2998665
+  relative_margin: 0.2
+  score_tolerance: 0.000001
 
 review:
   domain: pending_external
   evaluator_security: automated_bad_candidate_crash_sweep_determinism_and_exact_arithmetic_checks
 provenance:
   class: procedural
-  target_source: Repository-visible 3-by-3 switched linear plants with exact rational certificates.
+  target_source: Repository-visible 3-by-3 switched linear plants whose modes are independent non-conjugate Hurwitz matrices with exact rational certificates.
   task_contract_public_before_evaluation: true
   fresh_confirmation_status: not_completed
 novelty_risk:
   level: medium
   rationale: >-
     Common quadratic Lyapunov functions for switched linear systems are textbook LMI material. What is scored is an exact rational certificate of a stated rate, which is not a recalled controller gain and cannot be read from a simulation.
-    Nearest neighbours BellBoundCertificate and SpherePackingCertificate verify rational
+    Nearest neighbours BellBoundCertificate, SpherePackingCertificate,
+    FourSettingMomentCertificate and ShannonCapacityCertificate verify rational
     bounds on different scientific objects; this certificate proves switched ODE decay.
 lineage:
   status: incomplete_legacy
@@ -58,8 +75,10 @@ lineage:
   edits_triggered_by_model: >-
     None. No frontier searcher draw has been run. In-process pins are
     tests/test_lyapunov_decay_certificate.py (identity token rate below the catalog
-    reference; 2-parameter block-diagonal grid and the padded constant certificate
-    cannot beat the reference; floats and 2-by-2 key sets rejected).
+    reference; 2-parameter block-diagonal grid, padded constant certificate, and
+    group-average 1-D cyclic line cannot beat the reference; the cyclic line is
+    below 0.8× reference; published modes are not permutation-conjugate; floats
+    and 2-by-2 key sets rejected).
   shortcut_discoverer: builder_self_audit
   frozen_before_eval: false
   freeze_timestamp: null
@@ -75,4 +94,4 @@ construction_audit:
   expert_hours: null
   red_team_rounds: 1
   oracle_disagreement_status: not_quantified
-  independent_recomputation_status: the reference, the baseline, the exact principal-minor check and the three bad-candidate shapes are all runnable from this directory
+  independent_recomputation_status: the reference, the baseline, the exact principal-minor check, the cyclic group-average line and the three bad-candidate shapes are all runnable from this directory

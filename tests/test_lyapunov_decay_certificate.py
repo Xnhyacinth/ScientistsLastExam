@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+import itertools
 import sys
 import unittest
 from fractions import Fraction
@@ -21,6 +22,31 @@ def _load(path, name):
     return module
 
 
+def _char_poly(mode):
+    trace = mode[0][0] + mode[1][1] + mode[2][2]
+    m01 = mode[0][0] * mode[1][1] - mode[0][1] * mode[1][0]
+    m02 = mode[0][0] * mode[2][2] - mode[0][2] * mode[2][0]
+    m12 = mode[1][1] * mode[2][2] - mode[1][2] * mode[2][1]
+    det = (
+        mode[0][0] * (mode[1][1] * mode[2][2] - mode[1][2] * mode[2][1])
+        - mode[0][1] * (mode[1][0] * mode[2][2] - mode[1][2] * mode[2][0])
+        + mode[0][2] * (mode[1][0] * mode[2][1] - mode[1][1] * mode[2][0])
+    )
+    return (Fraction(1), -trace, m01 + m02 + m12, -det)
+
+
+def _permute(mode, perm):
+    return [[mode[perm[i]][perm[j]] for j in range(3)] for i in range(3)]
+
+
+def _is_cyclic(gram):
+    return (
+        gram[0][0] == gram[1][1] == gram[2][2]
+        and gram[0][1] == gram[0][2] == gram[1][2]
+        and gram[0][1] != 0
+    )
+
+
 class LyapunovDecayCertificateTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -33,6 +59,9 @@ class LyapunovDecayCertificateTests(unittest.TestCase):
             TASK / "references/constant_probe.py", "lyapunov_constant"
         )
         cls.grid = _load(TASK / "references/grid_probe.py", "lyapunov_grid")
+        cls.cyclic = _load(
+            TASK / "references/cyclic_probe.py", "lyapunov_cyclic"
+        )
 
     def test_instances_are_three_dimensional(self):
         for instance in self.evaluator.INSTANCES:
@@ -45,6 +74,16 @@ class LyapunovDecayCertificateTests(unittest.TestCase):
             public = self.evaluator.public_instance(instance)
             self.assertEqual(public["state_dimension"], 3)
 
+    def test_published_modes_are_not_permutation_conjugates(self):
+        for instance in self.evaluator.INSTANCES:
+            modes = self.evaluator._parse_modes(instance["mode_matrices"])
+            polys = [_char_poly(mode) for mode in modes]
+            with self.subTest(instance=instance["name"]):
+                self.assertEqual(len(set(polys)), len(polys))
+                for left, right in itertools.combinations(modes, 2):
+                    for perm in itertools.permutations(range(3)):
+                        self.assertNotEqual(_permute(left, perm), right)
+
     def test_identity_is_a_lyapunov_function_but_a_shear_proves_more(self):
         instance = self.evaluator.INSTANCES[0]
         modes = self.evaluator._parse_modes(instance["mode_matrices"])
@@ -55,14 +94,16 @@ class LyapunovDecayCertificateTests(unittest.TestCase):
         ]
         holds, _ = self.evaluator.certificate_holds(modes, identity, Fraction(1, 10000))
         self.assertTrue(holds)
-        fails, _ = self.evaluator.certificate_holds(modes, identity, Fraction(1, 2))
+        fails, _ = self.evaluator.certificate_holds(modes, identity, Fraction(2, 5))
         self.assertFalse(fails)
+        # Two distinct planes, not the cyclic line p12=p13=p23.
         sheared = [
-            [Fraction(1), Fraction(1, 3), Fraction(1, 3)],
-            [Fraction(1, 3), Fraction(4, 3), Fraction(1, 3)],
-            [Fraction(1, 3), Fraction(1, 3), Fraction(4, 3)],
+            [Fraction(1), Fraction(1, 3), Fraction(-1, 2)],
+            [Fraction(1, 3), Fraction(1), Fraction(0)],
+            [Fraction(-1, 2), Fraction(0), Fraction(1)],
         ]
-        better, _ = self.evaluator.certificate_holds(modes, sheared, Fraction(1, 5))
+        self.assertFalse(_is_cyclic(sheared))
+        better, _ = self.evaluator.certificate_holds(modes, sheared, Fraction(2, 5))
         self.assertTrue(better)
 
     def test_reference_optimizes_rate_for_its_returned_gram(self):
@@ -79,6 +120,11 @@ class LyapunovDecayCertificateTests(unittest.TestCase):
         self.assertFalse(
             self.evaluator.certificate_holds(modes, gram, rate + Fraction(1, 10000))[0]
         )
+
+    def test_catalog_contains_cyclic_symmetric_grams(self):
+        cyclic = [gram for gram in self.reference.CATALOG if _is_cyclic(gram)]
+        self.assertGreater(len(cyclic), 0)
+        self.assertLess(len(cyclic), len(self.reference.CATALOG))
 
     def test_public_modes_do_not_alias_the_oracle_instances(self):
         instance = self.evaluator.INSTANCES[0]
@@ -120,14 +166,20 @@ class LyapunovDecayCertificateTests(unittest.TestCase):
         self.assertGreater(reference["combined_score"], 0.3)
         self.assertLess(reference["combined_score"], 0.8)
 
-    def test_constant_and_two_param_grid_cannot_beat_reference(self):
+    def test_constant_grid_and_cyclic_line_cannot_beat_reference(self):
         reference = self.evaluator.evaluate(self.reference.build_lyapunov)
         constant = self.evaluator.evaluate(self.constant.build_lyapunov)
         grid = self.evaluator.evaluate(self.grid.build_lyapunov)
+        cyclic = self.evaluator.evaluate(self.cyclic.build_lyapunov)
         self.assertGreater(reference["combined_score"], constant["combined_score"])
         self.assertGreater(reference["combined_score"], grid["combined_score"])
         self.assertGreater(
             reference["combined_score"] - grid["combined_score"], 0.05
+        )
+        self.assertEqual(cyclic["valid"], 1.0)
+        self.assertLess(cyclic["combined_score"], reference["combined_score"])
+        self.assertLess(
+            cyclic["combined_score"], 0.8 * reference["combined_score"]
         )
 
     def test_malformed_submissions_score_zero_without_raising(self):
