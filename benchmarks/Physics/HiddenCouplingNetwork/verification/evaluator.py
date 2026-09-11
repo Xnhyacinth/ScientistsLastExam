@@ -292,6 +292,9 @@ def _evaluate_world(discover_couplings, spec, split, index):
     base = {"split": split, "world_index": int(index), "kind": world["kind"],
             "units": world["n_observed"], "experiments": 0}
     try:
+        reset = getattr(discover_couplings, "reset_session", None)
+        if callable(reset):
+            reset()
         submission = discover_couplings(problem, lab)
         claimed, confidence, abstain = _validate_submission(submission, world["n_observed"])
         if lab.violated:

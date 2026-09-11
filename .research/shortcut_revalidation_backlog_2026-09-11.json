@@ -1,0 +1,830 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-11",
+  "scope_prs": [
+    11,
+    20,
+    26,
+    27,
+    30,
+    71,
+    72,
+    74
+  ],
+  "scope": "static latest-head source and fixed-parameter replay preparation only",
+  "issue78_url": "https://github.com/Geniusyingmanji/ScientistsLastExam/issues/78",
+  "issue78_status_at_read": "open",
+  "live_head_verification_method": "git ls-remote origin refs/pull/{11,20,26,27,30,71,72,74}/head; all 8 match fetched origin/pr-*; anonymous API also independently matched #20/#26, others rate limited",
+  "runtime_requirement": "Use current integrated sle.evaluate.evaluate_candidate + load_task_spec; record exact runtime revision and source hashes separately from task PR head. No branch wrapper/author oracle-import driver as evidence producer.",
+  "performed": {
+    "static_source_review": true,
+    "remote_head_verification": true,
+    "sandbox_evaluations": 0,
+    "model_calls": 0,
+    "new_grid_searches": 0,
+    "task_card_edits": 0,
+    "scientific_admission_changes": 0
+  },
+  "common_replay_contract": [
+    "Freeze original and derived candidate bytes, exact PR head, selected constants provenance, runtime and environment versions before any evaluation.",
+    "Independent Linux worktree and private 0700 metrics directory; OMP_NUM_THREADS=1, OPENBLAS_NUM_THREADS=1.",
+    "Do not merge PR runtime/taxonomy wholesale; load only task package, with explicit in-memory legacy discipline mapping if needed.",
+    "Use baseline/reference/probe fixed candidates twice through trusted sandbox; classify infrastructure failure separately; valid and full metrics hashes must agree within pinned environment.",
+    "Discovery: retain unrounded development and heldout mechanism, false discovery, correct refusal, coverage, confidence/budget metrics with numerator/denominator where emitted. Missing denominators must be reported, never invented.",
+    "Optimization #27/#30: collect every instance feasibility/objective/certificate/normalization and overall score; discovery axes and heldout are not applicable unless the actual oracle provides them.",
+    "Heldout is diagnostic; no constant tuning, new family grid or winner selection during these replays.",
+    "Historical issue scores and author-reported latest-head scores are not this audit's new measurements; no issue closure or certification follows from this doc."
+  ],
+  "replay_order": [
+    74,
+    72,
+    11,
+    26,
+    71,
+    30,
+    20,
+    27
+  ],
+  "rows": [
+    {
+      "pr": 11,
+      "head": "f56031a1363aaee41e5883617758a7daea9a85d4",
+      "head_verification": "matches_live_git_ls_remote_pull_head_2026-09-11",
+      "task_path": "benchmarks/Physics/TransitTimingAttribution",
+      "issue78_historical_score": 0.770037,
+      "issue78_score_split": "development",
+      "latest_head_independent_replay": "not_run_in_this_audit",
+      "readiness": "related_fixed_probe_ready_exact_issue_constants_missing",
+      "priority": 3,
+      "scientific_changes": [
+        {
+          "commit": "d4878b4eda614f2c99804e775d0ed68d00a3f898",
+          "summary": "连续周期拟合、precision/refusal 门、private noise 与无序不等长 splits；更新 reference 与 probe。其后 evaluator e6152df/02af779/e7a4c1d 是空行/空格整理，无新科学机制。"
+        }
+      ],
+      "latest_non_scientific_changes": [
+        {
+          "commit": "f56031a1363aaee41e5883617758a7daea9a85d4",
+          "summary": "最新 head 仅 README 计数。任务证据说明最后在 1dd91e9 澄清 cached grid 与真实 sandbox replay 的区别。"
+        }
+      ],
+      "disclosed_fixed_candidate": {
+        "name": "fixed_schedule_shortcut",
+        "assembly": "逐字复制 reference_solver.py 后追加 replay_probes.py 的 FIXED_SCHEDULE 字符串；不要运行作者 main。",
+        "parameters": {
+          "transits": [
+            13,
+            26,
+            43,
+            59
+          ],
+          "relative_rms_max": 1.2,
+          "bic_gap_min": 3.0,
+          "correlation_max": 0.8
+        },
+        "source_lines": {
+          "verification/replay_probes.py": "33-48, 55-66"
+        },
+        "reported_current_scores": {
+          "development": 0.574956,
+          "heldout": 0.301806
+        },
+        "public_input_review": "候选只用 observation、measure 返回与 reference 的公开输入拟合 helpers。"
+      },
+      "missing_for_exact_issue_replay": [
+        "#78 所说“同一算法重调四个常数”的四值/原始候选在本次限定源码检索中未定位；固定 schedule 候选不能冒称那一条 .770037 攻击。"
+      ],
+      "replay_preparation": [
+        "基线、reference、固定 schedule 各双跑；若取回四常数原源码再另加双跑。",
+        "使用当前受信 evaluate_candidate；作者 replay CLI 读取 stdout 全指标的假设不适用于已加入公开过滤的 wrapper。",
+        "加载逻辑 Exoplanets/TransitTimingAttribution 时核对 Exoplanets→Physics 映射；记录 paid query、两 split 三轴及分母。"
+      ],
+      "sources": {
+        "benchmarks/Physics/TransitTimingAttribution/verification/reference_solver.py": {
+          "sha256": "32fa62da18d59b3de320a8320866917ebe7738bed5db511df2899ad271198e4d",
+          "lines": 113,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/f56031a1363aaee41e5883617758a7daea9a85d4/benchmarks/Physics/TransitTimingAttribution/verification/reference_solver.py",
+          "git_blob_sha1": "ece4488c2ad00af87a2f6bcc0d6b7d71ba773b49"
+        },
+        "benchmarks/Physics/TransitTimingAttribution/verification/replay_probes.py": {
+          "sha256": "6975a84a677a5732b3ee00867ed158a4d594398b7bd69c8f1e65cd339caec88b",
+          "lines": 115,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/f56031a1363aaee41e5883617758a7daea9a85d4/benchmarks/Physics/TransitTimingAttribution/verification/replay_probes.py",
+          "git_blob_sha1": "e1e53a71d5bcd6b90a121c41feed7f8f0ffaad0c"
+        },
+        "benchmarks/Physics/TransitTimingAttribution/verification/calibrate.py": {
+          "sha256": "998da543e9c550478719dbb04d8324db7cff0603cf1412e994154753ab993010",
+          "lines": 141,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/f56031a1363aaee41e5883617758a7daea9a85d4/benchmarks/Physics/TransitTimingAttribution/verification/calibrate.py",
+          "git_blob_sha1": "05b63a2eca0c56dd90a476fa55f83d0c69e4f86c"
+        },
+        "benchmarks/Physics/TransitTimingAttribution/verification/evaluator.py": {
+          "sha256": "dc743e33121f02da9feeddbb6398e6e59adead861af680588cf3dc619d5f04a4",
+          "lines": 164,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/f56031a1363aaee41e5883617758a7daea9a85d4/benchmarks/Physics/TransitTimingAttribution/verification/evaluator.py",
+          "git_blob_sha1": "ca354287559bd3ad91b93b61b2a1b025d0a08e06"
+        },
+        "benchmarks/Physics/TransitTimingAttribution/references/known_best.md": {
+          "sha256": "3565f5d539e902329d10f29b5c1ca25041ad49732a1c5248bed2000e6ead6721",
+          "lines": 98,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/f56031a1363aaee41e5883617758a7daea9a85d4/benchmarks/Physics/TransitTimingAttribution/references/known_best.md",
+          "git_blob_sha1": "034d35c9b50db6531383b2edcfbf5799f314708b"
+        }
+      },
+      "loader_contract": {
+        "logical_task_id": "Exoplanets/TransitTimingAttribution",
+        "entrypoint": "attribute_ttv",
+        "physical_discipline": "Physics",
+        "legacy_mapping_to_check": "Exoplanets -> Physics"
+      }
+    },
+    {
+      "pr": 20,
+      "head": "33b0ab0c6717354e2ecb8fc9657b42fa8facd641",
+      "head_verification": "matches_live_git_ls_remote_pull_head_2026-09-11",
+      "task_path": "benchmarks/EarthScience/ActiveFullWaveformInversion",
+      "issue78_historical_score": 0.820084,
+      "issue78_score_split": "development",
+      "latest_head_independent_replay": "not_run_in_this_audit",
+      "readiness": "independent_reconstruction_ready_original_source_unavailable",
+      "priority": 7,
+      "scientific_changes": [
+        {
+          "commit": "97261e36c1626488d2528294f9ebfc2a1764f949",
+          "summary": "truth 改为独立 random Fourier 场、300 samples、每 split 10 supported+3 controls；旧 Gaussian 结果不再同一分布。"
+        },
+        {
+          "commit": "50d6dd27f8dfcd1f48f64b60924a232a3d4cfd52",
+          "summary": "reference 固定 source 9/15/21，timeout 提至 1200 秒。"
+        },
+        {
+          "commit": "16faadd3833b6951c39a8af96ed58d24a00f3267",
+          "summary": "near-null correction 从 0.001 改为 0.0000001，联合 waveform noise 下确认 null。"
+        }
+      ],
+      "latest_non_scientific_changes": [
+        {
+          "commit": "33b0ab0c6717354e2ecb8fc9657b42fa8facd641",
+          "summary": "最新 head 仅任务卡/known_best/冻结 replay JSON 等证据说明，无 evaluator/reference 数值代码变化。"
+        }
+      ],
+      "disclosed_fixed_candidate": {
+        "name": "gaussian_depth_fixed_published_threshold",
+        "assembly": "逐字复制 .research/pr20_fwi_continuous_probe.py，仅覆盖已披露四个模块常量。",
+        "parameters": {
+          "LENSES": 5,
+          "STOP_NOISE": 5,
+          "DEPTH_CAP": 0.7,
+          "THRESHOLD": 0.22,
+          "source_policy": "linspace endpoints and middle of public source_indices: 3/15/28"
+        },
+        "source_lines": {
+          ".research/pr20_fwi_continuous_probe.py": "1-12,37-112",
+          "scripts/audit_fwi_thresholds.py": "35-38",
+          "references/known_best.md": "86-101"
+        },
+        "reported_current_scores": {
+          "development": 0.136683,
+          "heldout": 0.059821
+        },
+        "other_preselected_variants": [
+          {
+            "LENSES": 1,
+            "STOP_NOISE": 0,
+            "DEPTH_CAP": 1,
+            "THRESHOLD": 0.32
+          },
+          {
+            "LENSES": 3,
+            "STOP_NOISE": 0,
+            "DEPTH_CAP": 1,
+            "THRESHOLD": 0.18
+          },
+          {
+            "LENSES": 5,
+            "STOP_NOISE": 5,
+            "DEPTH_CAP": 1,
+            "THRESHOLD": 0.24
+          }
+        ],
+        "public_input_review": "standalone 自写波传播器与有限差分拟合，仅公开几何、声源、noise_std 和 acquire；无 oracle/reference imports。"
+      },
+      "missing_for_exact_issue_replay": [
+        "known_best 与 probe 首行明确 original maintainer grid/source 未提供；这只是同族独立重建，不是 .820084 的精确源码。"
+      ],
+      "replay_preparation": [
+        "先 baseline/reference/已公开最强 depth 配置双跑；不运行 threshold sweep，不按 heldout 改阈值。",
+        "单次 timeout 1200 秒；作者报告 reference 约 607–619 秒，合理安排独立 Linux CPU 时间与线程=1。",
+        "其余三个已选配置可在独立授权/预算下固定复验；开发集选择与当前生成族都属于 builder evidence。",
+        "引用最新 oracle/hash，禁止以 September 9 JSON 代替本轮最新分布证据。"
+      ],
+      "sources": {
+        "benchmarks/EarthScience/ActiveFullWaveformInversion/verification/evaluator.py": {
+          "sha256": "91afbdfde27d0d3782740045a0d3b24acd8e5025d6cbdbc8e05409001366859b",
+          "lines": 356,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/33b0ab0c6717354e2ecb8fc9657b42fa8facd641/benchmarks/EarthScience/ActiveFullWaveformInversion/verification/evaluator.py",
+          "git_blob_sha1": "9946a90f63091e0a8dca9d081e55eeb28093e12d"
+        },
+        "benchmarks/EarthScience/ActiveFullWaveformInversion/verification/reference_solver.py": {
+          "sha256": "c55d3705682275465c4e62a7d5b8c221f6e92b901b18e63aaeb3d63aecb85c8d",
+          "lines": 211,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/33b0ab0c6717354e2ecb8fc9657b42fa8facd641/benchmarks/EarthScience/ActiveFullWaveformInversion/verification/reference_solver.py",
+          "git_blob_sha1": "fdc2e6dcacfceb545acf65a61b4dff1c568930f4"
+        },
+        "benchmarks/EarthScience/ActiveFullWaveformInversion/references/known_best.md": {
+          "sha256": "997eb9886873117cf412d4a86469b00280b8516206aeca514662a0aab8bac712",
+          "lines": 185,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/33b0ab0c6717354e2ecb8fc9657b42fa8facd641/benchmarks/EarthScience/ActiveFullWaveformInversion/references/known_best.md",
+          "git_blob_sha1": "f3a309a6f8927abbe5f587c5fcfcbc43b4bd1a66"
+        },
+        ".research/pr20_fwi_continuous_probe.py": {
+          "sha256": "2face2f15a7925010a2d6f786719f3d719bac569efc40e442e1db17b7730e6d3",
+          "lines": 110,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/33b0ab0c6717354e2ecb8fc9657b42fa8facd641/.research/pr20_fwi_continuous_probe.py",
+          "git_blob_sha1": "f83c57404af8fb66af4725120851eabb2ded48fe"
+        },
+        "scripts/audit_fwi_thresholds.py": {
+          "sha256": "3d47399c7d4a527b2f9ce838b0e3952dd5818202db04b7df6f42c7ad4bb58bf5",
+          "lines": 95,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/33b0ab0c6717354e2ecb8fc9657b42fa8facd641/scripts/audit_fwi_thresholds.py",
+          "git_blob_sha1": "b34ae8119ff3e68ebd2decb65a0329821efe542e"
+        }
+      },
+      "loader_contract": {
+        "logical_task_id": "WavePropagation/ActiveFullWaveformInversion",
+        "entrypoint": "invert_velocity_model",
+        "physical_discipline": "EarthScience",
+        "legacy_mapping_to_check": "WavePropagation -> EarthScience"
+      }
+    },
+    {
+      "pr": 26,
+      "head": "76876ebff03a37ce1ad2fe76cf3d859c29164bc1",
+      "head_verification": "matches_live_git_ls_remote_pull_head_2026-09-11",
+      "task_path": "benchmarks/Chemistry/UnimolecularFalloffLaw",
+      "issue78_historical_score": 0.921819,
+      "issue78_score_split": "development",
+      "latest_head_independent_replay": "not_run_in_this_audit",
+      "readiness": "three_assay_probe_ready_constant_lnpr_issue_source_missing",
+      "priority": 4,
+      "scientific_changes": [
+        {
+          "commit": "325a97c69554680e650522733ad12894eecffbd8",
+          "summary": "query noise 按 (world,T,P) keyed；100 bar 的 Pr(300K)=2，使最高压非 k_inf 渐近墙；前一 bb6c950 已改 reference 为完整 pressure-curve fit。"
+        }
+      ],
+      "latest_non_scientific_changes": [
+        {
+          "commit": "76876ebff03a37ce1ad2fe76cf3d859c29164bc1",
+          "summary": "head 是 main 合并+inventory；与第一父提交的目标 task 目录 diff 为空。无后续独立 task doc-only 提交；科学证据在 325a97c 的混合代码/文档提交。"
+        }
+      ],
+      "disclosed_fixed_candidate": {
+        "name": "three_assay_probe",
+        "assembly": "references/three_assay_probe.py 可直接作为单文件 candidate。",
+        "parameters": {
+          "measurements": "最低 temperature; high P, low P, min(10*low P, high P)",
+          "negative_high_slack": 0.1,
+          "pressure_slope_min": 0.42,
+          "f_obs_threshold": 0.82,
+          "troe_Fcent": 0.4,
+          "confidence_abstain": 0.82,
+          "confidence_claim": 0.72
+        },
+        "source_lines": {
+          "references/three_assay_probe.py": "5-20"
+        },
+        "reported_current_scores": {
+          "development": 0.198579,
+          "heldout": 0.324198
+        },
+        "public_input_review": "只 import math、读取 public bounds 和 measure；log_Pr 由观测反推，并非固定常数。"
+      },
+      "missing_for_exact_issue_replay": [
+        "#78 的“3 测量 + 常量 lnPr”与此 probe 观测导出的 log_pr 不同；.921819 所用常量、源码未在限定检索定位。",
+        "现存 2304 网格的旧记录未在 revised oracle 重跑，不能视为上界已修复。"
+      ],
+      "replay_preparation": [
+        "只复验 baseline/reference_falloff/现存 three_assay 各双跑，同时保留 exact issue probe 待取回。",
+        "禁止用当前 .198579/.324198 的不同候选直接关闭 #78。",
+        "仅范围 UnimolecularFalloffLaw，不扩展同 PR 的 DiblockMorphologyDiscovery。"
+      ],
+      "sources": {
+        "benchmarks/Chemistry/UnimolecularFalloffLaw/references/three_assay_probe.py": {
+          "sha256": "8e227cd906c6d46ce0468300c1a79b6d49bad0b1fc646a1b739297c32be0d610",
+          "lines": 20,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/76876ebff03a37ce1ad2fe76cf3d859c29164bc1/benchmarks/Chemistry/UnimolecularFalloffLaw/references/three_assay_probe.py",
+          "git_blob_sha1": "8c598ea3f0f5af8a582b0d4bdb4a682bd174afd6"
+        },
+        "benchmarks/Chemistry/UnimolecularFalloffLaw/verification/reference_falloff.py": {
+          "sha256": "ae6499a370e4252ac704901ac45c22cdd9a80fc8559a81d4817f5b3024ddcd1e",
+          "lines": 67,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/76876ebff03a37ce1ad2fe76cf3d859c29164bc1/benchmarks/Chemistry/UnimolecularFalloffLaw/verification/reference_falloff.py",
+          "git_blob_sha1": "32e42f4835f197337340b3f703cc901a896f487f"
+        },
+        "benchmarks/Chemistry/UnimolecularFalloffLaw/verification/evaluator.py": {
+          "sha256": "1352cf77f30039aca56e056d9108af0202cffa6fe809d72101b129f7f99308f5",
+          "lines": 261,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/76876ebff03a37ce1ad2fe76cf3d859c29164bc1/benchmarks/Chemistry/UnimolecularFalloffLaw/verification/evaluator.py",
+          "git_blob_sha1": "74bcedf8298e8f8a3ca56a6666d2b72ec7f83642"
+        },
+        "benchmarks/Chemistry/UnimolecularFalloffLaw/references/known_best.md": {
+          "sha256": "db6db38847fbba92a47178f6ba3cde3f0344e9e3ec75c0b3cd753bbbafd801ad",
+          "lines": 55,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/76876ebff03a37ce1ad2fe76cf3d859c29164bc1/benchmarks/Chemistry/UnimolecularFalloffLaw/references/known_best.md",
+          "git_blob_sha1": "2ba7d31bda70dcb729e148737eb6b7fc23328f72"
+        }
+      },
+      "loader_contract": {
+        "logical_task_id": "ChemicalKinetics/UnimolecularFalloffLaw",
+        "entrypoint": "identify_falloff",
+        "physical_discipline": "Chemistry",
+        "legacy_mapping_to_check": "ChemicalKinetics -> Chemistry"
+      }
+    },
+    {
+      "pr": 27,
+      "head": "609b8ae8d5fb06686e921aa927d376c2b769ff5a",
+      "head_verification": "matches_live_git_ls_remote_pull_head_2026-09-11",
+      "task_path": "benchmarks/Engineering/LyapunovDecayCertificate",
+      "issue78_historical_score": 0.491533,
+      "issue78_score_split": "development_optimization_score",
+      "latest_head_independent_replay": "not_run_in_this_audit",
+      "readiness": "exact_one_parameter_issue_probe_missing",
+      "priority": 8,
+      "scientific_changes": [
+        {
+          "commit": "f746a03c8666463fc2f401c3d853e9d8a16aad22",
+          "summary": "2×2 改为四组 permutation-switched 3×3；reference 112 Grams；旧 constant 与两参 block-diagonal probe 改成新输入可执行版本。"
+        }
+      ],
+      "latest_non_scientific_changes": [
+        {
+          "commit": "609b8ae8d5fb06686e921aa927d376c2b769ff5a",
+          "summary": "head main 合并+inventory，目标 task 相对第一父无变化；没有后续 task doc-only 科学修复。"
+        }
+      ],
+      "disclosed_fixed_candidate": {
+        "name": "existing_two_parameter_grid_only",
+        "assembly": "grid_probe.py 引入 reference_lyapunov 的 _holds/_matrix/_pack/_trace/_upper；独立 candidate 必须逐字内联这些只消费公开矩阵的 helpers，不能保留 verification 路径 import。",
+        "parameters": {
+          "b": "Fraction(k,10), k=-12..12",
+          "d": "Fraction(k,10), k=2..30",
+          "grams": 725,
+          "matrix": "[[1,b,0],[b,d,0],[0,0,1]]"
+        },
+        "source_lines": {
+          "references/grid_probe.py": "9-36"
+        },
+        "reported_current_scores": {
+          "two_parameter": 0.206533,
+          "reference": 0.36656,
+          "documented_five_parameter_scan": 0.4582
+        },
+        "public_input_review": "helpers 可静态审查为公开 instance 的精确有理 PSD 检查；原驱动直接导入 reference，不可直接跨隔离边界使用。"
+      },
+      "missing_for_exact_issue_replay": [
+        "#78 的“对称一参数、14 点” .491533 精确 ansatz/网格/alpha 规则未定位。",
+        "known_best 还披露 5488 点五参 .458200，但未在任务目录找到其独立完整 candidate/config；也不能用两参 .206533 当全族上界。"
+      ],
+      "replay_preparation": [
+        "优先索取/定位已披露 14-point 源码和精确 Fraction 参数，冻结后双跑；本任务不新建/扫描网格。",
+        "在其缺失时只能先做 baseline/reference/现存两参候选准备，结论限制为该两参族。",
+        "此为 optimization：按四个 instance 的 feasible/rate/normalization 验收；发现三轴并不适用，不填伪造 dev/heldout 三轴。"
+      ],
+      "sources": {
+        "benchmarks/Engineering/LyapunovDecayCertificate/references/grid_probe.py": {
+          "sha256": "5277393de56fd1b6526e9cfd094b289734cd0014e249cec61193c3c5b6aff596",
+          "lines": 45,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/609b8ae8d5fb06686e921aa927d376c2b769ff5a/benchmarks/Engineering/LyapunovDecayCertificate/references/grid_probe.py",
+          "git_blob_sha1": "9abdb5037170c3693c52822588b45bb31837934c"
+        },
+        "benchmarks/Engineering/LyapunovDecayCertificate/references/constant_probe.py": {
+          "sha256": "e4dd804cd6d2e3b1d9470525d75fb571afca33f10601aefa4f9a74efa4159968",
+          "lines": 18,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/609b8ae8d5fb06686e921aa927d376c2b769ff5a/benchmarks/Engineering/LyapunovDecayCertificate/references/constant_probe.py",
+          "git_blob_sha1": "d1983e56bba4a3e61fff756548c75a310ad3f6ff"
+        },
+        "benchmarks/Engineering/LyapunovDecayCertificate/verification/reference_lyapunov.py": {
+          "sha256": "73a0e3e3a41512cf9546519f0343845e0234dfef7278bfda53bca9b4c6dc105d",
+          "lines": 220,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/609b8ae8d5fb06686e921aa927d376c2b769ff5a/benchmarks/Engineering/LyapunovDecayCertificate/verification/reference_lyapunov.py",
+          "git_blob_sha1": "dbf73cae5d2291aab912ca5726ee48beaa9a89ea"
+        },
+        "benchmarks/Engineering/LyapunovDecayCertificate/verification/evaluator.py": {
+          "sha256": "318081641d89f35f0508df31bc1ee9c2ffc9077c2f1d4d185010085236b4da58",
+          "lines": 271,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/609b8ae8d5fb06686e921aa927d376c2b769ff5a/benchmarks/Engineering/LyapunovDecayCertificate/verification/evaluator.py",
+          "git_blob_sha1": "e1ab22c14bc23bf7b4a5ca2610c472d8ea2032a4"
+        },
+        "benchmarks/Engineering/LyapunovDecayCertificate/references/known_best.md": {
+          "sha256": "1cfa345dd229c7a04ddc6339d173e38dbb712e231d6e02e64c2fb66f038ec685",
+          "lines": 92,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/609b8ae8d5fb06686e921aa927d376c2b769ff5a/benchmarks/Engineering/LyapunovDecayCertificate/references/known_best.md",
+          "git_blob_sha1": "26eb661832a65f90bc6562ddfe3386127a977c25"
+        }
+      },
+      "loader_contract": {
+        "logical_task_id": "ControlTheory/LyapunovDecayCertificate",
+        "entrypoint": "build_lyapunov",
+        "physical_discipline": "Engineering",
+        "legacy_mapping_to_check": "ControlTheory -> Engineering"
+      }
+    },
+    {
+      "pr": 30,
+      "head": "90366563a7605e8f6eb6226200b1463615419b4a",
+      "head_verification": "matches_live_git_ls_remote_pull_head_2026-09-11",
+      "task_path": "benchmarks/ComputerScience/AffineLoopRankingCertificate",
+      "issue78_historical_score": 1.0,
+      "issue78_score_split": "development_optimization_score",
+      "latest_head_independent_replay": "not_run_in_this_audit",
+      "readiness": "alternative_exact_lp_helper_ready_issue_155_line_source_missing",
+      "priority": 6,
+      "scientific_changes": [
+        {
+          "commit": "65c23e5ce2efffd389ead68f7689b996f9c4744f",
+          "summary": "改为 8/10/12/16 维、2n 个 overcomplete guards、mixed-sign affine loops；消除 inverse-column identity shortcut；完整 exact Farkas LP=1 仍明确披露。"
+        }
+      ],
+      "latest_non_scientific_changes": [
+        {
+          "commit": "90366563a7605e8f6eb6226200b1463615419b4a",
+          "summary": "main 合并+inventory；目标 task 相对第一父为空。无独立后续 task doc-only；旧 optimal_delta/known_optima.json 删除保持。"
+        }
+      ],
+      "disclosed_fixed_candidate": {
+        "name": "test_exact_farkas_lp_adapter",
+        "assembly": "tests/affine_ranking_lp.py 的 exact_maximum_delta(guards,A,b) 只读参数，可逐字内联；增加 public-instance Fraction 解析和 JSON rational packing 的 build_ranking adapter。",
+        "parameters": {
+          "optimizer": "scipy.optimize.linprog(method=highs), followed by Fraction Gaussian elimination",
+          "problem": "由公开 guards/A/b 构建完整 Farkas LP；不读 hidden optimum"
+        },
+        "source_lines": {
+          "tests/affine_ranking_lp.py": "4-7,25-119"
+        },
+        "reported_current_scores": {
+          "full_exact_lp": 1.0,
+          "local_reference": 0.459105,
+          "inverse_column_probe": 0.0
+        },
+        "public_input_review": "helper 不 import evaluator，不含 answer table；使用 NumPy/SciPy，任务 constraints 允许这两库。adapter 应验证 exact equality/caps 与 public signed/overcomplete 格式。"
+      },
+      "missing_for_exact_issue_replay": [
+        "#78 155 行纯标准库、1.34 秒实现未定位；当前 scipy + exact reconstruction 是不同实现，不能复用原效率数字或标为原源码。"
+      ],
+      "replay_preparation": [
+        "先将 test helper 忠实移植为单文件，不增加 search/随机策略；保存 helpers 原 hash 与 adapter diff。",
+        "baseline/reference_ranking/LP-adapter 双跑，报告每 instance certificate 可行性、delta、score、runtime。",
+        "optimization 没有 discovery 三轴；若 LP 仍到 1，应标候选空间上界问题而不是归咎旧 coordinate-guard 漏洞。"
+      ],
+      "sources": {
+        "tests/affine_ranking_lp.py": {
+          "sha256": "6d5a9d2b8550cc84f93aae27935ca02abe2d3c8a1d2175fb75f8ccfbfa4f9207",
+          "lines": 119,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/90366563a7605e8f6eb6226200b1463615419b4a/tests/affine_ranking_lp.py",
+          "git_blob_sha1": "d37f67344252969a104a0b24736f60074e754125"
+        },
+        "benchmarks/ComputerScience/AffineLoopRankingCertificate/references/inverse_column_probe.py": {
+          "sha256": "448549d3167fd63c93af142b6ed1ae10a493611a9362381b311224f6bb5bec26",
+          "lines": 34,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/90366563a7605e8f6eb6226200b1463615419b4a/benchmarks/ComputerScience/AffineLoopRankingCertificate/references/inverse_column_probe.py",
+          "git_blob_sha1": "a45a1a25a19c51b5c34f355e05a04bc05cdf18d2"
+        },
+        "benchmarks/ComputerScience/AffineLoopRankingCertificate/verification/reference_ranking.py": {
+          "sha256": "6f92e7ce8680baebf063924022b6664094f29c1e9e0fc0506321b6e32c42f01e",
+          "lines": 102,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/90366563a7605e8f6eb6226200b1463615419b4a/benchmarks/ComputerScience/AffineLoopRankingCertificate/verification/reference_ranking.py",
+          "git_blob_sha1": "d8c5d1e971e6241b24d6ae0875b66bfdecd5c936"
+        },
+        "benchmarks/ComputerScience/AffineLoopRankingCertificate/verification/evaluator.py": {
+          "sha256": "3ebca671fd9c769630564f5d6f0a5f1cb2cabc8184abd7f0fa4fa2066f17c4a3",
+          "lines": 230,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/90366563a7605e8f6eb6226200b1463615419b4a/benchmarks/ComputerScience/AffineLoopRankingCertificate/verification/evaluator.py",
+          "git_blob_sha1": "29795bb86d2e8ed66096da23320626c9f631e1e0"
+        },
+        "benchmarks/ComputerScience/AffineLoopRankingCertificate/references/known_best.md": {
+          "sha256": "4054c6d5eed7f7e870fa4a62cf98ca9f9d4f60b08ebe48573e08fd23c44133a7",
+          "lines": 61,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/90366563a7605e8f6eb6226200b1463615419b4a/benchmarks/ComputerScience/AffineLoopRankingCertificate/references/known_best.md",
+          "git_blob_sha1": "bcc639930351a2b34e36adfd09d12d072c7c2c56"
+        }
+      },
+      "loader_contract": {
+        "logical_task_id": "ScientificComputing/AffineLoopRankingCertificate",
+        "entrypoint": "build_ranking",
+        "physical_discipline": "ComputerScience",
+        "legacy_mapping_to_check": "ScientificComputing -> ComputerScience"
+      }
+    },
+    {
+      "pr": 71,
+      "head": "7623c22be5bf464099bc18d81df1534fcf0feb68",
+      "head_verification": "matches_live_git_ls_remote_pull_head_2026-09-11",
+      "task_path": "benchmarks/Biology/AnomalyZoneSpeciesTree",
+      "issue78_historical_score": 0.858889,
+      "issue78_score_split": "development",
+      "latest_head_independent_replay": "not_run_in_this_audit",
+      "readiness": "public_mean_distance_ablation_ready_original_published_shape_attack_changed",
+      "priority": 5,
+      "scientific_changes": [
+        {
+          "commit": "7f45aa22dd38bb82fd1c915457e64d6ef1b2712e",
+          "summary": "隐藏并跨 worlds 分散 gamma shape；reference 从60 loci估计 shape；改 oracle/reference/probe/ablation。旧公开 shape 前提已改变，不能直接把 .858889 带到此 head。"
+        }
+      ],
+      "latest_non_scientific_changes": [
+        {
+          "commit": "7623c22be5bf464099bc18d81df1534fcf0feb68",
+          "summary": "最新 head 仅 README inventory；任务最近更新仍 7f45aa2 的代码/文档混合提交。"
+        }
+      ],
+      "disclosed_fixed_candidate": {
+        "name": "estimated_shape_mean_corrected_distance",
+        "assembly": "使用当前 reference + ablation.py MEAN_PATCH 和 _mean_index；将 _MEAN_D 与参考 helpers 内联，删除 evaluator/msc/world tracking 和任何 _CURRENT shape 注入。",
+        "parameters": {
+          "CHOSEN_CLASS": "slow",
+          "CHOSEN_SITES": 800,
+          "SHAPE_LOCI": 60,
+          "REFUSAL_STATISTIC": 260.0,
+          "topology": "one neighbour joining on mean gamma-corrected distances",
+          "shape": "estimated from public bought sequences, not world truth"
+        },
+        "source_lines": {
+          ".research/anomaly_zone_species_tree/ablation.py": "75-93"
+        },
+        "reported_current_scores": {
+          "development": 0.8,
+          "heldout": 0.664,
+          "reference_development": 0.912,
+          "reference_heldout": 0.903
+        },
+        "public_input_review": "MEAN_PATCH 本身可完全由已付费 alignment 与 standalone reference helpers 实现；作者完整 ablation.py 混合 oracle-shape 变体并 monkey-patch ev._world，禁止直接当候选或科学复验 driver。"
+      },
+      "missing_for_exact_issue_replay": [
+        ".858889 原始候选没有独立单文件；旧 published-shape 攻击在新 API 上不能静默改用真实 shape。",
+        "known_best 的 .780 guessed-shape 两-cell winner 披露 shape=.5、topology slow300/500 loci、refusal slow800/250 loci，但具体 refusal threshold 未完整列出；不能从全网格重选补足。"
+      ],
+      "replay_preparation": [
+        "优先固定 current mean-distance ablation 与 baseline/reference 双跑，标作 related current candidate，不能称旧源码精确复验。",
+        "不执行102060策略 probe.py；若复验 .780 winner，先找回已保存 winner 的完整 config。",
+        "逻辑 Phylogenomics/AnomalyZoneSpeciesTree，核对 Phylogenomics→Biology 映射；检查 source 中 reference 辅助函数为公开数学/树处理，不向 candidate 挂载 verification/msc。"
+      ],
+      "sources": {
+        "benchmarks/Biology/AnomalyZoneSpeciesTree/verification/reference_quartet_consensus.py": {
+          "sha256": "b95ea8b852d9c6305398c31f01a740e5c34a546b33a89d4a85354eabe107f0cc",
+          "lines": 397,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/7623c22be5bf464099bc18d81df1534fcf0feb68/benchmarks/Biology/AnomalyZoneSpeciesTree/verification/reference_quartet_consensus.py",
+          "git_blob_sha1": "0b7c46672bea4b2957d48adeff328628686fd2ff"
+        },
+        "benchmarks/Biology/AnomalyZoneSpeciesTree/verification/evaluator.py": {
+          "sha256": "32c68e6bdbb99e40af077a309298f3e9dfb756daef004c225b40f13407c45599",
+          "lines": 540,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/7623c22be5bf464099bc18d81df1534fcf0feb68/benchmarks/Biology/AnomalyZoneSpeciesTree/verification/evaluator.py",
+          "git_blob_sha1": "e4e1928a5f0918e8fc23aa8a534aa137d61fa5f5"
+        },
+        "benchmarks/Biology/AnomalyZoneSpeciesTree/verification/msc.py": {
+          "sha256": "2121fd013e2a2eb513f0dedcddd1d278b437283d04133026e38a64a7ad5c7fd5",
+          "lines": 645,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/7623c22be5bf464099bc18d81df1534fcf0feb68/benchmarks/Biology/AnomalyZoneSpeciesTree/verification/msc.py",
+          "git_blob_sha1": "aa20573325397cbbdd286a8606ff9f6df33d7c18"
+        },
+        "benchmarks/Biology/AnomalyZoneSpeciesTree/references/known_best.md": {
+          "sha256": "4b4eb0684c97c7a1fc59f21ce5e4264dbebffa73070675c747376573dec70ee3",
+          "lines": 401,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/7623c22be5bf464099bc18d81df1534fcf0feb68/benchmarks/Biology/AnomalyZoneSpeciesTree/references/known_best.md",
+          "git_blob_sha1": "d3587814fecb670ba12354153c9f51337f4c855a"
+        },
+        ".research/anomaly_zone_species_tree/ablation.py": {
+          "sha256": "e345b098ef69cfdd25d4d56e56b6f895ae562b93c348fea7157f50fcd4a2626b",
+          "lines": 108,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/7623c22be5bf464099bc18d81df1534fcf0feb68/.research/anomaly_zone_species_tree/ablation.py",
+          "git_blob_sha1": "7ec0077a01d5b304e2d3362ead40c5abcafaa8d2"
+        },
+        ".research/anomaly_zone_species_tree/probe.py": {
+          "sha256": "edd5602ab455d69a38b1ebed6f659e42f89a9e24d7f0bb6f5561c04302c05c2c",
+          "lines": 176,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/7623c22be5bf464099bc18d81df1534fcf0feb68/.research/anomaly_zone_species_tree/probe.py",
+          "git_blob_sha1": "04563bae5a83666767d5537a8c5e641cc1fcdfc6"
+        }
+      },
+      "loader_contract": {
+        "logical_task_id": "Phylogenomics/AnomalyZoneSpeciesTree",
+        "entrypoint": "infer_species_tree",
+        "physical_discipline": "Biology",
+        "legacy_mapping_to_check": "Phylogenomics -> Biology"
+      }
+    },
+    {
+      "pr": 72,
+      "head": "8497bd455d3090087e6a15e99fb85f5fae75e5cd",
+      "head_verification": "matches_live_git_ls_remote_pull_head_2026-09-11",
+      "task_path": "benchmarks/Physics/DarkMatterRecoilAttribution",
+      "issue78_historical_score": 0.657182,
+      "issue78_score_split": "development",
+      "latest_head_independent_replay": "not_run_in_this_audit",
+      "readiness": "fixed_57_8_strategy_and_disclosed_four_way_probe_ready",
+      "priority": 2,
+      "scientific_changes": [
+        {
+          "commit": "fcddf93266c66343ebaefae77765e8689c707a4e",
+          "summary": "20 signal+4 null+4 outside per split，mass 按两 law 配对log strata；unsupported 每target与支持族 exact twin而联合mass不一致；改归一化。reference 数值算法不变。"
+        }
+      ],
+      "latest_non_scientific_changes": [
+        {
+          "commit": "8497bd455d3090087e6a15e99fb85f5fae75e5cd",
+          "summary": "最新 head 仅 Linux suite logs/JSON/README；f7785a6 的 evaluator diff 也仅修正 docstring。不能把测试记录称新的科学修复。"
+        }
+      ],
+      "disclosed_fixed_candidate": {
+        "name": "reference_decisions_mass_57_8_and_selected_four_way",
+        "assembly": "A:复制 reference_profile.py，只把最终正信号返回的 mass_gev 从 best[2] 改 57.8，保持 none/abstain/law 决策。B:逐字提取 audit_dark_matter_recoil.py peak_features+probe_answer，添加固定 config 的候选 entrypoint；不运行 driver 搜索。",
+        "parameters": {
+          "A_fixed_mass_gev": 57.8,
+          "B_config": [
+            1,
+            1,
+            60,
+            2,
+            95.83680934806682,
+            1,
+            0.5
+          ],
+          "B_order": [
+            "target",
+            "units",
+            "excess_threshold",
+            "hardness_ratio",
+            "mass_gev",
+            "peak_kind",
+            "peak_threshold"
+          ]
+        },
+        "source_lines": {
+          "verification/reference_profile.py": "55-73",
+          "scripts/audit_dark_matter_recoil.py": "34-57",
+          "experiments/dark_matter_recoil_revision_2026-09-10.json": "3864-3876"
+        },
+        "reported_current_scores": {
+          "reference_development": 0.548485,
+          "reference_heldout": 0.499983,
+          "selected_four_way_development": 0.24953505103907683,
+          "selected_four_way_heldout": 0.13067021899641232
+        },
+        "public_input_review": "A 保留 public campaign reference；B 只用 one Ge target paid counts/background。constant_mass_bound uses truth，是 author oracle-assisted bound，绝不当合法 candidate。"
+      },
+      "missing_for_exact_issue_replay": [
+        "原始 reviewer 单文件未附；57.8 精确常数与“reference 决策”语义已完整披露，可以构造明确标注的忠实派生源码，不宣称 bit-for-bit original。"
+      ],
+      "replay_preparation": [
+        "baseline/reference/A57.8/Bselected 各双跑，总8；固定任何常数之前冻结源码/hash，不运行233280 grid。",
+        "新 mass distribution 与 outside controls 已变，当前 score 应独立测量；不凭历史 .657182 直接判 head 失败。",
+        "锁 Python/NumPy/SciPy。作者记录 NumPy1.24.4/SciPy1.10.1 reference约 .548432/.499973，与1.26/1.13略有差异；只要求同环境重复一致。"
+      ],
+      "sources": {
+        "benchmarks/Physics/DarkMatterRecoilAttribution/verification/reference_profile.py": {
+          "sha256": "78da166c44b216e3f69a492ba1a4aa605af0cc21d3223f2168196a9d68325d2c",
+          "lines": 73,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/8497bd455d3090087e6a15e99fb85f5fae75e5cd/benchmarks/Physics/DarkMatterRecoilAttribution/verification/reference_profile.py",
+          "git_blob_sha1": "348592f477e7479785586e86456fa986a8aaf273"
+        },
+        "benchmarks/Physics/DarkMatterRecoilAttribution/verification/evaluator.py": {
+          "sha256": "8c255e27b25f458f7964ac689eea9140a85d003790149072c02d394438ded72a",
+          "lines": 233,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/8497bd455d3090087e6a15e99fb85f5fae75e5cd/benchmarks/Physics/DarkMatterRecoilAttribution/verification/evaluator.py",
+          "git_blob_sha1": "00140f5f948ca21b1db41cb23f8a815420cceb19"
+        },
+        "benchmarks/Physics/DarkMatterRecoilAttribution/references/known_best.md": {
+          "sha256": "05e5f7b3c07c621e1fd1dc3bf52a4f5364513a836a9b2e1caf994c446d1ed8ca",
+          "lines": 171,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/8497bd455d3090087e6a15e99fb85f5fae75e5cd/benchmarks/Physics/DarkMatterRecoilAttribution/references/known_best.md",
+          "git_blob_sha1": "30e693d9e5f89e3201debc62ac1a7552337d6e20"
+        },
+        "scripts/audit_dark_matter_recoil.py": {
+          "sha256": "3cef9a3aad3327181e49ed9df96b1e36b828033b4f7cb2053f82b520a4cb4993",
+          "lines": 196,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/8497bd455d3090087e6a15e99fb85f5fae75e5cd/scripts/audit_dark_matter_recoil.py",
+          "git_blob_sha1": "1401ab0ea77824097522ffe296ceb729eeb07e8d"
+        },
+        "experiments/dark_matter_recoil_revision_2026-09-10.json": {
+          "sha256": "2a983d49362b95917ad56c570a6792407eadd7533a25ef3952b67c9c45dbcb59",
+          "lines": 3949,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/8497bd455d3090087e6a15e99fb85f5fae75e5cd/experiments/dark_matter_recoil_revision_2026-09-10.json",
+          "git_blob_sha1": "9b8e2573d3a16c3d84a06316b23a35b5aabc0a27"
+        }
+      },
+      "loader_contract": {
+        "logical_task_id": "ParticlePhysics/DarkMatterRecoilAttribution",
+        "entrypoint": "infer_recoil",
+        "physical_discipline": "Physics",
+        "legacy_mapping_to_check": "ParticlePhysics -> Physics"
+      }
+    },
+    {
+      "pr": 74,
+      "head": "8193c5aa6abff91ff8cbbce9f617518ff3bb9b61",
+      "head_verification": "matches_live_git_ls_remote_pull_head_2026-09-11",
+      "task_path": "benchmarks/EarthScience/FocalMechanismStressInversion",
+      "issue78_historical_score": 0.81423,
+      "issue78_score_split": "heldout",
+      "latest_head_independent_replay": "not_run_in_this_audit",
+      "readiness": "published_paired_grid_source_and_exact_configuration_ready",
+      "priority": 1,
+      "scientific_changes": [
+        {
+          "commit": "6d3605559b4c8e4ec5781f0a53c68a3238a09bfd",
+          "summary": "修负-z/SDR clipping 几何；强化双平面 moment/projection/refinement reference；level3 96 events、coarse/fine noise 10/3、shear floor .04。"
+        }
+      ],
+      "latest_non_scientific_changes": [
+        {
+          "commit": "8193c5aa6abff91ff8cbbce9f617518ff3bb9b61",
+          "summary": "最新 head 为 docs/diagnostics/source-freeze evidence，明确 paired dense grid 仍接近/超过 reference、准入未解决；无新 oracle/reference/probe 数值修改。"
+        }
+      ],
+      "disclosed_fixed_candidate": {
+        "name": "paired62208_refined",
+        "assembly": "逐字复制 .research/pr74_grid_probe.py，模块常量覆盖为已披露 paired62208_refined 配置；保持其默认25°拒绝门，不照 diagnostic driver 临时改成 infinity。",
+        "parameters": {
+          "GRID_SHAPE": [
+            24,
+            12,
+            24,
+            9
+          ],
+          "PAIRED": true,
+          "QUERY_POLICY": "ambiguous",
+          "SIGNED": true,
+          "LOCAL_ROUNDS": 3,
+          "THRESHOLD_DEG": 25.0
+        },
+        "source_lines": {
+          ".research/pr74_grid_probe.py": "11-16,80-158",
+          ".research/pr74_diagnostics.py": "91-104",
+          "references/known_best.md": "57-101"
+        },
+        "reported_current_scores": {
+          "development": 0.775136,
+          "heldout": 0.81423,
+          "confirmation": 0.758167,
+          "reference_development": 0.783503,
+          "reference_heldout": 0.796709
+        },
+        "public_input_review": "只有 itertools/NumPy；candidate使用公开problem、两个nodal planes及paid reanalyze；无 evaluator/reference imports。"
+      },
+      "missing_for_exact_issue_replay": [
+        "更早 maintainer 原始四参源码仍不可得；但 issue78 的 .814230 与当前已披露 paired62208_refined 行完全对应，可复验该已保存实现，明确其是作者独立同族probe。"
+      ],
+      "replay_preparation": [
+        "baseline/reference/paired62208_refined 各双跑，总6，当前 trusted harness 私有记录全部metrics；固定源/hash和25° gate，不跑threshold sweep。",
+        "逻辑 Geophysics→EarthScience 映射只在 loader适配；300秒 timeout、NumPy/SciPy固定。",
+        "不要把旧 geometry 修复当 shortcut gap 修复；文档已经明确 unresolved，本轮仍需 current integrated runtime 独立重复验证。"
+      ],
+      "sources": {
+        ".research/pr74_grid_probe.py": {
+          "sha256": "44d5e5395802141d762c8150e26b5e0a5ea6159f8f794807a03d652305621ddc",
+          "lines": 158,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/8193c5aa6abff91ff8cbbce9f617518ff3bb9b61/.research/pr74_grid_probe.py",
+          "git_blob_sha1": "64ff3d2bf0ac706483d10e48b9de82bffde180f9"
+        },
+        ".research/pr74_diagnostics.py": {
+          "sha256": "d1ad09e6b71723849caac00051aa0a3d57c64f16c760e6ababc7a912a84b3ba6",
+          "lines": 149,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/8193c5aa6abff91ff8cbbce9f617518ff3bb9b61/.research/pr74_diagnostics.py",
+          "git_blob_sha1": "e947f83ff01a0c4f04fdd0b2b30cb475d57c546a"
+        },
+        "benchmarks/EarthScience/FocalMechanismStressInversion/verification/reference_solver.py": {
+          "sha256": "3d2f071b414fe5a8e41e11d3140d10f72a76d9456236c2e2742934732b7f80e5",
+          "lines": 183,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/8193c5aa6abff91ff8cbbce9f617518ff3bb9b61/benchmarks/EarthScience/FocalMechanismStressInversion/verification/reference_solver.py",
+          "git_blob_sha1": "9eb37a766b6d078b084e3a82052a79c5d27a1072"
+        },
+        "benchmarks/EarthScience/FocalMechanismStressInversion/verification/evaluator.py": {
+          "sha256": "91e21fa11db09b7203fc4a6753a920570612564fc5b3eed76d5359fb72640404",
+          "lines": 406,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/8193c5aa6abff91ff8cbbce9f617518ff3bb9b61/benchmarks/EarthScience/FocalMechanismStressInversion/verification/evaluator.py",
+          "git_blob_sha1": "f2ac3ac76916f49b0f571bcb4fd24308db639296"
+        },
+        "benchmarks/EarthScience/FocalMechanismStressInversion/references/known_best.md": {
+          "sha256": "8512eaabc70fc79152cc50846b656227a3bff400b8c2529b2840ce294feaeff1",
+          "lines": 168,
+          "url": "https://github.com/Geniusyingmanji/ScientistsLastExam/blob/8193c5aa6abff91ff8cbbce9f617518ff3bb9b61/benchmarks/EarthScience/FocalMechanismStressInversion/references/known_best.md",
+          "git_blob_sha1": "265d48cfb48b66a4f457229f41f7069c92fbeba3"
+        }
+      },
+      "loader_contract": {
+        "logical_task_id": "Geophysics/FocalMechanismStressInversion",
+        "entrypoint": "infer_stress_orientation",
+        "physical_discipline": "EarthScience",
+        "legacy_mapping_to_check": "Geophysics -> EarthScience"
+      }
+    }
+  ],
+  "validation": {
+    "json_parse": "passed",
+    "live_pr_heads_matched": 8,
+    "source_files_hash_and_git_blob_verified": 40,
+    "git_diff_check": "passed"
+  }
+}

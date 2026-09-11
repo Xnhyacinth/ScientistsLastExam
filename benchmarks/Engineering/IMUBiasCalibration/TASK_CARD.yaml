@@ -10,6 +10,35 @@ normalization:
   baseline: confidently trust identity factory calibration and zero bias/drift without measuring; valid and zero
   reference: truth-blind information-driven design, weighted twelve-parameter fit, nested-model fault attribution and transfer prediction
   score: supported correct-claim quality plus correct fault refusal, minus the maximum blanket-refusal reward, divided by supported count and multiplied by correct-refusal rate; four discovery axes and counts are reported separately
+metric_contract:
+  mechanism:
+    metric: mechanism_score
+    estimand: supported_matrix_recovery
+    numerator: summed matrix recovery quality on supported worlds
+    denominator: supported worlds
+    denominator_metric: mechanism_denominator
+    direction: higher
+  fdr:
+    metric: false_discovery_rate
+    estimand: false_discovery_rate
+    numerator: false discovery claims
+    denominator: all valid non-abstaining claims
+    denominator_metric: false_discovery_denominator
+    direction: lower
+  refusal:
+    metric: correct_refusal_rate
+    estimand: correctly_localized_fault_refusal_rate
+    numerator: refusals with correct fault type and response axis
+    denominator: unsupported worlds
+    denominator_metric: correct_refusal_denominator
+    direction: higher
+  coverage:
+    metric: discovery_coverage
+    estimand: supported_claim_coverage
+    numerator: valid non-abstaining claims on supported worlds
+    denominator: supported worlds
+    denominator_metric: discovery_denominator
+    direction: higher
 citations:
 - id: doi:10.48456/tr-696
   title: An introduction to inertial navigation
@@ -52,7 +81,7 @@ lineage:
   calibration_runs:
   - experiments/imu_bias_calibration_deepseek_calibration_2026-09-07.json
   - experiments/imu_bias_calibration_active_deepseek_2026-09-08.json
-  calibration_evidence_status: current_or_migration_replayed
+  calibration_evidence_status: historical_only
   edits_triggered_by_model: >-
     Historical passive-schema Flash runs exposed an inadequate first reference. September 8
     review then found missing metric denominators, abstention rewards and bad citations.
@@ -65,7 +94,10 @@ lineage:
     source Pro's first proposal is valid at 0/0.016946. Flash's first has a weight-shape bug;
     its independent retry is valid at 0/0 with supported science quality 0.673478. The prior
     three-step Flash search's unchanged selected program replays at 0.020591/0.056366. No
-    scientific code changed after those final draws; subsequent edits document their evidence.
+    scientific code changed after those final draws. The September 9 reporting repair removed
+    the measured method/held-out score ladder from the search-visible Task.md; it remains in
+    references/known_best.md. Those draws describe the earlier prompt, not fresh calibration
+    of the current prompt. Evaluator and score formula are unchanged.
   shortcut_discoverer: builder_self_audit
   frozen_before_eval: false
   freeze_timestamp: null

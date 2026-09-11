@@ -9,6 +9,31 @@ normalization:
   baseline: first historical year at which the fingerprint is negative, never probing, never declining
   reference: plus/minus hysteresis at present freshwater, then a continued run for the crossing year
   score: development mechanism recovery normalized above always-abstain; signal recovery, false discovery, refusal, coverage and the held-out split stay separate
+metric_contract:
+  mechanism:
+    metric: mechanism_score
+    estimand: normalized_mechanism_recovery_above_blanket_refusal
+    numerator: raw recovery fraction minus unsupported-world fraction, clipped at zero
+    denominator: supported-world fraction
+    direction: higher
+  fdr:
+    metric: false_discovery_rate
+    estimand: false_positive_rate
+    numerator: discovery claims on unsupported worlds
+    denominator: unsupported worlds
+    direction: lower
+  refusal:
+    metric: correct_refusal_rate
+    estimand: unsupported_refusal_rate
+    numerator: correct refusals on unsupported worlds
+    denominator: unsupported worlds
+    direction: higher
+  coverage:
+    metric: discovery_coverage
+    estimand: supported_claim_coverage
+    numerator: non-abstaining claims on supported worlds
+    denominator: supported worlds
+    direction: higher
 citations:
 - id: doi:10.1038/s41467-023-39810-w
   title: "Warning of a forthcoming collapse of the Atlantic meridional overturning circulation"

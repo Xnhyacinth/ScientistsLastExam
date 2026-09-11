@@ -46,12 +46,48 @@ def write_run(root: Path, cohort: str, dirname: str, task: str, mode: str, seed:
             "llm_condition": {"model": model},
             "llm_condition_sha256": condition or ("condition:" + model),
             "runtime_source_sha256": runtime,
+            "algorithm": "greedy_rewrite",
             **({"task_package_sha256": contract} if contract else {}),
         }), encoding="utf-8")
     lines = [json.dumps({"step": 0, "valid": True, "score": 0.0})]
+    incumbent = 0.0
     for index, score in enumerate(scores, start=1):
-        lines.append(json.dumps({"step": index, "valid": True, "score": score}))
+        lines.append(json.dumps({"step": index, "valid": True, "score": score,
+                                 "accepted": score > incumbent}))
+        incumbent = max(incumbent, score)
     (workdir / "trajectory.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+class IncumbentCurveTests(unittest.TestCase):
+    def test_positive_baseline_survives_a_worse_proposal(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "trajectory.jsonl"
+            path.write_text("\n".join(json.dumps(row) for row in [
+                {"step": 0, "valid": True, "score": 0.6, "best_score": 0.6},
+                {"step": 1, "valid": True, "score": 0.2, "best_score": 0.6},
+            ]) + "\n")
+            self.assertEqual(MODULE.best_so_far(path), [0.6])
+
+    def test_unaccepted_late_score_does_not_replace_incumbent(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "trajectory.jsonl"
+            rows = [
+                {"step": 0, "valid": True, "score": 0.6},
+                {"step": 1, "valid": True, "score": 0.9,
+                 "accepted": False, "best_score": 0.6},
+                {"step": 2, "valid": True, "score": 0.7,
+                 "accepted": True, "best_score": 0.7},
+            ]
+            path.write_text("\n".join(map(json.dumps, rows)))
+            self.assertEqual(MODULE.best_so_far(path), [0.6, 0.7])
+
+    def test_inconsistent_selected_score_is_rejected(self):
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "trajectory.jsonl"
+            path.write_text(json.dumps(
+                {"step": 0, "valid": True, "score": 0.6, "best_score": 0.8}))
+            with self.assertRaisesRegex(ValueError, "recorded best score"):
+                MODULE.best_so_far(path)
 
 
 class RunIdentityTests(unittest.TestCase):
@@ -62,7 +98,7 @@ class RunIdentityTests(unittest.TestCase):
             found = MODULE.collect(root)
             self.assertEqual(list(found),
                              [("Astro/LowThrust", "crossover", "gpt-5.5",
-                               "condition:gpt-5.5", "unknown", "runtime:default")])
+                               "condition:gpt-5.5", "unknown", "runtime:default", "greedy_rewrite")])
 
     def test_a_run_without_a_manifest_is_skipped_rather_than_guessed(self):
         with TemporaryDirectory() as tmp:
@@ -95,6 +131,27 @@ class PoolingTests(unittest.TestCase):
             report = self.run_report(root)
             self.assertEqual(len(report["rows"]), 1)
             self.assertEqual(report["distinct_task_count"], 1)
+
+    def test_each_row_lists_the_runs_it_pooled(self):
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            open_loop = [0.5] * 8
+            feedback = [0.5, 0.52, 0.54, 0.57, 0.60, 0.65, 0.70, 0.75]
+            write_run(root, "paired", "open0", "T/X", "selection_blind", 0, open_loop)
+            write_run(root, "paired", "fb0", "T/X", "normal", 0, feedback)
+            write_run(root, "paired", "open1", "T/X", "selection_blind", 1, open_loop)
+            write_run(root, "paired", "fb1", "T/X", "normal", 1, feedback)
+            report = self.run_report(root)
+            runs = report["rows"][0]["runs"]
+            self.assertEqual(
+                {(item["seed"], item["feedback_mode"], item["cohort"]) for item in runs},
+                {
+                    (0, "selection_blind", "paired"),
+                    (0, "normal", "paired"),
+                    (1, "selection_blind", "paired"),
+                    (1, "normal", "paired"),
+                },
+            )
 
     @staticmethod
     def run_report(root: Path) -> dict:
@@ -264,10 +321,11 @@ class ModelSeparationTests(unittest.TestCase):
                 json.dumps({"task_id": "T/X", "feedback_mode": "normal", "seed": 0}),
                 encoding="utf-8")
             (workdir / "trajectory.jsonl").write_text(
+                json.dumps({"step": 0, "valid": True, "score": 0.0}) + "\n" +
                 json.dumps({"step": 1, "valid": True, "score": 0.4}) + "\n", encoding="utf-8")
             self.assertEqual(list(MODULE.collect(root)),
                              [("T/X", "old", "unrecorded", "unrecorded", "unknown",
-                               "unrecorded")])
+                               "unrecorded", "unrecorded")])
 
 
 class VerdictTests(unittest.TestCase):

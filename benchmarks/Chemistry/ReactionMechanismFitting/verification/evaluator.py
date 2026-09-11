@@ -427,6 +427,9 @@ def _evaluate_world(discover_mechanism, spec, split, index):
     world = _world(spec)
     laboratory = _Laboratory(world)
     try:
+        reset = getattr(discover_mechanism, "reset_session", None)
+        if callable(reset):
+            reset()
         submission = discover_mechanism(
             SPECIES_NAMES, REACTION_PAIRS, laboratory.experiment, BUDGET_UNITS
         )

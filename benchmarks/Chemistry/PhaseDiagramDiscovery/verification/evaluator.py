@@ -360,6 +360,9 @@ def _evaluate_world(discover_phases, spec, split, index):
     base = {"split": split, "world_index": int(index), "kind": world["kind"],
             "synthesis_calls": 0}
     try:
+        reset = getattr(discover_phases, "reset_session", None)
+        if callable(reset):
+            reset()
         submission = discover_phases(problem, synthesizer)
         claimed, confidence, abstain = _validate_submission(submission)
         if synthesizer.violated:

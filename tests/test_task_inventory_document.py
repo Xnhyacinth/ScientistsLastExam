@@ -25,6 +25,10 @@ class TaskInventoryDocumentTests(unittest.TestCase):
             "TASKS.md is stale: run python scripts/report_task_inventory.py",
         )
 
+    def test_readme_counts_match_the_same_inventory(self):
+        current = (ROOT / "README.md").read_text()
+        self.assertEqual(current, MODULE.update_readme_counts(current, MODULE.build_rows()))
+
     def test_every_registered_task_has_exactly_one_row(self):
         text = (ROOT / "TASKS.md").read_text()
         names = re.findall(r"^\| \[`([A-Za-z0-9]+)`\]\(benchmarks/", text, re.M)

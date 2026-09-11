@@ -335,6 +335,9 @@ def _reconstruct(x, fitted):
 
 def _score_instance(fit_spectrum, instance):
     try:
+        reset = getattr(fit_spectrum, "reset_session", None)
+        if callable(reset):
+            reset()
         returned = fit_spectrum(instance["x"].copy(), instance["spectrum"].copy())
         fitted = _validate_result(returned, instance)
         supported = instance["kind"] == "in_library"
