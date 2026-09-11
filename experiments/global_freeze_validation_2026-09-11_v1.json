@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "report_type": "operator_validation_summary",
+  "evidence_scope": "GLOBAL_INVENTORY_AND_TOOL_VALIDATION_NOT_MODEL_PERFORMANCE_OR_TASK_DIFFICULTY",
+  "source_provenance": {
+    "git_available": true,
+    "git_revision": "36e6e02cb23778bb5132d6a15f6ae638fd791f12",
+    "source_tree_dirty": false,
+    "source_changes": [],
+    "source_scope": [
+      "sle",
+      "scripts",
+      "tests",
+      "benchmarks",
+      "requirements-upstream.txt"
+    ],
+    "command": [
+      "operator-derived-validation-summary"
+    ]
+  },
+  "runtime_source_sha256": "e29d3b1d7b0e0f9f5b1b09a8c0a45ace098ad8790547d0333c1940e0a421bea9",
+  "external_model_calls": 0,
+  "inventory": {
+    "task_count": 86,
+    "certified": 5,
+    "candidate": 81
+  },
+  "baseline": {
+    "public_version": 70,
+    "private_original_version": 69,
+    "evaluation_count": 172,
+    "repeats_per_task": 2,
+    "valid_tasks": 86,
+    "deterministic_tasks": 86,
+    "infrastructure_failure_count": 0,
+    "invalid_baseline_run_count": 0,
+    "malformed_candidate_evaluations": 0,
+    "determinism_excluded_metrics": [
+      "runtime_s"
+    ],
+    "scope": "The observed valid baselines do not test malformed candidates. No evaluations were repeated for the public projection."
+  },
+  "public_wrapper": {
+    "version": 4,
+    "inventory_count": 86,
+    "passed_count": 86
+  },
+  "recovery": {
+    "version": 10,
+    "scenario_count": 8,
+    "passed_count": 8,
+    "scope": "Controlled fixture protocol recovery; no model API or scientific discovery evidence"
+  },
+  "preflight": {
+    "public_version": 3,
+    "task_count": 7,
+    "evaluations_per_task": 3,
+    "evaluation_count": 21,
+    "check_counts": {
+      "pass": 70,
+      "fail": 0,
+      "missing": 0
+    },
+    "preflight_passed_count": 7,
+    "long_horizon_run_permitted_count": 7,
+    "scope": "Mechanical permission for the exploratory cohort is distinct from the maturity long_horizon_ready gate, which remains zero"
+  },
+  "maturity": {
+    "version": 28,
+    "gate_counts": {
+      "internal_science_admission": 86,
+      "open_release_ready": 0,
+      "externally_validated": 0,
+      "long_horizon_ready": 0
+    },
+    "current_model_measurement_count": 0,
+    "new_task": {
+      "task": "DataPrivacy/SparseVectorAudit",
+      "current_or_migrated_model_runs": 0,
+      "historical_or_unbound_model_runs": 0,
+      "evidence_binding_counts": {
+        "current_contract_bound": 2,
+        "historical_only": 0,
+        "migration_replayed": 0,
+        "unbound": 0
+      },
+      "evidence_kinds": [
+        "certification",
+        "secure_baseline"
+      ],
+      "scope": "Task-card first-draw claims are not automatically counted as formal framework measurements"
+    }
+  },
+  "cohort_successors": {
+    "manifest": ".research/exploratory_2h_cohort_manifest_2026-09-11_v11.json",
+    "spec": ".research/measurement_health_preflight_spec_2026-09-11_v14.json",
+    "artifacts": ".research/measurement_health_preflight_artifacts_2026-09-11_v11.json",
+    "candidate_sources_unchanged": 7,
+    "measured_task_migrations": [
+      "StructuralEngineering/TrussWeightMinimization",
+      "Thermodynamics/HeatExchangerDesign"
+    ]
+  },
+  "strict_tests": {
+    "source_revision": "36e6e02cb23778bb5132d6a15f6ae638fd791f12",
+    "test_files": [
+      "tests/test_certification.py",
+      "tests/test_secure_baseline_audit.py",
+      "tests/test_task_maturity.py",
+      "tests/test_measurement_health.py",
+      "tests/test_measurement_health_preflight.py",
+      "tests/test_evaluation_recovery_audit.py",
+      "tests/test_frozen_package_mismatch.py",
+      "tests/test_rebinding_preserves_measurements.py",
+      "tests/test_batch_runner.py",
+      "tests/test_public_wrapper_sandbox.py",
+      "tests/test_runtime_migration.py",
+      "tests/test_provenance.py",
+      "tests/test_readme_inventory_counts.py",
+      "tests/test_task_inventory_document.py",
+      "tests/test_scientific_materiality.py"
+    ],
+    "passed": 166,
+    "failed": 0,
+    "skipped": 0,
+    "duration_seconds": 240.24,
+    "required_frozen_inventory": true,
+    "selected_scope_complete": true,
+    "full_suite_coverage_complete": false,
+    "junit_sha256": "bfde7fdf49db23279fd1b309106cd217031c48e79e93c4c41f18969cdd8ce65e",
+    "log_sha256": "6b4c59d7bfd673477d08ecb561e887656cce10f0b17766cfb293ba6227f47f0a"
+  },
+  "publication_proof": {
+    "source_revision": "36e6e02cb23778bb5132d6a15f6ae638fd791f12",
+    "excluded_commits": {
+      "1eba208cfa497e27e3d81a39130060f153b85cb4": "not_an_ancestor",
+      "9cdbc9f009ab1ac2a9a363751dcad07ff1276c85": "not_an_ancestor"
+    },
+    "private_originals": [
+      {
+        "filename": "secure_baseline_determinism_2026-09-11_v69.json",
+        "sha256": "b84441298cba259d5aec1632e612603b7b085cdd07040dba848b19c35a3a873e",
+        "git_blob_sha1": "162e005a72e3c69d7c2cb57bcd588acbb2227625",
+        "git_blob_reachable": false,
+        "file_mode": "0o600",
+        "parent_mode": "0o700"
+      },
+      {
+        "filename": "measurement_health_preflight_2026-09-11_v3.json",
+        "sha256": "612e1456857cc37caa19c84ab840f95845f01c0d65b223b2abdd69d0f0d861f9",
+        "git_blob_sha1": "d38475ad1808042ac6bcffe4e02fe556a4492e26",
+        "git_blob_reachable": false,
+        "file_mode": "0o600",
+        "parent_mode": "0o700"
+      }
+    ],
+    "raw_v69_path_reachable": false,
+    "legacy_public_v68_unchanged": true
+  },
+  "reports": {
+    "task_certification_audit_2026-09-11_v86.json": {
+      "path": "experiments/task_certification_audit_2026-09-11_v86.json",
+      "sha256": "6128a03ecf11d03c4935f36ba55bb18a9b62cd867632fa59710118aafe1a1cec",
+      "source_revision": "15fc70505ba64f6675d282f3cafa793c0ab5eac6",
+      "trusted_evidence": true
+    },
+    "secure_baseline_determinism_2026-09-11_v70.json": {
+      "path": "experiments/secure_baseline_determinism_2026-09-11_v70.json",
+      "sha256": "ec5a17e6480df7fd7357bdbd9aabf581bd7c8152fc8ff71deb5c5d6f75277468",
+      "source_revision": "15fc70505ba64f6675d282f3cafa793c0ab5eac6",
+      "trusted_evidence": true,
+      "export_revision": "1e2908338cb4647dcee3cb9d0d60f8627f780869"
+    },
+    "task_maturity_audit_2026-09-11_v28.json": {
+      "path": "experiments/task_maturity_audit_2026-09-11_v28.json",
+      "sha256": "4b6029c3e09a8f60fceb74d5b42c7d1bfb0dde2537857b7e4f1a0abf5bfba865",
+      "source_revision": "f5578fbc276206d7d8ffdcb20a14f35400bf9775",
+      "trusted_evidence": true
+    },
+    "public_wrapper_baseline_replay_2026-09-11_v4.json": {
+      "path": "experiments/public_wrapper_baseline_replay_2026-09-11_v4.json",
+      "sha256": "575ac2fb1f870420659b2c805604477198499e3d4907b6f58df3801ad410caa9",
+      "source_revision": "5d86c72a25ee7345ea0ea73db964fd25bc1b1e2c",
+      "trusted_evidence": true
+    },
+    "evaluation_recovery_fault_audit_2026-09-11_v10.json": {
+      "path": "experiments/evaluation_recovery_fault_audit_2026-09-11_v10.json",
+      "sha256": "7f77b32946eb7f5dee5942b73c1f1d81fab986d41e82ec1c85371bf39e3fc386",
+      "source_revision": "5d86c72a25ee7345ea0ea73db964fd25bc1b1e2c",
+      "trusted_evidence": true
+    },
+    "measurement_health_preflight_2026-09-11_v3.json": {
+      "path": "experiments/measurement_health_preflight_2026-09-11_v3.json",
+      "sha256": "1b93b1110d1c041e460dc3783183d0f21fa48e7bf756f2229539a54683c785bf",
+      "source_revision": "bdcbac9fb2f06559954de9260f45c4810b1f82ee",
+      "trusted_evidence": true
+    }
+  },
+  "limitations": [
+    "This summary is not complete GitHub CI and does not establish iterative difficulty, multi-model generalization, external validation, or long-horizon readiness.",
+    "Earlier unpublished wrapper v3 (86 passing tasks), recovery v9 and raw baseline v69 remain in the private operator channel; their unsafe descendant commits were excluded from this publication branch.",
+    "An initial Linux privacy fixture had 17 passes and one failure because umask 077 converted a requested 0755 directory into 0700. Explicit fixture chmod fixed it; final privacy fixtures passed 18/18 without weakening production checks.",
+    "The rebind generator still labels behavioral changes declarative-only in its generic justification. Only the two new spec v14 explanations were corrected and bound to the real sandbox compatibility report; older evidence remains untouched."
+  ]
+}

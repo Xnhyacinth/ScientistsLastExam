@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from ..llm import LLMClient
-from ..metric_visibility import load_full_metrics
+from ..metric_visibility import load_full_metrics, require_healthy_evaluations
 from ..protocol import sha256_text
 from ..spec import TaskSpec
 from ..upstream_evaluator import write_configured_wrapper
@@ -165,6 +165,7 @@ def shinkaevolve(
         use_text_feedback=feedback_mode == "normal",
         max_novelty_attempts=1,
     )
+    require_healthy_evaluations(workdir / "trusted_full_metrics")
     evaluator_file = write_configured_wrapper(
         workdir / "upstream_evaluator.py", spec.task_id, timeout_s,
         full_metrics_dir=workdir / "trusted_full_metrics",
@@ -186,6 +187,7 @@ def shinkaevolve(
         max_db_workers=1,
     )
     runner.run()
+    require_healthy_evaluations(workdir / "trusted_full_metrics")
 
     rows = _evaluation_rows(_load_program_rows(database_path))
     if not rows:

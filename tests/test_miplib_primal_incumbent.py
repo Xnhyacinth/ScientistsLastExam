@@ -72,6 +72,27 @@ class MiplibPrimalTests(unittest.TestCase):
         first_queen = EVALUATOR._instance_score(row, -1.0)
         self.assertGreater(last_queen, first_queen)
 
+    def test_greedy_two_exchange_probe_replays_on_the_log_gap_ruler(self):
+        probe = _load(
+            "mip_local_search", TASK / "references" / "local_search_probe.py"
+        )
+        result = EVALUATOR.evaluate(probe.improve_primal)
+        self.assertEqual(result["valid"], 1.0)
+        self.assertEqual(result["feasibility_rate"], 1.0)
+        row = result["per_instance"][0]
+        self.assertTrue(row["valid"])
+        objective = float(row["objective"])
+        queens = int(round(-objective))
+        self.assertGreaterEqual(queens, 36)
+        self.assertLess(queens, 40)
+        self.assertAlmostEqual(result["combined_score"], row["instance_score"], places=6)
+        self.assertAlmostEqual(result["combined_score"], 0.704163, places=6)
+        # Linear q/40 would put 36 queens at 0.90; the log-gap ruler does not.
+        self.assertLess(
+            EVALUATOR._instance_score(EVALUATOR.INSTANCES[0], -36.0), 0.70
+        )
+        self.assertLess(result["combined_score"], 1.0)
+
     def test_malformed_submissions_score_zero_without_raising(self):
         cases = {
             "none": lambda problem: None,

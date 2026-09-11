@@ -1,0 +1,18 @@
+{
+  "TASK_CARD.yaml": "d6859a8b2c7e9570875292c9e1b031e372637ce64c51dd636833d2e7be647457",
+  "Task.md": "6fbfc58f6a9cd7ef9c0ac87b1609d3166f4eec5e59714e18cdd417b52e660c50",
+  "frontier_eval/agent_files.txt": "9c9c47fdaee31c7a9d4f0e822d48c015fc619de200fb801cbd5b1c940901b6e1",
+  "frontier_eval/candidate_destination.txt": "ece4e0053b1c683eff94ac0fadeacd92748da603286a0105b2870eb77b63e459",
+  "frontier_eval/constraints.txt": "34bb16ef4212f2fb73e55aed7a758d68031fdf9389adb1ce66bba63f2043188a",
+  "frontier_eval/entrypoint.txt": "1f01bf4f121ae33e566cda94b01abfa3166136e1e257255dbe37ebe7133f7e89",
+  "frontier_eval/eval_command.txt": "5c442f4425daec9752afea2e730fb75e7aace44d99c642f92f0464afa091b956",
+  "frontier_eval/initial_program.txt": "ece4e0053b1c683eff94ac0fadeacd92748da603286a0105b2870eb77b63e459",
+  "frontier_eval/metadata.yaml": "5c4dc9140b45b4c94905d438614dd39e91d58d12c6ee7e811af77cd7ace2666b",
+  "frontier_eval/readonly_files.txt": "36b67e726ed4e57a44cd069f09853385978ab90f45fc432e8d9cb53653ecedf6",
+  "frontier_eval/run_eval.py": "1ebd89b193cc22443a854538bfd183b63691cd9609ff6659c8264c854ae5d63b",
+  "references/known_best.md": "b1f508b592dbc46675d31e11b7c4b672156639ec159bb961939f6647269f913a",
+  "solution.py": "5658d4c2d1abe731ff48b4e0c90565b8165b183b5206cb51813932ba615a66ef",
+  "verification/algebraic_probe.py": "50d90ca08938563f8d10f65ca0af2bd1f77d032761b2d4c9726d2cabb06646ca",
+  "verification/evaluator.py": "f0d8614a0d94f7350b721f0f3e2fea1d801cd8a9ab3242b9e58e0a69397d4bc9",
+  "verification/reference_fit.py": "86ff59c290764f55bd45f20bf35f961da1076cb998abed041d368dc2d32ac51d"
+}

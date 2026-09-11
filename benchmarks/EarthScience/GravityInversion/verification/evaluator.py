@@ -426,6 +426,9 @@ def _evaluate_world(discover_bodies, spec, split, index):
     world = _world(spec)
     survey = _Survey(world)
     try:
+        reset = getattr(discover_bodies, "reset_session", None)
+        if callable(reset):
+            reset()
         submission = discover_bodies(
             PROFILE_BOUNDS_M, DEPTH_BOUNDS_M, survey.measure,
             SURVEY_BUDGET_UNITS,

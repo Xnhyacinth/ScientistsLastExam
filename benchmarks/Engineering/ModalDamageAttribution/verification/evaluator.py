@@ -370,6 +370,9 @@ def _evaluate_world(attribute_damage, spec, split, index):
             "true_element": world["element"], "true_severity": round(world["severity"], 6),
             "days_measured": 0}
     try:
+        reset = getattr(attribute_damage, "reset_session", None)
+        if callable(reset):
+            reset()
         submission = attribute_damage(problem, campaign)
         claim, confidence, abstain = _validate_submission(submission)
         if campaign.violated:

@@ -244,6 +244,9 @@ def _evaluate_world(candidate, spec, split, index):
         "true_mean_occupancy": float(np.mean(world["psi"])),
     }
     try:
+        reset = getattr(candidate, "reset_session", None)
+        if callable(reset):
+            reset()
         submission = candidate(problem, survey)
         query_ids = {"q%02d" % value for value in range(1, survey.calls + 1)}
         claim = _validate_submission(submission, query_ids)

@@ -498,6 +498,9 @@ def _normalized_weight_score(baseline_weight, reference_weight, candidate_weight
 
 def _score_instance(design_truss, instance):
     try:
+        reset = getattr(design_truss, "reset_session", None)
+        if callable(reset):
+            reset()
         returned = design_truss(
             instance["nodes"].copy(),
             instance["members"].copy(),

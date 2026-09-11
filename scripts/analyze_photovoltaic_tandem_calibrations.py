@@ -33,7 +33,7 @@ from sle.provenance import (  # noqa: E402
     finalize_report_trust,
     source_provenance,
 )
-from sle.runtime_migration import runtime_source_changes  # noqa: E402
+from sle.runtime_migration import runtime_migration_status, runtime_source_changes  # noqa: E402
 
 
 TASK = "Photovoltaics/PhotovoltaicTandemDesign"
@@ -52,7 +52,10 @@ REPORTS = {
 INPUT_SOURCE_REVISION = "e57bb682930d65c39699b2153e8743063587b97e"
 CALIBRATION_SOURCE_REVISION = "0c0ca5ea21e6be5a58929e336b4c5dfbf0eddb55"
 TASK_RUNTIME_SCOPE = (
-    ":(glob)sle/**/*.py",
+    # git ls-tree does not support glob pathspec magic. The entire package is a
+    # conservative superset of every formerly scoped Python file, including
+    # legacy frontier_science paths normalized by runtime_source_changes.
+    "sle",
     "benchmarks/Chemistry/PhotovoltaicTandemDesign",
     "requirements-upstream.txt",
 )
@@ -110,7 +113,7 @@ def _shortcut_scan(path: Path) -> dict[str, Any]:
     tree = ast.parse(source)
     strings = {
         node.value for node in ast.walk(tree)
-        if isinstance(node, ast.Str)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
     }
     forbidden_literals = {
         "5101", "5102", "5103", "5104", "5105",
@@ -550,13 +553,28 @@ def analyze() -> dict[str, Any]:
         label: _load_model(label, relative)
         for label, relative in REPORTS.items()
     }
-    changes = _source_changes(CALIBRATION_SOURCE_REVISION, INPUT_SOURCE_REVISION)
-    return _analyze_records(
+    historical_changes = _source_changes(CALIBRATION_SOURCE_REVISION, INPUT_SOURCE_REVISION)
+    current_revision = source_provenance(ROOT).get("git_revision")
+    current_changes = _source_changes(INPUT_SOURCE_REVISION, current_revision)
+    migration = runtime_migration_status(
+        INPUT_SOURCE_REVISION, current_revision, current_changes,
+    ) if current_changes else None
+    historical_equivalent = not historical_changes
+    current_equivalent = bool(not current_changes or (migration or {}).get("accepted") is True)
+    report = _analyze_records(
         calibration,
         records,
-        runtime_source_equivalent=not changes,
-        runtime_source_changes=changes,
+        runtime_source_equivalent=historical_equivalent and current_equivalent,
+        runtime_source_changes=sorted(set(historical_changes + current_changes)),
     )
+    report.update({
+        "calibration_to_model_task_runtime_source_equivalent": historical_equivalent,
+        "calibration_to_model_task_runtime_source_changes": historical_changes,
+        "model_to_analysis_task_runtime_source_equivalent": current_equivalent,
+        "model_to_analysis_task_runtime_source_changes": current_changes,
+        "model_to_analysis_task_runtime_source_migration": migration,
+    })
+    return report
 
 
 def main() -> int:
