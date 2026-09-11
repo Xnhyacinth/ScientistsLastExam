@@ -265,6 +265,9 @@ def _score_split(reconstruct, worlds):
     for world in worlds:
         oracle = _Oracle(nx, world["graph"], world["query_budget"])
         try:
+            reset = getattr(reconstruct, "reset_session", None)
+            if callable(reset):
+                reset()
             raw = reconstruct(
                 {"nodes": world["nodes"], "query_budget": world["query_budget"]},
                 oracle.distance,

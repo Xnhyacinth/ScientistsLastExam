@@ -380,6 +380,20 @@ print(json.dumps({{'combined_score': result['combined_score'], 'valid': result['
         repeated = EVALUATOR.evaluate(SOLUTION.design_assembly)
         self.assertEqual(baseline, repeated)
 
+    def test_black_box_wrapper_does_not_publish_heldout_metrics(self):
+        from sle.metric_visibility import SEARCH_VISIBLE_KEYS, search_visible_metrics
+
+        source = (TASK / "frontier_eval" / "run_eval.py").read_text(encoding="utf-8")
+        self.assertIn("frontier_eval_entrypoint.py", source)
+        self.assertNotIn("json.loads(completed.stdout)", source)
+        reference = EVALUATOR.evaluate(REFERENCE.design_assembly)
+        visible = search_visible_metrics(reference)
+        self.assertTrue(set(visible) <= set(SEARCH_VISIBLE_KEYS))
+        self.assertNotIn("robustness_score", visible)
+        self.assertFalse(any(key.startswith("heldout_") for key in visible))
+        self.assertIn("robustness_score", reference)
+        self.assertIn("heldout_feasibility_rate", reference)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -449,6 +449,22 @@ tasks:
       - doi:10.1088/1361-6633/ac36b9
       - doi:10.1140/epjc/s10052-010-1470-8
       - arxiv:2512.13787
+  DataPrivacy/SparseVectorAudit:
+    status: candidate
+    reason: >-
+      Paid-sample auditing of sparse-vector differential privacy: submit neighbouring query vectors
+      and an output event witnessing a violation, or decline. Deterministic finite threshold-noise
+      enumeration has documented truncation/compliance bounds; it is not a formal real-arithmetic
+      certificate. The complete positional reference scores 0.8193980000000003 development and
+      0.72987 held out; baseline zero and the fixed strongest historical shortcut 0.4274261428571428.
+      All substantive capability ablations lower development score. Correct claim-denominator FDR,
+      all-world validity and per-world candidate isolation are verified. At c02e402, 151 targeted
+      Linux tests and the 13-call contribution gate passed. Three independent valid first proposals
+      score 0.21659171428571433, 0.2761347142857143 and 0.2652197142857144, all below the complete
+      reference. Their original receipts remain immutable and documentation-only compatibility
+      is checked separately. Candidate intake only; independent privacy review, iterative difficulty
+      and fresh server-held confirmation remain pending.
+    citation_ids: [doi:10.14778/3055330.3055331, doi:10.1145/3243734.3243818, doi:10.1145/3243734.3243863, doi:10.1109/SP40001.2021.00081, doi:10.1561/0400000042, doi:10.1145/1536414.1536467, doi:10.1145/2382196.2382264, doi:10.1093/biomet/26.4.404, arxiv:2006.07709, doi:10.1109/SP40001.2021.00069, doi:10.1137/09076828X, doi:10.1109/ALLERTON.2018.8636068]
   CausalDiscovery/SurvivorshipConfoundedDesign:
     status: candidate
     reason: >-

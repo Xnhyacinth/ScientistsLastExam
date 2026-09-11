@@ -58,6 +58,20 @@ class DiscoveryAdmissionTests(unittest.TestCase):
         self.assertEqual(out["count_without_denominator"], ["fdr"])
         self.assertEqual(out["missing_axes"], [])
 
+    def test_mechanism_on_another_split_is_not_reported_missing(self):
+        axes = {
+            "mechanism": {
+                "value": None, "key": "mechanism_score", "split": "unsplit",
+                "requested_split": "heldout", "status": "published_on_other_split",
+            },
+            "fdr": {"value": 0.1, "key": "development_false_discovery_rate"},
+            "refusal": {"value": 1.0, "key": "correct_refusal_rate"},
+        }
+        row = {"task": "X/Y", "verdict": "exhausted_unpaired"}
+        out = self.mod.classify_discovery_row(row, "discovery", axes)
+        self.assertEqual(out["published_on_other_split"], ["mechanism"])
+        self.assertEqual(out["missing_axes"], [])
+
     def test_triple_axes_join_only_to_the_same_full_run_identity(self):
         axes = {
             "mechanism": {"value": 0.5, "key": "mechanism_score"},
@@ -106,7 +120,226 @@ class DiscoveryAdmissionTests(unittest.TestCase):
             rows = json.loads(output_path.read_text(encoding="utf-8"))["rows"]
         self.assertEqual(rows[0]["axes"], axes)
         self.assertEqual(rows[0]["missing_axes"], [])
+        self.assertEqual(rows[0]["axes_join"], "exact")
         self.assertEqual(rows[1]["missing_axes"], ["mechanism", "fdr", "refusal"])
+        self.assertEqual(rows[1]["axes_join"], "no_match")
+
+    def _identity(self, **extra):
+        row = {
+            "task": "Mathematics/SequenceLawRecovery",
+            "model": "hy3-ioa",
+            "llm_condition_sha256": "condition-a",
+            "task_version": "task-v1",
+            "runtime_source_sha256": "runtime-a",
+        }
+        row.update(extra)
+        return row
+
+    def test_multi_seed_triple_joins_when_admission_names_seed_and_mode(self):
+        axes0 = {
+            "mechanism": {"value": 0.4, "key": "heldout_mechanism_score", "split": "heldout"},
+            "fdr": {"value": 0.1, "key": "heldout_false_discovery_rate", "split": "heldout"},
+            "refusal": {"value": 0.8, "key": "heldout_unsupported_refusal_rate", "split": "heldout"},
+        }
+        axes1 = {
+            "mechanism": {"value": 0.6, "key": "heldout_mechanism_score", "split": "heldout"},
+            "fdr": {"value": 0.2, "key": "heldout_false_discovery_rate", "split": "heldout"},
+            "refusal": {"value": 0.7, "key": "heldout_unsupported_refusal_rate", "split": "heldout"},
+        }
+        triple = {"schema_version": 2, "rows": [
+            {**self._identity(seed=0, feedback_mode="normal", status="ok", axes=axes0)},
+            {**self._identity(seed=1, feedback_mode="normal", status="ok", axes=axes1)},
+        ]}
+        admission = {"rows": [
+            {**self._identity(seed=0, feedback_mode="normal", verdict="measures_iteration")},
+            {**self._identity(seed=1, feedback_mode="normal", verdict="measures_iteration")},
+        ]}
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            admission_path = root / "admission.json"
+            triple_path = root / "triple.json"
+            output_path = root / "out.json"
+            admission_path.write_text(json.dumps(admission), encoding="utf-8")
+            triple_path.write_text(json.dumps(triple), encoding="utf-8")
+            self.mod.main([
+                "--admission", str(admission_path),
+                "--triple", str(triple_path),
+                "--output", str(output_path),
+            ])
+            document = json.loads(output_path.read_text(encoding="utf-8"))
+        self.assertEqual(document["schema_version"], 4)
+        self.assertEqual(document["rows"][0]["axes"], axes0)
+        self.assertEqual(document["rows"][1]["axes"], axes1)
+        self.assertEqual(document["rows"][0]["missing_axes"], [])
+        self.assertEqual(document["rows"][1]["missing_axes"], [])
+        self.assertEqual(document["rows"][0]["axes_join"], "exact")
+        self.assertEqual(document["axes_join"]["exact"], 2)
+
+    def test_multi_seed_triple_does_not_claim_axes_unpublished(self):
+        axes = {
+            "mechanism": {"value": 0.5, "key": "heldout_mechanism_score"},
+            "fdr": {"value": 0.1, "key": "heldout_false_discovery_rate"},
+            "refusal": {"value": 0.8, "key": "heldout_unsupported_refusal_rate"},
+        }
+        triple = {"schema_version": 2, "rows": [
+            {**self._identity(seed=0, feedback_mode="normal", status="ok", axes=axes)},
+            {**self._identity(seed=1, feedback_mode="normal", status="ok", axes=axes)},
+        ]}
+        admission = {"rows": [
+            {**self._identity(verdict="measures_iteration")},
+        ]}
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            admission_path = root / "admission.json"
+            triple_path = root / "triple.json"
+            output_path = root / "out.json"
+            admission_path.write_text(json.dumps(admission), encoding="utf-8")
+            triple_path.write_text(json.dumps(triple), encoding="utf-8")
+            self.mod.main([
+                "--admission", str(admission_path),
+                "--triple", str(triple_path),
+                "--output", str(output_path),
+            ])
+            row = json.loads(output_path.read_text(encoding="utf-8"))["rows"][0]
+        self.assertEqual(row["axes_join"], "all_coarse")
+        self.assertEqual(row["missing_axes"], [])
+        self.assertEqual(len(row["axes_by_run"]), 2)
+        self.assertEqual(row["axes"], axes)
+        self.assertNotIn("axes_join_reason", row)
+
+    def test_pooled_admission_runs_list_joins_every_arm(self):
+        axes_normal = {
+            "mechanism": {"value": 0.5, "key": "heldout_mechanism_score"},
+            "fdr": {"value": 0.1, "key": "heldout_false_discovery_rate"},
+            "refusal": {"value": 0.8, "key": "heldout_unsupported_refusal_rate"},
+        }
+        axes_blind = {
+            "mechanism": {"value": 0.4, "key": "heldout_mechanism_score"},
+            "fdr": {"value": 0.2, "key": "heldout_false_discovery_rate"},
+            "refusal": {"value": 0.7, "key": "heldout_unsupported_refusal_rate"},
+        }
+        triple = {"schema_version": 2, "rows": [
+            {**self._identity(seed=0, feedback_mode="normal", status="ok", axes=axes_normal)},
+            {**self._identity(seed=0, feedback_mode="selection_blind", status="ok", axes=axes_blind)},
+        ]}
+        admission = {"rows": [
+            {**self._identity(
+                verdict="measures_iteration",
+                runs=[
+                    {"seed": 0, "feedback_mode": "normal", "cohort": "paired"},
+                    {"seed": 0, "feedback_mode": "selection_blind", "cohort": "paired"},
+                ],
+            )},
+        ]}
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            admission_path = root / "admission.json"
+            triple_path = root / "triple.json"
+            output_path = root / "out.json"
+            admission_path.write_text(json.dumps(admission), encoding="utf-8")
+            triple_path.write_text(json.dumps(triple), encoding="utf-8")
+            self.mod.main([
+                "--admission", str(admission_path),
+                "--triple", str(triple_path),
+                "--output", str(output_path),
+            ])
+            document = json.loads(output_path.read_text(encoding="utf-8"))
+        row = document["rows"][0]
+        self.assertEqual(row["axes_join"], "pooled_runs")
+        self.assertEqual(row["missing_axes"], [])
+        self.assertEqual(len(row["axes_by_run"]), 2)
+        self.assertEqual(row["axes"]["mechanism"]["status"], "pooled_across_runs")
+        self.assertIsNone(row["axes"]["mechanism"]["value"])
+        self.assertEqual(document["discovery_rows_missing_axes"], 0)
+        self.assertEqual(document["axes_join"]["pooled_runs"], 1)
+
+    def test_admission_chains_from_the_criterion_producer(self):
+        import contextlib
+        import io
+
+        scripts = Path(__file__).resolve().parents[1] / "scripts"
+        admission_spec = importlib.util.spec_from_file_location(
+            "admission_criterion_chain", scripts / "report_admission_criterion.py")
+        admission_mod = importlib.util.module_from_spec(admission_spec)
+        admission_spec.loader.exec_module(admission_mod)
+        triple_spec = importlib.util.spec_from_file_location(
+            "discovery_triple_chain", scripts / "report_discovery_triple.py")
+        triple_mod = importlib.util.module_from_spec(triple_spec)
+        triple_spec.loader.exec_module(triple_mod)
+
+        def write_run(directory: Path, seed: int, mode: str, scores: list[float]) -> None:
+            directory.mkdir(parents=True)
+            (directory / "run_manifest.json").write_text(json.dumps({
+                "task_id": "Mathematics/SequenceLawRecovery",
+                "feedback_mode": mode,
+                "seed": seed,
+                "llm_condition": {"model": "hy3-ioa"},
+                "llm_condition_sha256": "condition-a",
+                "task_package_sha256": "task-package",
+                "runtime_source_sha256": "runtime-a",
+            }), encoding="utf-8")
+            events = [{"step": 0, "valid": True, "score": 0.0, "metrics": {
+                "combined_score": 0.0,
+                "heldout_mechanism_score": 0.0,
+                "heldout_false_discovery_rate": 0.0,
+                "heldout_unsupported_refusal_rate": 0.0,
+                "heldout_discovery_coverage": 0.0,
+            }}]
+            for index, score in enumerate(scores, start=1):
+                events.append({
+                    "step": index,
+                    "valid": True,
+                    "score": score,
+                    "metrics": {
+                        "combined_score": score,
+                        "heldout_mechanism_score": 0.4 + 0.05 * seed,
+                        "heldout_false_discovery_rate": 0.1,
+                        "heldout_unsupported_refusal_rate": 0.8,
+                        "heldout_discovery_coverage": 0.7,
+                    },
+                })
+            (directory / "trajectory.jsonl").write_text(
+                "\n".join(json.dumps(event) for event in events) + "\n",
+                encoding="utf-8",
+            )
+
+        open_loop = [0.5] * 12
+        feedback = [0.52, 0.54, 0.57, 0.60, 0.63, 0.66, 0.70, 0.74, 0.78, 0.82, 0.86, 0.90]
+        with TemporaryDirectory() as tmp:
+            runs = Path(tmp) / "runs"
+            for seed in (0, 1, 2):
+                write_run(runs / "paired" / ("blind_%d" % seed), seed, "selection_blind", open_loop)
+                write_run(runs / "paired" / ("normal_%d" % seed), seed, "normal", feedback)
+            admission_json = Path(tmp) / "admission.json"
+            triple_json = Path(tmp) / "triple.json"
+            output_path = Path(tmp) / "out.json"
+            with contextlib.redirect_stdout(io.StringIO()):
+                admission_mod.main(["--runs", str(runs), "--output", str(admission_json)])
+                triple_mod.main(["--runs", str(runs), "--output", str(triple_json)])
+                self.mod.main([
+                    "--admission", str(admission_json),
+                    "--triple", str(triple_json),
+                    "--output", str(output_path),
+                ])
+            admission = json.loads(admission_json.read_text(encoding="utf-8"))
+            joined = json.loads(output_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(admission["rows"]), 1)
+        self.assertEqual(len(admission["rows"][0]["runs"]), 6)
+        self.assertNotEqual(admission["rows"][0]["verdict"], "unknown")
+        row = joined["rows"][0]
+        self.assertEqual(row["axes_join"], "pooled_runs")
+        self.assertEqual(row["missing_axes"], [])
+        self.assertEqual(len(row["axes_by_run"]), 6)
+        self.assertEqual(
+            {(item["seed"], item["feedback_mode"]) for item in row["axes_by_run"]},
+            {(seed, mode) for seed in (0, 1, 2) for mode in ("normal", "selection_blind")},
+        )
+        self.assertIn(
+            row["axes"]["mechanism"]["status"],
+            {"semantics_unrecorded", "pooled_across_runs"},
+        )
+        self.assertEqual(joined["discovery_rows_missing_axes"], 0)
+        self.assertEqual(joined["axes_join"]["pooled_runs"], 1)
 
 
 if __name__ == "__main__":

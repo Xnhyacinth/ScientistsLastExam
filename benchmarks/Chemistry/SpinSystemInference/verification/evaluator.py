@@ -258,6 +258,9 @@ def _score_split(design_fn, worlds):
     rows = []
     for world in worlds:
         try:
+            reset = getattr(design_fn, "reset_session", None)
+            if callable(reset):
+                reset()
             raw = design_fn(_observation(world))
         except Exception as exc:  # noqa: BLE001 - candidate faults are scored, not raised
             rows.append({"key": world["key"], "valid": False,

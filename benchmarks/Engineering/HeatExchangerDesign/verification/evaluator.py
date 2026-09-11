@@ -1109,6 +1109,9 @@ def _normalized(value, baseline, reference):
 
 def _score_instance(design_exchanger, instance):
     try:
+        reset = getattr(design_exchanger, "reset_session", None)
+        if callable(reset):
+            reset()
         returned = design_exchanger(copy.deepcopy(instance["problem"]))
         designs = _validate_archive(returned, instance["problem"])
         proxy, exact, shifted = _evaluate_archive(instance, designs)

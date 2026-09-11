@@ -257,6 +257,9 @@ def _evaluate_world(candidate, spec, split, index):
             "true_crystallization_age_myr": round(world["crystallization_age_myr"], 6),
             "true_lead_loss_age_myr": None if world["lead_loss_age_myr"] is None else round(world["lead_loss_age_myr"], 6)}
     try:
+        reset = getattr(candidate, "reset_session", None)
+        if callable(reset):
+            reset()
         submission = candidate(problem, laboratory)
         query_ids = {"q%02d" % i for i in range(1, laboratory.calls + 1)}
         claim = _validate_submission(submission, query_ids)

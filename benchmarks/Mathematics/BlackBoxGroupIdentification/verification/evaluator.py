@@ -508,6 +508,9 @@ def _evaluate_world(identify, spec, split, index):
     base = {"split": split, "world_index": int(index), "kind": world["kind"], "order": world["order"],
             "queries": 0}
     try:
+        reset = getattr(identify, "reset_session", None)
+        if callable(reset):
+            reset()
         submission = identify(problem, oracle)
         name, reason, confidence = _validate_submission(submission, world["order"])
         if oracle.violated:

@@ -1,39 +1,59 @@
-"""Black-box eval entrypoint for RamseyLowerBound."""
-from __future__ import annotations
-import argparse, json, sys
+"""Launch the shared trusted evaluator without importing project code."""
+import argparse
+import math
+import subprocess
+import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
-from sle.secure_eval import CandidateProxy
-
-INVALID = -1e18
-TASK_DIR = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[4]
+TASK_ID = 'Mathematics/RamseyLowerBound'
+EVAL_TIMEOUT_S = 300
 
 
-def _load_callable(path: Path, name: str):
-    return CandidateProxy(path, name, timeout_s=300)
+# The task id is written in, where the previous template derived everything from __file__.
+# That is deliberate - `sle eval` needs the registered id, not a path - but it means a wrapper
+# copied to a neighbouring task keeps pointing at the task it came from, and scores the new
+# candidate against the old oracle without complaining. The directory name is the second half
+# of the id, so the copy is cheap to catch here rather than in whoever reads the numbers.
+_expected_task = Path(__file__).resolve().parents[1].name
+if TASK_ID.split("/")[-1] != _expected_task:
+    raise SystemExit(
+        "TASK_ID %r does not name this directory (%r); this wrapper was copied from another"
+        " task and would score against that task's oracle" % (TASK_ID, _expected_task))
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--candidate", required=True)
-    ap.add_argument("--metrics-out", required=True)
-    args = ap.parse_args()
-    metrics = {"combined_score": INVALID, "valid": 0.0}
+def main(argv=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--candidate", required=True)
+    parser.add_argument("--metrics-out", required=True)
+    parser.add_argument("--timeout", type=float, default=EVAL_TIMEOUT_S)
+    parser.add_argument("--full-metrics-dir")
+    args = parser.parse_args(argv)
+    command = [sys.executable, str(ROOT / "sle/frontier_eval_entrypoint.py"),
+               "--task", TASK_ID, "--root", str(ROOT), "--timeout", str(args.timeout),
+               "--candidate", args.candidate, "--metrics-out", args.metrics_out]
+    if args.full_metrics_dir:
+        command.extend(["--full-metrics-dir", args.full_metrics_dir])
     try:
-        sys.path.insert(0, str(TASK_DIR / "verification"))
-        import evaluator as oracle  # type: ignore
-        build = _load_callable(Path(args.candidate).resolve(), "build_coloring")
-        result = oracle.evaluate(build)
-        metrics.update(result)
-        metrics["raw_score"] = result.get("combined_score")
-    except Exception as exc:  # noqa: BLE001
-        metrics["error_message"] = f"{type(exc).__name__}: {exc}"
-    Path(args.metrics_out).write_text(
-        json.dumps(metrics, indent=2, default=str), encoding="utf-8"
-    )
-    print(json.dumps({k: metrics.get(k) for k in ("combined_score", "valid", "beat_sota")}))
-    return 0
+        Path(args.metrics_out).unlink(missing_ok=True)
+        if not math.isfinite(args.timeout) or args.timeout <= 0:
+            print("evaluation timeout must be positive and finite", file=sys.stderr)
+            return 2
+        result = subprocess.run(command, capture_output=True, text=True, timeout=args.timeout + 150)
+        if result.returncode:
+            Path(args.metrics_out).unlink(missing_ok=True)
+            print("evaluation entrypoint unavailable or infrastructure failure (exit %d)"
+                  % result.returncode, file=sys.stderr)
+            return 2
+        print(result.stdout, end="")
+        return 0
+    except (OSError, subprocess.TimeoutExpired):
+        try:
+            Path(args.metrics_out).unlink(missing_ok=True)
+        except OSError:
+            pass
+        print("evaluation entrypoint could not be launched or report cleared", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

@@ -1,0 +1,16 @@
+{
+  "adaptation": "inline original helper block verbatim; retain positional body verbatim except remove ref. namespace prefixes; no parameter or decision change",
+  "candidates": {
+    "ablation_no_library.py": "62369c2992e01db5ba379a13df796854db208090c8ac53af71f5ea54b24f8894",
+    "ablation_no_scan.py": "f2759a7ac656e06fa22690511de00468f0a36c92602176d38fe356721a009529",
+    "probe_legacy_no_confirmation.py": "5279311dbac398598b30c73c0588ed697412628e258cd52b40ff7bbb7944b955",
+    "probe_positional_no_confirmation.py": "1b8210dbdddaf6105df59a986d75550896fad8973258142e6c5e81e6c19818fc",
+    "reference_library_scan.py": "ee6ea5aed4c48162f0e62dec14be5019e37697bdf5f5842ac688532ab181b00b",
+    "reference_positional.py": "3287a1e6204bdd7cb5363d36610aa0e31274bd00d6e48531c6ee11d2f91e2100"
+  },
+  "helpers_verbatim_sha256": "bc80bfd26cadf401566dbdc5d86fc7f14c017b3f4fc6e75ab57f0da76a954c03",
+  "legacy_reference_sha256": "ee6ea5aed4c48162f0e62dec14be5019e37697bdf5f5842ac688532ab181b00b",
+  "positional_source_sha256": "f4aaa8fd4c17a136eaa212b9944a583a5bc2d517e1de7e97aad7178c89c30cb0",
+  "schema_version": 1,
+  "upstream_head": "4bb95061846a28a3025f4eb05cdd52210e12b11a"
+}
