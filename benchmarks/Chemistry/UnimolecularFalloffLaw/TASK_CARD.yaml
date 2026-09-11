@@ -20,11 +20,12 @@ invariants:
 - measure calls are charged and overspend fails closed; malformed submissions score zero and never raise out of the evaluator
 - held-out split, per-world rows and the discovery axes remain evaluator-only
 known_shortcuts: >-
-  The three-assay probe with the reference family predicate scored 0.746885/0.808437
-  against the old 12–13 assay scan at 0.731992/0.776872, because 100 bar was already
-  k_inf. After (T,P)-keyed noise and Pr(300 K, 100 bar)=2, the same probe scores
-  0.198579/0.324198 against the full-curve reference 0.961337/0.727720. Repeats of
-  one (T,P) no longer denoise; log k_inf is an extrapolation. Scientific admission
+  After per-world wall Pr in [0.6, 6], a 1-D constant-Pr scan no longer shares a
+  peak across splits (frozen-panel best 0.152536/0.118574). A 1215-point 3-assay
+  grid scores 0.299711/0.284082. three_assay_probe.py scores 0.042868/0.396599.
+  The same reference estimator at 8 vs 18 assays, mean over 12 noise panels, is
+  0.7080/0.6957 vs 0.7767/0.8479. Frozen-panel reference 0.969831/0.719345 is a
+  panel maximum (12-panel development max 0.970, mean 0.777). Scientific admission
   and model difficulty remain unproven.
 
 review:

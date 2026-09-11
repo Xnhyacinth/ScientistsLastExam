@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
+from sle.metric_visibility import search_visible_metrics
 from sle.secure_eval import CandidateProxy
 
 INVALID = -1e18
@@ -28,14 +29,15 @@ def main():
         import evaluator as oracle
         candidate = _load(Path(args.candidate).resolve(), ENTRYPOINT)
         result = oracle.evaluate(candidate)
-        metrics.update(result)
+        metrics.update(search_visible_metrics(result))
         metrics["raw_score"] = result.get("combined_score")
     except Exception as exc:
         metrics["error_message"] = "%s: %s" % (type(exc).__name__, exc)
+    public = search_visible_metrics(metrics)
     Path(args.metrics_out).write_text(
-        json.dumps(metrics, indent=2, default=str), encoding="utf-8"
+        json.dumps(public, indent=2, default=str), encoding="utf-8"
     )
-    print(json.dumps({key: metrics.get(key) for key in ("combined_score", "valid")}))
+    print(json.dumps({key: public.get(key) for key in ("combined_score", "valid")}))
     return 0
 
 

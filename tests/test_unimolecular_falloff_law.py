@@ -99,21 +99,65 @@ class UnimolecularFalloffLawTests(unittest.TestCase):
         self.assertEqual(full["heldout_false_discovery_rate"], 0.0)
 
     def test_the_measurement_budget_is_not_free(self):
-        """Three assays must score clearly below the full-budget reference."""
-        probe = _load(TASK / "references/three_assay_probe.py", "three_assay_probe")
-        cheap = self.evaluator.evaluate(probe.identify_falloff)
-        full = self.evaluator.evaluate(self.reference.identify_falloff)
+        """The same curve-fit estimator must score worse when the assay budget is cut.
+
+        Compare the reference at reduced ``measure_budget_calls`` against the full
+        budget, averaged over several noise panels (world seeds). A frozen panel
+        can hide a near-tie.
+        """
+        reduced, full = 8, self.evaluator.MEASURE_BUDGET
+        panels = tuple(range(0, 24, 2))
+        reduced_dev, reduced_held, full_dev, full_held = [], [], [], []
+        for offset in panels:
+            cheap = self._reference_at_budget(reduced, offset)
+            rich = self._reference_at_budget(full, offset)
+            reduced_dev.append(cheap["combined_score"])
+            reduced_held.append(cheap["heldout_mechanism_score"])
+            full_dev.append(rich["combined_score"])
+            full_held.append(rich["heldout_mechanism_score"])
+        mean_reduced_dev = sum(reduced_dev) / len(reduced_dev)
+        mean_full_dev = sum(full_dev) / len(full_dev)
+        mean_reduced_held = sum(reduced_held) / len(reduced_held)
+        mean_full_held = sum(full_held) / len(full_held)
         self.assertLess(
-            cheap["combined_score"],
-            full["combined_score"] - 0.2,
-            "three assays score as well as the full pressure curve",
+            mean_reduced_dev,
+            mean_full_dev - 0.04,
+            "cutting the reference budget does not lower mean development score: "
+            "reduced mean=%.4f full mean=%.4f reduced=%s full=%s"
+            % (mean_reduced_dev, mean_full_dev, reduced_dev, full_dev),
         )
         self.assertLess(
-            cheap["heldout_mechanism_score"],
-            full["heldout_mechanism_score"] - 0.2,
+            mean_reduced_held,
+            mean_full_held - 0.08,
+            "cutting the reference budget does not lower mean held-out score: "
+            "reduced mean=%.4f full mean=%.4f reduced=%s full=%s"
+            % (mean_reduced_held, mean_full_held, reduced_held, full_held),
         )
 
+    def _reference_at_budget(self, budget, seed_offset):
+        ev = self.evaluator
+        original_budget = ev.PUBLIC_PROBLEM["measure_budget_calls"]
+        original_dev = ev.DEVELOPMENT_WORLDS
+        original_held = ev.HELDOUT_WORLDS
+        try:
+            ev.PUBLIC_PROBLEM["measure_budget_calls"] = int(budget)
+            ev.DEVELOPMENT_WORLDS = tuple(
+                dict(spec, seed=int(spec["seed"]) + int(seed_offset))
+                for spec in original_dev
+            )
+            ev.HELDOUT_WORLDS = tuple(
+                dict(spec, seed=int(spec["seed"]) + int(seed_offset))
+                for spec in original_held
+            )
+            return ev.evaluate(self.reference.identify_falloff)
+        finally:
+            ev.PUBLIC_PROBLEM["measure_budget_calls"] = original_budget
+            ev.DEVELOPMENT_WORLDS = original_dev
+            ev.HELDOUT_WORLDS = original_held
+
     def test_the_public_high_pressure_wall_is_still_falloff(self):
+        log_pr_1bar = []
+        lo, hi = self.evaluator.WALL_PR_RANGE
         for world in list(self.evaluator.DEVELOPMENT_WORLDS) + list(self.evaluator.HELDOUT_WORLDS):
             if world["kind"] not in self.evaluator.SUPPORTED:
                 continue
@@ -121,9 +165,19 @@ class UnimolecularFalloffLawTests(unittest.TestCase):
                 kinf = self.evaluator.k_inf(world, 300.0)
                 k_wall = self.evaluator.true_k(world, 300.0, 100.0)
                 pr_wall = self.evaluator.k0_m(world, 300.0, 100.0) / kinf
-                self.assertAlmostEqual(pr_wall, self.evaluator.HIGH_P_WALL_PR, places=6)
+                self.assertGreaterEqual(pr_wall, lo)
+                self.assertLessEqual(pr_wall, hi)
                 self.assertLess(k_wall / kinf, 0.85)
                 self.assertGreater(k_wall / kinf, 0.10)
+                log_pr_1bar.append(math.log(
+                    self.evaluator.k0_m(world, 300.0, 1.0) / kinf
+                ))
+        rounded = [round(value, 8) for value in log_pr_1bar]
+        self.assertEqual(
+            len(rounded),
+            len(set(rounded)),
+            "in-family worlds share log Pr(300 K, 1 bar): %s" % (log_pr_1bar,),
+        )
 
     def test_measurement_noise_is_keyed_by_temperature_and_pressure(self):
         spec = self.evaluator.DEVELOPMENT_WORLDS[0]

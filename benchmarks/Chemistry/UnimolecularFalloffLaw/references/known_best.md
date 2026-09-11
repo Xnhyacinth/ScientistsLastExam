@@ -1,55 +1,103 @@
-# UnimolecularFalloffLaw — 100 bar is still falloff, scientific admission pending
+# UnimolecularFalloffLaw — reference results
 
-## Reference and reproduction
+Builder measurements after per-world wall Pr. No frontier-model draws or pairing Δ
+were taken.
 
-`verification/reference_falloff.py` fits the public reduced Lindemann/Troe pressure law
-jointly for log k_inf, log Pr and Fcent. It uses 14 log-spaced pressure observations at
-300 K and four higher-temperature observations for pressure-order refusal, within the
-unchanged 18-assay budget. BIC compares the two fitted families; Fcent is not a fixed 0.40.
-Only existing NumPy/SciPy and public observations are used.
+## Reproducing
 
 ```
-uv run python -m sle eval --task UnimolecularFalloffLaw --allow-uncertified \
-  --candidate benchmarks/Chemistry/UnimolecularFalloffLaw/verification/reference_falloff.py --timeout 30
+python3 frontier_eval/run_eval.py --candidate verification/reference_falloff.py \
+    --metrics-out /tmp/metrics.json
 ```
 
-The reference scores **0.9613366667 development / 0.7277200000 heldout**, valid, with zero
-false discovery on both splits. The Arrhenius baseline is valid and scores zero.
+In-process `evaluator.evaluate` on the published seeds matches the numbers below.
 
-## Why the three-assay shortcut existed
+## Reference - `verification/reference_falloff.py`
 
-In-family worlds previously placed Pr(300 K, 100 bar) in the thousands, so a single in-budget
-high-P reading was already k_inf. `references/three_assay_probe.py` reconstructs the
-[September 9 owner counterexample](https://github.com/Geniusyingmanji/ScientistsLastExam/pull/26#issuecomment-5594779434)
-with that reference's own family predicate (`f_obs < 0.82`, Fcent=0.40). Against the old
-12–13 assay scan it scored **0.746885 / 0.808437** versus **0.731992 / 0.776872**. Fitting the
-full pressure curve (commit `bb6c950`) raised the reference to **0.936433 / 0.953523**, but
-left the 100 bar wall at k_inf and seeded noise by call index.
+Truth-blind: it reads only the public bounds and the budgeted `measure` callback.
+It fits the public reduced Lindemann/Troe pressure law jointly for log k_inf, log Pr
+and Fcent (14 log-spaced pressures at 300 K and four hotter assays for pressure-order
+refusal). BIC compares the two fitted families. Only existing NumPy/SciPy and public
+observations are used.
 
-## Scientific repairs
+| metric | development | held out |
+|---|---|---|
+| combined / mechanism score (normalized) | **0.969831** | **0.719345** |
+| false discovery rate | 0.00 | 0.00 |
+| correct refusal rate | 1.00 | 1.00 |
 
-Noise is now a hash of `(world seed, T, P)`. Repeating the same assay returns the same draw;
-extra budget buys new conditions. In-family (and two-channel) A0 is set so
-Pr(300 K, 100 bar) = 2: Lindemann k(100 bar)/k_inf = 2/3, and Troe is lower. `log_k_inf` is
-an extrapolation from the falloff, not a wall reading.
+Those frozen-panel scores are a lucky draw. Across 12 noise panels (world seeds offset
+by 0, 2, …, 22; same estimator, only the seed changes) the full 18-assay reference is
+development mean **0.7767** (min 0.401, max 0.970) and held-out mean **0.8479**.
+The 0.9698 frozen-panel number is the maximum on that 12-panel set, not a typical
+value. A previous 0.9613 figure was likewise a maximum across panels.
 
-After those changes the same three-assay probe scores **0.198579 / 0.324198**, below the
-repaired reference on both splits. A 2304-point grid that treated 100 bar as k_inf is not
-re-run: the wall is no longer k_inf, so that search is not a witness here. No model draws
-or pairing Δ were taken.
+Held-out Troe on the frozen panel scores 0.468 while held-out Lindemann scores 0.970.
+That is underfit of k_inf against Fcent inside the observable window, not leftover
+ceiling. It is not evidence that the reference saturates the task.
 
-Held-out Troe still trades k_inf against Fcent inside the observable window; that is leftover
-headroom, not a claim that the reference saturates the task.
+## Baseline - `solution.py`
 
-## Remaining scientific hold
+Buys one mid-range assay it treats as pressure-independent Arrhenius. Always publishes
+Lindemann. Two-channel and negative-order worlds are therefore Lindemann papers.
 
-The package remains a candidate. Broader identifiable regimes, server-held worlds, and
-independent review are still required. The held-out split is evaluator-only.
+| metric | value |
+|---|---|
+| combined score | **0.0000** |
+| signal recovery rate | 0.00 |
+| false discovery rate | 1.00 |
+| correct refusal rate | 0.00 |
 
-## Model and provenance scope
+## Ablation ladder and shortcut probes
 
-The reduced symmetric broadening formula omits the full Troe c/d terms. This is a
-benchmark approximation, not the full published law. Original source checks (September 8)
-identify DOI 10.1002/bbpc.19830870218 as Gilbert, Luther and Troe, *Theory of Thermal
-Unimolecular Reactions in the Fall-off Range. II. Weak Collision Rate Constants* (1983).
-Lineage remains incomplete_legacy and independent scientific review is pending.
+Same reference estimator, only `measure_budget_calls` changed, mean over the same 12
+noise panels:
+
+| budget | development mean | held-out mean |
+|---|---|---|
+| 8 | 0.7080 | 0.6957 |
+| 10 | 0.7658 | 0.7479 |
+| 12 | 0.7683 | 0.7857 |
+| 18 | 0.7767 | 0.8479 |
+
+A 1215-point truth-blind 3-assay grid (high / 10 mbar / 1 mbar; same refusal as
+`three_assay_probe.py`; 9 k_inf offsets × 15 log Pr × 9 Fcent) scores
+**0.299711 / 0.284082** on the frozen panel, below the full-curve reference.
+
+A 3-assay probe that pins one constant `log_Pr_300K_1bar` for every world and inverts
+Fcent from the mid point no longer finds a shared constant. A 13-point 1-D scan on the
+frozen panel peaks at ln Pr = −5.00 with **0.152536 / 0.118574**; held-out instead
+peaks near −3.50 (0.416). Development and held-out no longer peak at the same ln Pr.
+
+`references/three_assay_probe.py` (the September 9 wall-as-k_inf counterexample) now
+scores **0.042868 / 0.396599** against the repaired worlds.
+
+## Construction errors
+
+Earlier packages pinned Pr(300 K, 100 bar) = 2 on every in-family world, so
+log Pr(300 K, 1 bar) = ln(0.02) was a shared constant a 1-D scan could hit without
+measurements. Wall Pr is now per world in [0.6, 6], still in the falloff
+(`k(100 bar)/k_inf` in (0.10, 0.85) on in-family worlds), and the 1-D constant-Pr
+probe no longer beats the reference.
+
+A previous note that treated held-out Troe as leftover headroom contradicted
+measurement: the reference underfits that world, and a cheap constant-Pr rule used
+to outscore it while the constant leaked. That sentence is withdrawn.
+
+The public Troe description states the symmetric reduced formula and its missing
+c/d terms. `sle.contract_lint` is an optional free candidate-side checker, not an
+evaluator call.
+
+## Robustness and model draws
+
+The held-out numbers above use the fixed evaluator-only split plus the 12 seed-offset
+noise panels named in the ablation table. They are not external-data or model
+calibration results. No frontier-model draws or long-horizon runs have been
+performed. Calibration evidence remains missing and lineage is incomplete_legacy.
+
+Citation metadata checked against Crossref and Wiley on 2026-09-08: DOI
+10.1002/bbpc.19830870218 is Gilbert, Luther and Troe, *Theory of Thermal
+Unimolecular Reactions in the Fall-off Range. II. Weak Collision Rate Constants*
+(1983). DOI 10.1002/bbpc.19830870219 is an unrelated journal notice and has been
+removed. The reduced symmetric formula is a benchmark approximation, not the full
+published law.

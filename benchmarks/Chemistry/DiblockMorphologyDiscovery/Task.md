@@ -1,4 +1,4 @@
-# DiblockMorphologyDiscovery
+# DiblockMorphologyDiscovery — lamellae, hex, bcc, gyroid, or refuse
 
 ## The question
 

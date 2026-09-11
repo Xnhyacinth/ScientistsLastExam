@@ -10,8 +10,9 @@ MEASURE_BUDGET = 18
 T_BOUNDS = (300.0, 1200.0)
 P_BOUNDS = (1.0e-3, 1.0e2)
 SUPPORTED = {"lindemann", "troe"}
-# Pr at 300 K and the public 100 bar wall. The high-pressure limit is off the wall.
-HIGH_P_WALL_PR = 2.0
+# Pr(300 K, 100 bar) stays in the falloff, but is per-world so log Pr(300 K, 1 bar)
+# is not a shared constant a 1-D scan can pin without measurements.
+WALL_PR_RANGE = (0.6, 6.0)
 
 PUBLIC_PROBLEM = {
     "temperature_bounds_K": list(T_BOUNDS),
@@ -43,8 +44,11 @@ def k_inf(spec, temperature):
     return float(spec["A_inf"]) * math.exp(-float(spec["E_inf"]) / max(float(temperature), 1.0))
 
 
-def _a0_for_wall_pr(A_inf, E_inf, E0, pr=HIGH_P_WALL_PR):
-    """Low-P prefactor so Pr(300 K, 100 bar) equals pr, not a saturated high-P limit."""
+def _a0_for_wall_pr(A_inf, E_inf, E0, pr):
+    """Low-P prefactor so Pr(300 K, 100 bar) equals this world's pr, not k_inf."""
+    lo, hi = WALL_PR_RANGE
+    if not lo <= float(pr) <= hi:
+        raise ValueError("wall Pr must lie in [%.1f, %.1f]" % (lo, hi))
     return float(pr) * float(A_inf) * (300.0 / 100.0) * math.exp((float(E0) - float(E_inf)) / 300.0)
 
 
@@ -154,25 +158,25 @@ def _mechanism(spec, abstain, family, log_kinf, log_pr, fcent):
 
 DEVELOPMENT_WORLDS = (
     {"kind": "lindemann", "seed": 11001, "A_inf": 2.4e7, "E_inf": 2100.0,
-     "A0": _a0_for_wall_pr(2.4e7, 2100.0, 900.0), "E0": 900.0},
+     "A0": _a0_for_wall_pr(2.4e7, 2100.0, 900.0, 0.72), "E0": 900.0},
     {"kind": "troe", "seed": 11002, "A_inf": 1.1e8, "E_inf": 2450.0,
-     "A0": _a0_for_wall_pr(1.1e8, 2450.0, 700.0), "E0": 700.0, "Fcent": 0.42},
+     "A0": _a0_for_wall_pr(1.1e8, 2450.0, 700.0, 1.85), "E0": 700.0, "Fcent": 0.42},
     {"kind": "troe", "seed": 11003, "A_inf": 6.5e7, "E_inf": 1800.0,
-     "A0": _a0_for_wall_pr(6.5e7, 1800.0, 1100.0), "E0": 1100.0, "Fcent": 0.28},
+     "A0": _a0_for_wall_pr(6.5e7, 1800.0, 1100.0, 4.40), "E0": 1100.0, "Fcent": 0.28},
     {"kind": "two_channel", "seed": 12001, "A_inf": 3.0e7, "E_inf": 2000.0,
-     "A0": _a0_for_wall_pr(3.0e7, 2000.0, 800.0), "E0": 800.0, "A2": 4.0e5, "E2": 900.0},
+     "A0": _a0_for_wall_pr(3.0e7, 2000.0, 800.0, 2.55), "E0": 800.0, "A2": 4.0e5, "E2": 900.0},
     {"kind": "two_channel", "seed": 12002, "A_inf": 8.0e7, "E_inf": 2600.0,
-     "A0": _a0_for_wall_pr(8.0e7, 2600.0, 600.0), "E0": 600.0, "A2": 1.2e6, "E2": 1400.0},
+     "A0": _a0_for_wall_pr(8.0e7, 2600.0, 600.0, 5.80), "E0": 600.0, "A2": 1.2e6, "E2": 1400.0},
     {"kind": "negative", "seed": 13001, "A_inf": 5.0e7, "E_inf": 2200.0, "A0": 3.0e9, "E0": 850.0},
     {"kind": "negative", "seed": 13002, "A_inf": 9.0e6, "E_inf": 1600.0, "A0": 1.0e9, "E0": 500.0},
 )
 HELDOUT_WORLDS = (
     {"kind": "lindemann", "seed": 21001, "A_inf": 4.1e7, "E_inf": 1950.0,
-     "A0": _a0_for_wall_pr(4.1e7, 1950.0, 950.0), "E0": 950.0},
+     "A0": _a0_for_wall_pr(4.1e7, 1950.0, 950.0, 3.35), "E0": 950.0},
     {"kind": "troe", "seed": 21002, "A_inf": 2.0e8, "E_inf": 2300.0,
-     "A0": _a0_for_wall_pr(2.0e8, 2300.0, 750.0), "E0": 750.0, "Fcent": 0.51},
+     "A0": _a0_for_wall_pr(2.0e8, 2300.0, 750.0, 1.10), "E0": 750.0, "Fcent": 0.51},
     {"kind": "two_channel", "seed": 22001, "A_inf": 1.5e7, "E_inf": 1700.0,
-     "A0": _a0_for_wall_pr(1.5e7, 1700.0, 1000.0), "E0": 1000.0, "A2": 8.0e5, "E2": 1100.0},
+     "A0": _a0_for_wall_pr(1.5e7, 1700.0, 1000.0, 0.68), "E0": 1000.0, "A2": 8.0e5, "E2": 1100.0},
     {"kind": "negative", "seed": 23001, "A_inf": 3.2e7, "E_inf": 2050.0, "A0": 4.4e9, "E0": 720.0},
     {"kind": "negative", "seed": 23002, "A_inf": 1.8e7, "E_inf": 2400.0, "A0": 6.1e9, "E0": 880.0},
 )
