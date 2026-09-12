@@ -97,3 +97,17 @@ scientific work. A larger rational catalog or an SDP-plus-reconstruction can
 still beat the shipped 119-Gram witness; that leftover is catalog headroom,
 not a cyclic-line exploit. The PR remains Draft; no model calibration or
 long-horizon evidence was created.
+
+## September 12 sandbox replay
+
+The cyclic and block-grid candidates are now self-contained. Their exact-arithmetic
+helpers are embedded from the public-input reference; sibling `verification/` files are
+not mounted into a candidate sandbox. The old cyclic import failed in the sandbox,
+so the old in-process table alone did not establish replayability.
+
+Current Linux sandbox: complete reference **0.437715**, 14-point cyclic line
+**0.26519975**, block-diagonal grid **0.2998665**; all four instances are valid for each.
+An isolated-file regression verifies both probes without sibling files. The exact search
+algorithms and mode family were not changed by this repair. This establishes separation
+for these declared controls on this head, not external/model or long-horizon qualification.
+Historical 0.491533 belongs to a different head and is not a current measurement.

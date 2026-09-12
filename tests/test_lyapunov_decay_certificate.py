@@ -4,6 +4,9 @@ from __future__ import annotations
 import copy
 import importlib.util
 import itertools
+import json
+import subprocess
+import tempfile
 import sys
 import unittest
 from fractions import Fraction
@@ -62,6 +65,22 @@ class LyapunovDecayCertificateTests(unittest.TestCase):
         cls.cyclic = _load(
             TASK / "references/cyclic_probe.py", "lyapunov_cyclic"
         )
+
+    def test_shortcut_candidates_run_without_sibling_files(self):
+        instance = self.evaluator.public_instance(self.evaluator.INSTANCES[0])
+        for name in ("cyclic_probe.py", "grid_probe.py"):
+            with self.subTest(candidate=name), tempfile.TemporaryDirectory() as directory:
+                candidate = Path(directory) / "candidate.py"
+                candidate.write_bytes((TASK / "references" / name).read_bytes())
+                result = subprocess.run(
+                    [sys.executable, "-I", "-c",
+                     "import json,runpy,sys; "
+                     "f=runpy.run_path(sys.argv[1])['build_lyapunov']; "
+                     "print(json.dumps(f(json.load(sys.stdin))))", str(candidate)],
+                    input=json.dumps(instance), text=True, capture_output=True, timeout=60,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("alpha", json.loads(result.stdout))
 
     def test_instances_are_three_dimensional(self):
         for instance in self.evaluator.INSTANCES:
