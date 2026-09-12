@@ -238,7 +238,8 @@ def discover_reaction_network(problem, probe):
             {
                 "reactant": positions[edges[i][0]],
                 "product": positions[edges[i][1]],
-                "activation_energy": v,
+                # Stabilize fitted last bits within the existing 1e-9 evidence tolerance.
+                "activation_energy": round(v, 10),
             }
             for i, v in sorted(selected.items())
         ],

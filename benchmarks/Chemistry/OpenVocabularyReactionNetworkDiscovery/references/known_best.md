@@ -67,3 +67,9 @@ with at most 13 probes (mean 8.833333), reproducing the 9 September maintainer
 counterexample. A 1024-ordering BFS scan then reached raw 0.946080715974333, and
 a novelty-first reference raw was 0.9730176503033645. Those numbers are not
 current. Ordering sweeps remain executable but are not a hardness claim.
+
+The first descriptor replay exposed one-ULP variation in mechanism recovery under
+parallel executions. The candidate now reports barriers to ten decimal places, within
+the unchanged 1e-9 evidence tolerance. Six parallel full sandbox replays then matched
+in every metric, with both split scores still one. This changes candidate output
+precision only; the oracle, scientific score and evidence predicate were not relaxed.
