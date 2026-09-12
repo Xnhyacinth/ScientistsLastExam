@@ -420,7 +420,7 @@ def _analyze_records(
     contracts = {record["task_contract_sha256"] for record in records.values()}
     runtimes = {record["runtime_source_sha256"] for record in records.values()}
     trusted_runtimes = {
-        record["trusted_evaluator_runtime_sha256"] for record in records.values()
+        record.get("trusted_evaluator_runtime_sha256") for record in records.values()
     }
     proposals = [
         event for record in records.values() for event in record["trajectory"][1:]
@@ -493,7 +493,8 @@ def _analyze_records(
         "input_llm_condition_equivalent": len(conditions) == 1,
         "input_task_contract_equivalent": len(contracts) == 1,
         "input_runtime_manifest_equivalent": len(runtimes) == 1,
-        "input_trusted_evaluator_runtime_equivalent": len(trusted_runtimes) == 1,
+        "input_trusted_evaluator_runtime_equivalent": (
+            len(trusted_runtimes) == 1 and None not in trusted_runtimes),
         "task_calibration": calibration,
         "records": records,
         "proposal_hurdle_summary": {

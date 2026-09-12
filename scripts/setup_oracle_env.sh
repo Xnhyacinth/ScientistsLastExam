@@ -149,7 +149,11 @@ for spec in "${PACKAGES[@]}"; do
   package_matches "$spec" || needs_install=1
 done
 if (( needs_install )); then
-  "$BOOTSTRAP_VENV/bin/pip" install --quiet --upgrade --target "$TARGET" "${PACKAGES[@]}"
+  # Ubuntu 20.04 venvs start with pip 20.0.2, which does not recognize the
+  # manylinux tags of pinned RDKit wheels. Upgrade only the isolated installer;
+  # pip 25.0.1 is the Python 3.8 compatible resolver tested for this transaction.
+  "$BOOTSTRAP_VENV/bin/python" -m pip install --quiet --upgrade "pip==25.0.1"
+  "$BOOTSTRAP_VENV/bin/python" -m pip install --quiet --upgrade --target "$TARGET" "${PACKAGES[@]}"
 else
   echo "  all pinned packages already present, skipping"
 fi

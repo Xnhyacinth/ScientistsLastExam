@@ -32,6 +32,10 @@ FULL_METRICS_DIR = ""
 EXPECTED_TRUSTED_RUNTIME_SHA256 = ""
 
 
+class _RuntimeBindingError(RuntimeError):
+    """A fixed configuration error raised before any candidate evaluation."""
+
+
 def _runtime_fingerprint(value: str) -> str:
     rendered = str(value)
     if len(rendered) != 64 or any(char not in "0123456789abcdef" for char in rendered):
@@ -92,7 +96,7 @@ def evaluate(program_path: str) -> dict[str, Any]:
             trusted_runtime.fingerprint_sha256
             != EXPECTED_TRUSTED_RUNTIME_SHA256
         ):
-            raise RuntimeError("trusted evaluator runtime binding mismatch")
+            raise _RuntimeBindingError("trusted evaluator runtime binding mismatch")
         candidate = Path(program_path).resolve()
         full_metrics = evaluate_candidate(
             spec, candidate, timeout_s=TIMEOUT_S,
@@ -112,9 +116,10 @@ def evaluate(program_path: str) -> dict[str, Any]:
         raise EvaluationInfrastructureError(
             "trusted evaluation infrastructure failure"
         ) from None
-    except RuntimeError:
-        # Binding/config errors must keep their original reason so a mismatched
-        # runtime cannot look like a candidate fault.
+    except _RuntimeBindingError:
+        # Only this fixed pre-evaluation configuration error bypasses the fault
+        # marker. Other RuntimeErrors (including conflicting metric sidecars)
+        # must remain sticky infrastructure failures.
         raise
     except Exception as exc:
         if FULL_METRICS_DIR:

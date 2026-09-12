@@ -51,6 +51,7 @@ CHINESE_NAMES = {
     "Chemistry/LennardJonesCluster": "Lennard-Jones 团簇",
     "ClimateScience/EnergyBalanceModel": "能量平衡模型辨识",
     "ClimateScience/ForcedSignalAttribution": "强迫信号检测归因",
+    "ComputerArchitecture/CacheReplacementPolicyID": "缓存替换策略辨识",
     "ControlTheory/InvertedPendulumSwingUp": "倒立摆摆起控制",
     "DynamicalSystems/ActiveLawDiscovery": "主动定律发现",
     "Ecology/OccupancyDetectionDesign": "生态占域与探测设计",
@@ -180,6 +181,9 @@ CHINESE_BRIEFS = {
     "ClimateScience/ForcedSignalAttribution": (
         "在控制年预算下判断区域记录里是否含强迫响应、估其幅度与区间;模型指纹或变率不可信时拒答",
         "检测率、幅度分、区间覆盖分列;红噪声假趋势与安静模型均记误发现"),
+    "ComputerArchitecture/CacheReplacementPolicyID": (
+        "在带噪声的命中/缺失计时通道上对一个缓存组做受预算约束的访问实验,把隐藏的替换策略写成以路为输入的确定性状态机,或判定策略含随机性而拒答",
+        "提交的状态机与真实策略做精确的可观测等价判定;错误状态机记误发现并扣一个世界,随机策略世界须拒答,分数标尺锚在全拒答为零"),
     "ControlTheory/InvertedPendulumSwingUp": (
         "设计小车倒立摆的摆起与稳定控制律,兼顾轨道限位与作动器约束",
         "摆起效用;偏移工况稳健性分列"),

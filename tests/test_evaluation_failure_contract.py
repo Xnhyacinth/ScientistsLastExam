@@ -149,3 +149,27 @@ def test_sidecar_concurrent_writers_cannot_overwrite_disagreement(tmp_path):
         outcomes = list(pool.map(write, [.2, .8]))
     assert sorted(outcomes) == ['conflict', 'stored']
     assert load_full_metrics(tmp_path / 'private', 'x = 1\n')['combined_score'] in (.2, .8)
+
+
+def test_conflicting_upstream_sidecar_is_sticky_infrastructure_failure(tmp_path):
+    candidate = tmp_path / 'candidate.py'
+    candidate.write_text('x = 1\n')
+    private = tmp_path / 'private'
+    runtime = TrustedRuntime('python3', {'fingerprint_sha256': 'a' * 64})
+    first = {'combined_score': .5, 'valid': 1.0, 'heldout_mechanism_score': .1}
+    second = {**first, 'heldout_mechanism_score': .9}
+    with patch.object(upstream_evaluator, 'find_task', return_value=SimpleNamespace(task_dir=tmp_path)), \
+         patch.object(upstream_evaluator, 'resolve_trusted_runtime', return_value=runtime), \
+         patch.object(upstream_evaluator, 'evaluate_candidate', side_effect=[first, second]) as evaluator:
+        upstream_evaluator.configure('D/T', 1, str(private), runtime.fingerprint_sha256)
+        try:
+            assert upstream_evaluator.evaluate(str(candidate)) == {'combined_score': .5, 'valid': 1.0}
+            with pytest.raises(EvaluationInfrastructureError, match='^trusted evaluation infrastructure failure$'):
+                upstream_evaluator.evaluate(str(candidate))
+            with pytest.raises(EvaluationInfrastructureError):
+                upstream_evaluator.evaluate(str(candidate))
+            assert evaluator.call_count == 2
+        finally:
+            upstream_evaluator.configure('', 300, '')
+    with pytest.raises(EvaluationInfrastructureError):
+        require_healthy_evaluations(private)

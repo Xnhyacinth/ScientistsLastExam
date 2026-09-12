@@ -13,6 +13,8 @@ import json
 import math
 import os
 import re
+import stat
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -45,14 +47,26 @@ def _sha256(value: Any) -> str:
     return hashlib.sha256(_canonical_json(value)).hexdigest()
 
 
+def _private_directory(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    metadata = path.lstat()
+    if (not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid != os.getuid()
+            or stat.S_IMODE(metadata.st_mode) != 0o700):
+        raise ValueError("frontier evidence directory must be owner-only (0700)")
+
+
 def _durable_atomic_write(path: Path, payload: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(".%s.tmp" % path.name)
-    with temporary.open("wb") as handle:
-        handle.write(payload)
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.replace(str(temporary), str(path))
+    _private_directory(path.parent)
+    descriptor, temporary = tempfile.mkstemp(prefix="." + path.name + ".", dir=str(path.parent))
+    try:
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, str(path))
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
     flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
     directory_fd = os.open(str(path.parent), flags)
     try:
@@ -445,7 +459,10 @@ class FrontierLedger:
     """Append-only, hash-chained frontier decisions for one local evidence root."""
 
     def __init__(self, workdir: Path) -> None:
-        self.root = Path(workdir).resolve() / "frontier_ledger"
+        evidence_root = Path(workdir).resolve()
+        if any((parent / ".git").exists() for parent in (evidence_root, *evidence_root.parents)):
+            raise ValueError("raw frontier evidence must live outside a git repository")
+        self.root = evidence_root / "frontier_ledger"
         self.event_root = self.root / "events"
         self.lock_path = self.root / "ledger.lock"
 
@@ -874,8 +891,9 @@ class FrontierLedger:
             request_hash
         ):
             raise ValueError("evaluation receipt differs from verified run")
-        self.root.mkdir(parents=True, exist_ok=True)
-        with self.lock_path.open("a+b") as lock_handle:
+        _private_directory(self.root)
+        lock_fd = os.open(str(self.lock_path), os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        with os.fdopen(lock_fd, "a+b") as lock_handle:
             fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
             try:
                 events = self._events()
