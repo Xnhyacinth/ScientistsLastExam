@@ -39,6 +39,11 @@ invariants:
   - original PLOS workbook hashes and the derived sparse-table hash are fixed and independently tested
   - the baseline scores exactly zero; the beam-search witness is below one (score one is hung at log fidelity -0.001)
 known_shortcuts: >-
+  September 12 in-process redesign audit rejects panel expansion alone: all 120
+  non-palindromic reverse-complement classes with unchanged targets and constraints
+  let the existing width-8/four-pass search reach exact F=1 on dev_a and dev_c.
+  These are hypothetical-panel raw objectives, not current-task scores or model draws;
+  see references/known_best.md and references/audit_full_panel.py.
   September 12 self-contained beam64/two-pass sandbox control scores
   0.573364500287/0.501698019821, exceeding reference development 0.536921991354.
   The declared strong shortcut guard fails; this is algorithm evidence, not calibration.

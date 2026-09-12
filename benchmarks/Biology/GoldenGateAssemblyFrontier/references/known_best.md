@@ -111,3 +111,57 @@ beating the reference while scoring below one. Heldout diagnostics remain search
 Reproduce the probe with `uv run python -m sle eval --task GoldenGateAssemblyFrontier
 --allow-uncertified --candidate benchmarks/Biology/GoldenGateAssemblyFrontier/references/beam_probe.py
 --timeout 60` (one shell line).
+
+## Full-panel redesign audit: expansion alone rejected
+
+A September 12 builder experiment tested the proposed panel expansion before changing the
+frozen oracle. The four original 256-by-256 workbooks passed their existing SHA-256,
+dimension and orientation checks. There are **120 non-palindromic reverse-complement
+classes**, not 256 distinct such classes: 16 of the 256 four-mers are self-complementary,
+and the remaining 240 orientations form 120 pairs. The existing 24-class extraction
+keeps every fifth class.
+
+Using all 120 classes, the same five targets, fragment counts and length constraints,
+and the existing public-input-only beam search at width 8 with four refinement passes:
+
+| instance | log predicted fidelity | reaches mathematical F=1 bound |
+|---|---:|---|
+| dev_a | 0.0 | yes |
+| dev_b | -0.001548587920235 | no |
+| dev_c | 0.0 | yes |
+| heldout_a | -0.010777227853401 | no |
+| heldout_b | -0.015522928327063 | no |
+
+Each returned full fragment assembly was independently passed through the existing
+artifact validator against the expanded public problem. The first builder timing was
+1.25–2.07 seconds per width-8 search. These are in-process diagnostic timings, not
+sandbox timings or fixed performance thresholds. Since every factor in the fidelity
+product is at most one, the two exact zero log fidelities prove global optimality for
+those two expanded instances. No global optimum is claimed for the other three.
+Measured zero crosstalk counts permit predicted F=1; they do not establish perfect
+physical assembly or absence of unobserved ligation events.
+
+Reproduce with the original source workbooks (the extraction script documents their
+names and URLs):
+
+```bash
+uv run python benchmarks/Biology/GoldenGateAssemblyFrontier/references/audit_full_panel.py \
+  --xlsx-dir /path/to/workbooks --output /tmp/full-panel-audit.json
+```
+
+The output includes source and implementation hashes, complete assembly witnesses,
+validation results, raw objective values and timings. This is a host-side redesign
+experiment, **not a new frozen task, sandbox qualification, or model draw**. It does
+not use the old normalized scores or claim that the old 24-class ceilings apply to
+the expanded panel.
+
+**Decision: reject panel expansion alone as a repair.** It increases nominal subset
+count while making two development instances exactly saturate with a small existing
+search. Keep this PR Draft and the frozen task unchanged. Reopening scientific
+admission requires a separately justified redesign: obtain independently supported
+measurements or manufacturing constraints that create meaningful design tradeoffs,
+then demonstrate strong-search headroom and matched-budget feedback benefit on both
+splits before committing a new oracle. Do not append an arbitrary position penalty,
+choose larger fragment counts merely to defeat this probe, weaken the reference, or
+rescale these saturated predictions. If no such scientific basis is available, retire
+this task submission while retaining its source-replay and assembly-validation work.
