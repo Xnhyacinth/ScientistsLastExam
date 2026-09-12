@@ -377,6 +377,11 @@ print(json.dumps({{'combined_score': result['combined_score'], 'valid': result['
         self.assertGreater(reference["robustness_score"], 0.3)
         self.assertLess(reference["robustness_score"], 0.8)
         self.assertGreater(red_team["combined_score"], reference["combined_score"])
+        wins = [row for row in red_team["per_instance"]
+                if row["valid"] and row["log_fidelity"] > row["reference_log_fidelity"]]
+        self.assertTrue(wins)
+        self.assertTrue(all(row["instance_score"] < 1.0 for row in wins))
+        self.assertEqual(red_team["instances_beating_reference"], len(wins))
         repeated = EVALUATOR.evaluate(SOLUTION.design_assembly)
         self.assertEqual(baseline, repeated)
 

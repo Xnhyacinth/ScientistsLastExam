@@ -92,3 +92,22 @@ current score-one target is reachable or that substantial long-horizon headroom 
 The maintainer explicitly reserved the choice among expanding the panel, clipping to an
 attainable anchor, and introducing a position-dependent objective. This repair changes only
 search-visible feasibility and neighbor descriptions; that scientific decision remains open.
+
+## September 12 current-head replay
+
+The standalone `references/beam_probe.py` uses only the public problem, beam width 64
+and two coordinate-refinement passes. Full Linux sandbox scores are **0.573364500287
+development / 0.501698019821 heldout**, versus reference **0.536921991354 /
+0.501698019821**. These are the current reconstruction's measurements, not a verbatim
+reproduction of an unavailable historical candidate. The strong declared shortcut guard
+fails; enumeration, score-one attainability and useful search headroom remain unresolved.
+No scoring anchor or objective was changed without the maintainer's scientific decision.
+
+`instances_beating_reference` now counts valid rows whose actual log fidelity exceeds
+the reference log fidelity. Previously it incorrectly counted scores above one, although
+one denotes a separate engineering target. A real search regression covers a candidate
+beating the reference while scoring below one. Heldout diagnostics remain search-hidden.
+
+Reproduce the probe with `uv run python -m sle eval --task GoldenGateAssemblyFrontier
+--allow-uncertified --candidate benchmarks/Biology/GoldenGateAssemblyFrontier/references/beam_probe.py
+--timeout 60` (one shell line).

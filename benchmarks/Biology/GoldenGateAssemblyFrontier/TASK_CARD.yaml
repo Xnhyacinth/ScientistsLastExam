@@ -39,6 +39,9 @@ invariants:
   - original PLOS workbook hashes and the derived sparse-table hash are fixed and independently tested
   - the baseline scores exactly zero; the beam-search witness is below one (score one is hung at log fidelity -0.001)
 known_shortcuts: >-
+  September 12 self-contained beam64/two-pass sandbox control scores
+  0.573364500287/0.501698019821, exceeding reference development 0.536921991354.
+  The declared strong shortcut guard fails; this is algorithm evidence, not calibration.
   Maintainer PR18 review on 2026-09-09 reports exhaustive 24-class ceilings of
   0.685658 development / 0.512899 heldout and public-only multistart search attaining
   them in 75.5 seconds; scientific admission remains blocked pending maintainer task/scale
@@ -101,3 +104,16 @@ long_horizon:
   measurement_health_passed: false
   material_headroom_after_2h: false
   evidence: []
+
+shortcut_probe:
+  schema_version: 1
+  metric: combined_score
+  reference:
+    candidate: verification/reference_solver.py
+    expected_score: 0.5369219913543142
+  probes:
+  - id: beam64_two_pass
+    candidate: references/beam_probe.py
+    expected_score: 0.5733645002865624
+  relative_margin: 0.2
+  score_tolerance: 1.0e-06

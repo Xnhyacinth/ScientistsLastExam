@@ -532,7 +532,8 @@ def evaluate(design_assembly) -> dict:
         "mean_predicted_fidelity": sum(row["predicted_fidelity"] for row in all_rows)
         / len(all_rows),
         "instances_beating_reference": sum(
-            row["instance_score"] > 1.0 for row in all_rows
+            row["valid"] and row["log_fidelity"] > row["reference_log_fidelity"]
+            for row in all_rows
         ),
         "per_instance": all_rows,
     }
