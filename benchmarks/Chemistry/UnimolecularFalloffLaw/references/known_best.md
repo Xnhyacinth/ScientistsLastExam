@@ -124,3 +124,46 @@ only eight assays. On the current frozen panel, the complete sandbox result is
 This stronger control is also declared and fails the 20% shortcut margin. The multi-panel
 mean effect reported above remains a different estimand and does not erase this result.
 The task is still blocked on meaningful budget dependence and independent calibration.
+
+## September 12 disposition: withdraw this task version
+
+Reproduce all rows and source hashes with:
+
+```bash
+uv run python benchmarks/Chemistry/UnimolecularFalloffLaw/references/budget_parameter_diagnostic.py --output /tmp/falloff-budget-grid.json
+```
+
+A bounded follow-up checked whether broader parameters within the existing reduced
+law rescue the budget argument. Before evaluating, the diagnostic enumerated the
+full Cartesian grid: wall Pr = 0.6, 1.2, 2.4, 4.8, 6.0; Troe Fcent = 0.15,
+0.30, 0.45, 0.60, 0.75; and noise-seed offsets = 100, 102, 104, 106. Each
+published in-family base world retained its other parameters; A0 was recomputed
+with `_a0_for_wall_pr`. Lindemann has no Fcent axis. Unsupported worlds retained
+all parameters and used the same four offsets. No panel was selected afterwards.
+Noise amplitude, observation window, score, estimator, and 8/18 assay budgets
+were unchanged. This is an in-process builder diagnostic, not sandbox release
+validation, external physical data, or model calibration.
+
+| split / family | parameter-noise worlds | 8-assay mechanism mean | 18-assay mechanism mean | retained fraction |
+|---|---:|---:|---:|---:|
+| development / Lindemann | 20 | 0.844196 | 0.937266 | 0.900700 |
+| development / Troe | 200 | 0.622413 | 0.742850 | 0.837871 |
+| heldout-base / Lindemann | 20 | 0.887105 | 0.923288 | 0.960810 |
+| heldout-base / Troe | 100 | 0.514402 | 0.766974 | 0.670691 |
+
+All evaluations were valid; both budgets correctly refused all 28 unsupported
+worlds. These are in-family mechanism means with the displayed denominators,
+not the release's normalized combined scores. The expanded grids are builder
+inspection data; their use of heldout base parameters does not create a new sealed
+holdout or authorize replacing the frozen release worlds.
+
+Extra measurements help the heldout-base Troe fits substantially. Thus the evidence
+is **not** that this domain has no measurement-budget effect. However, both
+expanded development families still retain more than 80% with eight assays, while
+the existing frozen-panel shortcut guard also fails. Merely expanding this
+procedural parameter grid does not establish the desired difficulty or supply
+independent scientific validation. The disposition is to **withdraw the current
+UnimolecularFalloffLaw submission**, retaining its audit history, rather than tune
+noise, normalization, margins, or select a favorable panel. A future proposal needs
+independently justified kinetics/observation conditions and matched-budget evidence
+before a new task version is submitted. This withdrawal does not apply to Diblock.

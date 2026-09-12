@@ -28,7 +28,9 @@ known_shortcuts: >-
   panel maximum (12-panel development max 0.970, mean 0.777). Scientific admission
   and model difficulty remain unproven. The current sandbox eight-assay ablation
   reaches 0.932777666667/0.7035045, versus full 0.969831/0.719345; the strong
-  declared shortcut guard therefore fails.
+  declared shortcut guard therefore fails. A broader parameter/noise diagnostic
+  also leaves both development families above 80% retention at eight assays;
+  this task version is withdrawn from submission, with audit history retained.
 
 review:
   domain: pending_external
