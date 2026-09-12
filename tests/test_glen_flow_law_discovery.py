@@ -122,15 +122,15 @@ class GlenFlowLawDiscoveryTests(unittest.TestCase):
         self.assertGreater(reference["development_signal_recovery_rate"], 0.5)
         self.assertEqual(reference["development_false_discovery_rate"], 0.0)
         self.assertEqual(reference["development_correct_refusal_rate"], 1.0)
-        self.assertLess(reference["development_discovery_coverage"], 1.0)
+        self.assertEqual(reference["development_discovery_coverage"], 1.0)
 
-    def test_two_window_reference_does_not_label_gbs(self):
+    def test_complete_reference_recovers_the_public_gbs_family(self):
         reference = self.evaluator.evaluate(self.reference.identify_flow_law)
         gbs_rows = [row for row in reference["per_instance"] if row["kind"] == "gbs"]
         self.assertGreaterEqual(len(gbs_rows), 3)
         for row in gbs_rows:
-            self.assertEqual(row["mechanism_score"], 0.0)
-            self.assertTrue(row["abstained"])
+            self.assertGreater(row["mechanism_score"], 0.8)
+            self.assertFalse(row["abstained"])
 
     def test_blanket_refusal_does_not_claim_perfect_confidence_calibration(self):
         result = self.evaluator.evaluate(lambda *_: {"abstain": True, "confidence": 0.0})

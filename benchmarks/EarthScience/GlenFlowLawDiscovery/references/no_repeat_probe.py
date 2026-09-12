@@ -1,4 +1,4 @@
-"""Public-input stress/temperature design and joint log-linear fit.
+"""No-repeat ablation of the complete public-input reference (six assays).
 
 Covers every public supported family, including grain-boundary sliding (GBS).
 """
@@ -7,7 +7,7 @@ import math
 import numpy as np
 
 
-def identify_flow_law(problem, measure, *, repeats=2, temperature_arm=True):
+def identify_flow_law(problem, measure, *, repeats=1, temperature_arm=True):
     lo, hi = problem["stress_bounds_kPa"]
     temperatures = problem["temperature_bounds_K"]
     reference_t = problem["reference_temperature_K"]

@@ -9,5 +9,5 @@ gpu_required: false
 eval_time_seconds: 8
 science_metric: glen_gbs_newtonian_recovery_with_sliding_and_variable_n_refusal
 reference_baseline: always publish Newtonian n=1
-reference_sota: joint stress-temperature log-linear fit with repeated assays and two-window curvature refusal
+reference_sota: joint stress-temperature log-linear fit with repeated assays and three-family classification and curvature refusal
 citation: "Glen, Proc. R. Soc. Lond. A 228, 519 (1955); Weertman, J. Glaciol. 3, 33 (1957); Paterson and Budd (1982), doi:10.1016/0165-232X(82)90010-6; Goldsby and Kohlstedt (2001), doi:10.1029/2000JB900336"

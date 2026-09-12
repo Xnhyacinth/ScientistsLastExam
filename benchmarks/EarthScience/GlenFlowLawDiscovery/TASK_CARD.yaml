@@ -7,7 +7,7 @@ oracle:
   deterministic: true
 normalization:
   baseline: always publish Newtonian n=1
-  reference: six stress-temperature design points with repeated assays and joint log-linear fitting; two windows (Glen, Newtonian) so GBS worlds are abstained
+  reference: six stress-temperature design points with repeated assays, joint log-linear fitting, and all three public family windows
   score: development mechanism recovery normalized above always-abstain; signal recovery, false discovery, refusal, coverage and the held-out split stay separate
 citations:
 - id: doi:10.1016/0165-232X(82)90010-6
@@ -28,11 +28,11 @@ invariants:
 - measure calls are charged and overspend fails closed; malformed submissions score zero and never raise out of the evaluator
 - held-out split, per-world rows and the discovery axes remain evaluator-only
 known_shortcuts: >-
-  The old t=0.03 scan scored 0.995439 on development and 0 heldout by exploiting frozen noise.
-  Former weak sliding worlds now have true curvature 0.25017 / 0.21590, not 0.007 / 0.006.
-  The two-window log-linear reference does not label GBS (n around 1.8) and therefore
-  abstains on those supported worlds; that is the intended difficulty, not a weakened fit.
-  The PR remains draft until the admission band is independently re-checked.
+  The complete public-input reference scores 0.930806/0.944128, above the unchanged
+  development admission limit 0.8. Removing repeated assays gives 0.889844/0.630187;
+  removing temperature at the same 12-call budget gives 0.632150/0.714893.
+  The historical two-window threshold probe scores 0.395379/0 and is not a substitute
+  for these stronger complete-family controls. Scientific admission remains blocked.
 
 review:
   domain: pending_external
@@ -48,8 +48,8 @@ novelty_risk:
     Glen n=3 is textbook. What is not published is which world is GBS, sliding-mixed, a plug or
     a stress-dependent exponent, and the score turns on recovering n without publishing those
     out-of-family worlds. Nearest neighbours are ComplexBoseLaw and EnzymeKineticsLaw. The joint
-    stress/temperature design differs, and the two-window reference does not cover the third
-    viscous family, so hardness is now a family-identification question rather than a regression one.
+    stress/temperature design differs, but the complete three-family reference is near the
+    ceiling; expert-level difficulty has not been demonstrated.
 lineage:
   status: incomplete_legacy
   builder_model_ids:
@@ -63,7 +63,8 @@ lineage:
     Evaluator structure (_split_summary, _run, evaluate) was adapted from AMOCTippingRefusal.
     Added a supported GBS family and an unsupported n(τ) family, and applied the Arrhenius
     factor to the sliding term, without changing sigma or the assay budget.
-    The two-window reference is unchanged; the drop comes from the larger identifiable family.
+    September 12 review corrected the incomplete two-window reference to include public GBS.
+    The resulting higher score restores the scientific admission failure.
   shortcut_discoverer: builder_self_audit
   frozen_before_eval: false
   freeze_timestamp: null
@@ -80,3 +81,19 @@ construction_audit:
   red_team_rounds: 1
   oracle_disagreement_status: not_quantified
   independent_recomputation_status: the reference, the baseline, the abstention normalisation and the three bad-candidate shapes are all runnable from this directory
+
+shortcut_probe:
+  schema_version: 1
+  metric: combined_score
+  reference:
+    candidate: verification/reference_flow.py
+    expected_score: 0.930806
+  probes:
+  - id: historical_two_window_threshold
+    candidate: references/shortcut_probe.py
+    expected_score: 0.395379
+  - id: complete_family_without_repeats
+    candidate: references/no_repeat_probe.py
+    expected_score: 0.889844
+  relative_margin: 0.2
+  score_tolerance: 1.0e-06

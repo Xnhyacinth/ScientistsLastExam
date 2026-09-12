@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 import sys
+import pytest
 from pathlib import Path
 
 from _sandbox_tools import skip_unless_sandbox
@@ -11,13 +12,15 @@ from sle.metric_visibility import SEARCH_VISIBLE_KEYS, search_visible_metrics
 from sle.registry import find_task
 
 
+@pytest.mark.parametrize("task_id", ["Physics/CriticalPhenomenaLab", 'Glaciology/GlenFlowLawDiscovery'])
 @skip_unless_sandbox("bwrap")
-def test_critical_phenomena_wrapper_isolates_module_initialization(tmp_path):
-    spec = find_task("Physics/CriticalPhenomenaLab", include_uncertified=True)
+def test_wrapper_isolates_module_initialization(tmp_path, task_id):
+    spec = find_task(task_id, include_uncertified=True)
     marker = tmp_path / "host_marker"
     candidate = tmp_path / "candidate.py"
     oracle = spec.task_dir / "verification/evaluator.py"
     candidate.write_text(
+        spec.initial_program_path.read_text() + "\n" + (
         "import os\n"
         "if os.environ.get('SLE_ISOLATION_CANARY'):\n"
         "    raise RuntimeError('host environment visible')\n"
@@ -34,7 +37,7 @@ def test_critical_phenomena_wrapper_isolates_module_initialization(tmp_path):
         "else:\n"
         "    raise RuntimeError('host writable')\n"
         % (str(oracle), str(marker))
-        + spec.initial_program_path.read_text()
+        )
     )
     output = tmp_path / "metrics.json"
     completed = subprocess.run(

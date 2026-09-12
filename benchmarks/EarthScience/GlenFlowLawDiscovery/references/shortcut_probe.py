@@ -43,3 +43,21 @@ if __name__ == "__main__":
         observed = curvature + (noise[:,2]-2*noise[:,1]+noise[:,0]) / spacing
         print(json.dumps({"seed":world["seed"], "true_curvature":curvature,
                           "p_gt_012":float(np.mean(observed > 0.12))}))
+
+    # The same complete estimator with one ability removed at a time.
+    from functools import partial
+    ref_path = path.with_name("reference_flow.py")
+    ref_spec = importlib.util.spec_from_file_location("glen_complete_reference", ref_path)
+    reference = importlib.util.module_from_spec(ref_spec)
+    ref_spec.loader.exec_module(reference)
+    for name, candidate in (
+        ("complete_reference", reference.identify_flow_law),
+        ("no_repeat", partial(reference.identify_flow_law, repeats=1)),
+        ("no_temperature_same_budget", partial(reference.identify_flow_law,
+                                               repeats=4, temperature_arm=False)),
+    ):
+        result = oracle.evaluate(candidate)
+        print(json.dumps({"candidate": name, "development": result["combined_score"],
+                          "heldout": result["heldout_mechanism_score"],
+                          "valid": result["valid"],
+                          "calls": [r["measure_calls"] for r in result["per_instance"]]}))

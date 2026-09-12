@@ -1,81 +1,77 @@
-# GlenFlowLawDiscovery — family enlarged; admission band now reachable
+# GlenFlowLawDiscovery — complete reference and admission hold
 
-## Current status
+## Reference
 
-The two-window log-linear reference scores 0.576653 development / 0.620010 heldout.
-That drop is from adding a supported GBS family the reference does not label, not from
-weakening the fit, deleting the temperature arm, or adding noise. Glen and Newtonian
-worlds still recover at the previous residuals (development 0.937233 / 0.990751 / 0.955280).
-This PR remains draft until the maintainer re-checks the admission band.
+The public-input reference uses both temperature endpoints, three stress values and
+repeated assays, jointly fits log A, n and Q/R, and labels all three public supported
+families: Glen, Newtonian and GBS. It refuses resolved curvature and negative activation.
 
-## Mechanism repair
+The September 12 Linux sandbox replay scores **0.930806 development / 0.944128 heldout**,
+with valid=1, FDR=0, correct refusal=1 and coverage=1. This fails the unchanged
+`reference < 0.8` admission test. The task remains Draft and scientifically blocked.
 
-Three viscous families are supported: Glen n in [2.6,3.6], Newtonian n=1, and
-Goldsby–Kohlstedt-style grain-boundary sliding with n in [1.65,2.05]. A and thermal
-activation Q/R remain jointly unknown. Unsupported worlds are Weertman sliding mixtures,
-stress-independent plugs, and a stress-dependent exponent n = n0 + k log10(τ/τ0) that
-curves log-log for a different physical reason than sliding. The same Arrhenius factor
-multiplies the sliding term C*τ as the creep term; a temperature-independent C would have
-been a free discriminator and is not used.
+## Baseline
 
-The shipped reference is unchanged: six public stress-temperature points, repeated assays,
-joint log-linear fit, curvature refusal, and two n-windows (Glen, Newtonian). GBS n around
-1.8 falls between those windows, so the reference abstains on every GBS world.
+The shipped one-assay Newtonian guess is valid and scores zero. Blanket refusal is also
+valid and scores zero. Confidence calibration is separate from the discovery decision:
+blanket refusal has calibration 6/11 development and 5/8 heldout, not a perfect one.
 
-The prior two weak sliding worlds had true curvatures 0.007/0.006 under a noise floor about
-0.03 and should not have been treated as cleanly separable. They now have true curvatures
-0.2501707249 / 0.2159040914, both inside the requested 0.1-0.3 intermediate region.
-Development n(τ) curvature is 0.20 (k=0.20 on a geometric stress grid).
+## Same-estimator ablations
 
-Reproduce the shortcut sweep and fresh-noise audit with
-`uv run python benchmarks/EarthScience/GlenFlowLawDiscovery/references/shortcut_probe.py`.
+Run from the repository root:
 
-## Shortcut probes and ablations
+```sh
+uv run python benchmarks/EarthScience/GlenFlowLawDiscovery/references/shortcut_probe.py
+uv run python -m sle eval --task Glaciology/GlenFlowLawDiscovery --allow-uncertified \
+  --candidate benchmarks/EarthScience/GlenFlowLawDiscovery/verification/reference_flow.py --timeout 60
+```
 
-An adapted 20/63/200 stress scan, four repeats each at 255 K, guesses Q/R=6000 and sweeps
-threshold t=0.01..0.60. Best development score is 0.395379 at t=0.03; heldout is 0.
-That is below the two-window reference (0.576653 / 0.620010). Empty refusal baseline and
-the shipped Newtonian guess score zero. A candidate that added a third n-window for GBS
-could outscore this reference; that is the intended headroom.
+The first command reports in-process ablations, the scalar-threshold sweep and the
+fresh-noise curvature diagnostic. The second performs the full reference sandbox replay.
 
-## Fresh-noise identifiability check
+| estimator | calls per world | development | heldout |
+|---|---:|---:|---:|
+| complete reference | 12 | 0.930806 | 0.944128 |
+| no repeated assays | 6 | 0.889844 | 0.630187 |
+| no temperature arm, Q/R fixed at 6000 | 12 | 0.632150 | 0.714893 |
 
-4000 fresh Gaussian panels, seed 20260908, sigma=0.03, four repeats at each of
-20/sqrt(4000)/200 kPa. For a positive curvature threshold 0.12:
+These are frozen-panel algorithm measurements, not fresh-noise mean effects or model draws.
+Removing repeats has only a 0.040962 development effect; it does not establish a strong
+budget requirement. Refusal is saturated on the full reference.
 
-| world | true curvature | P(detect) |
-|---|---:|---:|
-| pure Glen 71001 | 0 | 0.000 |
-| sliding 72003 | 0.250171 | 1.000 |
-| sliding 82003 | 0.215904 | 0.999 |
+## Shortcut probes
 
-This checks observable separation only; it is not independent scientific validation.
+The historical scalar-threshold scan uses three stresses, four repeats each at 255 K,
+a fixed Q/R of 6000 and two family windows. Its 60-point development-selected sweep
+scores 0.395379 / 0 at threshold 0.03, also confirmed in the sandbox. It is weaker than
+the complete three-family ablations above; passing that declared probe does not close
+the difficulty gate or establish resistance to better strategies.
+The self-contained `references/no_repeat_probe.py` also participates in the declared
+guard: 0.889844 exceeds the 20%-margin threshold 0.7446448, so this stronger guard fails.
 
-## Construction errors and lineage
+## Construction errors
 
-The old score reduction depended on noise-indistinguishable worlds. It is retired, not
-renamed or used as supporting evidence. The evaluator structure is adapted from
-EarthScience/AMOCTippingRefusal; the nearest research-task neighbours are ComplexBoseLaw
-and EnzymeKineticsLaw. Confidence uses the world's in-family status as its Brier target,
-independent of the decision to abstain; invalid submissions receive zero calibration credit.
-Blanket refusal scores 6/11 / 5/8 on calibration, not a perfect 1. The axes
-include their supported/unsupported denominators. Lineage remains incomplete_legacy.
+The previous 0.576653 / 0.620010 result came from omitting GBS from the reference, despite
+GBS being a public supported family. Calling this intended headroom was incorrect.
+The reference now covers GBS, and tests require recovery instead of locking in abstention.
+Neither the oracle, its noise, normalization nor the admission threshold was weakened.
 
-## Robustness and model draws
+Earlier noise-indistinguishable sliding worlds were replaced by resolvable curvature
+0.2501707249 / 0.2159040914. The same Arrhenius factor now multiplies sliding and creep;
+a temperature-independent sliding term would be a synthetic free discriminator.
+GBS and stress-dependent n are reduced benchmark models, not experimental ice datasets.
 
-Functional tests check continuous exponents, GBS as a third supported power law, n(τ)
-curvature, sliding Arrhenius on C, budget/shape handling, separable intermediate sliding
-and baseline zero. No LLM calibration or long-horizon evidence exists. The new contract
-invalidates prior candidate scores; it does not repair old runs.
+## Robustness
 
-## September 9 maintainer audit and the family enlargement that followed
+The script's 4000-panel curvature experiment (seed 20260908, sigma 0.03) detects the
+intermediate sliding worlds with probabilities 1.000 / 0.999 at threshold 0.12, while
+pure Glen gives 0.000. This checks that particular observation design only.
+Malformed submissions fail closed, discovery denominators are published, and the wrapper
+uses the shared search-visible evaluator entrypoint. Full metrics remain trusted diagnostics.
 
-[Owner review](https://github.com/Geniusyingmanji/ScientistsLastExam/pull/29#issuecomment-5594780263)
-asked to enlarge the mechanism space rather than sabotage the reference. The previous
-two-family reference scored 0.961088 / 0.930015 with saturated refusal. After adding GBS
-and n(τ), and giving sliding the same Arrhenius factor as creep, the same two-window
-algorithm scores 0.576653 / 0.620010, with FDR 0 and correct refusal 1 on every
-unsupported world, and with coverage 0.6 because it abstains on GBS. Maintainer ablations
-of the old two-family reference (no refusal 0/0; no temperature arm 0.658965/0.649475;
-six unreplicated assays 0.880940/0.467374) remain historical measurements of that
-algorithm; they are not the current score.
+## Model draws and remaining evidence
+
+No frontier-model calibration, fresh-parameter confirmation, long-horizon evidence or
+external scientific validation exists. Lineage remains incomplete_legacy. Fixing reference
+completeness exposes the unresolved task-design problem; it does not qualify this task for
+high-quality benchmark data admission. Historical scores do not rebind to this package.
