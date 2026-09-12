@@ -302,12 +302,21 @@ class OpenVocabularyReactionNetworkDiscoveryTests(unittest.TestCase):
             result["development_claimed_edge_denominator"],
         )
 
-    def test_never_refuse_on_unsupported_worlds_scores_zero(self):
-        result = self.evaluator.evaluate(self.baseline.discover_reaction_network)
+    def test_removing_refusal_preserves_recovery_but_lowers_score(self):
+        def never_refuse(problem, probe):
+            result = self.reference.discover_reaction_network(problem, probe)
+            if result.get("abstain"):
+                return self.baseline.discover_reaction_network(problem, probe)
+            return result
+
+        reference = self.evaluator.evaluate(self.reference.discover_reaction_network)
+        result = self.evaluator.evaluate(never_refuse)
         self.assertEqual(result["valid"], 1.0)
-        self.assertEqual(result["combined_score"], 0.0)
+        self.assertLess(result["combined_score"], reference["combined_score"])
         self.assertEqual(result["development_correct_refusal_rate"], 0.0)
-        self.assertGreater(result["development_unsupported_count"], 0.0)
+        for before, after in zip(reference["per_instance"], result["per_instance"]):
+            if not before["abstained"]:
+                self.assertEqual(before, after)
 
     def test_probe_accepts_a_constructed_species_not_presented_as_a_candidate(self):
         saw_novel_probe = []

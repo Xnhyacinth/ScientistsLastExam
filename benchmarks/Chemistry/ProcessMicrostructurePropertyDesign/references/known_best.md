@@ -66,3 +66,17 @@ Three sealed process/material shifts and heldout worlds are separately reported.
 requires development score >=0.1 and transfer retention; record emission is not ledger
 admission. No model calibration, long-horizon evidence, manufacturing validation or
 independent real-polymer experiment has been supplied. Lineage remains incomplete_legacy.
+
+## September 12 public-bounds control and transfer ratios
+
+The standalone `references/blind_grid_probe.py` is a new 20-point blend/draw grid using
+only public bounds. It is not the unavailable original owner grid, nor an evaluator-aware
+archive selector. Linux sandbox score is **0.718235824**, valid=1;
+the complete reference remains score one. Older owner controls above remain relevant.
+
+For the reference, raw shifted/nominal hypervolume retention is
+**0.892282295 development** and
+**0.902558471 heldout**.
+These ratios use raw hypervolumes, not separately normalized score-one quantities.
+The declared-grid gate is only a reproducible control, not certification against all
+known archive searches or a substitute for model calibration.

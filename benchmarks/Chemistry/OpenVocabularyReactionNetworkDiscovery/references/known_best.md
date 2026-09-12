@@ -1,5 +1,24 @@
 # OpenVocabularyReactionNetworkDiscovery — graph-dependent barriers
 
+## September 12 descriptor-fit counterexample
+
+`references/descriptor_fit_probe.py` is self-contained and uses only public graphs and
+paid responses at runtime. Channel-signature indicators, reactant bond-type counts and
+degree second moments fit the current barrier sufficiently well to recover both splits.
+It was designed after source inspection, with four acquisition-order variants tried;
+it is not a clean-room first proposal or model calibration.
+
+Linux sandbox: **combined 1.0, heldout 1.0, FDR 0, valid 1**. Development raw is
+**0.9788421717171715**, above reference **0.9316717474829289**. Supported worlds use
+24 probes. Run the same `sle eval` command below with `references/descriptor_fit_probe.py`.
+The machine-readable shortcut guard now includes this stronger counterexample and fails.
+
+Every legal single-edge deletion/addition preserves cycle count within the connected
+component. Cycle terms therefore do not establish additional graph-identification
+complexity. Closing the old signature cache was insufficient; scientific admission stays
+blocked until a meaningful task redesign and fresh calibration are independently checked.
+
+
 ## Current shortcut probe
 
 `references/signature_probe.py` still caches a paid response by the multiset of

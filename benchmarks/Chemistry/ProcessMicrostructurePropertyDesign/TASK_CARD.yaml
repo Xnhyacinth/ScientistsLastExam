@@ -98,3 +98,16 @@ construction_audit:
   red_team_rounds: 3
   oracle_disagreement_status: not_quantified
   independent_recomputation_status: baseline, candidate-equivalent public reference search through the isolated runner, 441-point and three 343-point shortcut probes, 2048-point public-platform stability, evaluator-aware clipped headroom, four physical ablations, sealed shifts and malformed-candidate paths are runnable from the package
+
+shortcut_probe:
+  schema_version: 1
+  metric: combined_score
+  reference:
+    candidate: verification/reference_process_archive.py
+    expected_score: 1.0
+  probes:
+  - id: public_bounds_grid
+    candidate: references/blind_grid_probe.py
+    expected_score: 0.7182358238864364
+  relative_margin: 0.2
+  score_tolerance: 1.0e-06

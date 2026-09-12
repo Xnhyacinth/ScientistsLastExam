@@ -30,13 +30,13 @@ invariants:
 - malformed graphs, invalid transformations, over-budget probes, caught callback violations and malformed artifacts score zero without escaping the evaluator
 - held-out worlds change catalyst selectivity and refusal case placement while preserving the public graph grammar
 known_shortcuts: >-
-  Channel-type lookup is no longer exact: activation depends on reactant/product
-  cycle counts and the reactant's degree second moment, so the same broken/formed
-  bond-type signature is not a constant barrier. The public-only signature_probe.py
-  that previously reached development and heldout 1.0 with at most 13 probes is
-  retained as a regression. Four heavy atoms and noiseless synthetic chemistry still
-  lack hydrogens, charge, stereochemistry, conformers and electronic-structure
-  uncertainty; descriptor-fit shortcut audit remains required before any hardness claim.
+  The September 12 source-informed descriptor-fit probe reaches development/heldout
+  1.0/1.0 with at most 24 paid calls, zero FDR and development raw 0.9788421717171715,
+  above reference raw 0.9316717474829289. It fits channel signatures, reactant bond
+  counts and degree second moments from public observations. One-delete/one-add
+  preserves cycle count in each connected component, so adding cycle terms did not
+  establish hardness. The declared strong shortcut guard fails; scientific admission
+  remains blocked. This is a red-team algorithm audit, not a blind model draw.
 
 review:
   domain: pending_external_chemical_kinetics
@@ -70,6 +70,7 @@ lineage:
   - historically, a 1024-seed BFS neighbour-order sweep reached development raw 0.946080715974333 on the additive-energy oracle.
   - historically, a public-only 13-signature cache reached development/heldout 1.0 with at most 13 probes (mean 8.833333).
   - after graph-dependent barriers, the same signature_probe.py scores combined 0.880621 / development raw 0.860243 against reference 1.000000 / 0.931672.
+  - September 12 descriptor-fit red team recovers both splits at score one using only paid responses at runtime.
   remediation:
   - reduce the charged budget to 24 and resolve ambiguous graph-pair barriers as the minimum over all valid atom-map channels
   - replace node-local BFS with novelty-first active-frontier acquisition, a qualitative chemical barrier surrogate, and a public grammar-branching information-gain tie-break
@@ -90,3 +91,16 @@ construction_audit:
   red_team_rounds: 2
   oracle_disagreement_status: not_quantified
   independent_recomputation_status: fixed wrong-edge baseline, independent 24-query active-frontier witness, complete-recovery headroom, 1024 seeded-ordering red team, ambiguous-map minimum-barrier case, deterministic replay, canonical duplicate rejection and malformed-candidate paths are runnable from the package
+
+shortcut_probe:
+  schema_version: 1
+  metric: combined_score
+  reference:
+    candidate: verification/reference_reaction_network.py
+    expected_score: 1.0
+  probes:
+  - id: descriptor_fit
+    candidate: references/descriptor_fit_probe.py
+    expected_score: 1.0
+  relative_margin: 0.2
+  score_tolerance: 1.0e-06
