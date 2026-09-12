@@ -25,13 +25,14 @@ invariants:
 - malformed submissions score zero and never raise out of the evaluator
 - valid is 1.0 only if every instance has a valid certificate
 known_shortcuts: >-
-  The textbook 1-ranking Farkas LP (Colón–Sipma / Podelski–Rybalchenko; tests/affine_ranking_lp.py
-  one_ranking_as_lex) is infeasible on all four nested-reset instances and scores 0.0 with
+  The textbook 1-ranking Farkas LP (Colón–Sipma / Podelski–Rybalchenko; references/phase_lp_probe.py
+  one_ranking_as_lex) has an exactly certified zero maximum delta on all four instances and scores 0.0 with
   valid 0. Inverse-column enum of a single transition (references/inverse_column_probe.py)
   is a depth-1 attempt and does not reach score one. Discrete uniform nested ranking scores
   0.727504; adding adjacent pairwise search reaches 0.842802. Independent exact phase
-  rankings reconstruct the hidden Q* and score 1.0; that is a lex-phase method, not the
-  blocked 1-ranking LP. Public instances do not disclose Q*.
+  rankings reconstruct the hidden Q* and score 1.0 in the full Linux sandbox.
+  The declared phase-LP shortcut guard fails; scientific admission remains blocked.
+  Public instances do not disclose Q*.
 
 review:
   domain: pending_external_program_analysis
@@ -91,5 +92,8 @@ shortcut_probe:
   - id: token_uniform_baseline
     candidate: solution.py
     expected_score: 0.0
+  - id: exact_phase_lp
+    candidate: references/phase_lp_probe.py
+    expected_score: 1.0
   relative_margin: 0.1
   score_tolerance: 0.000001

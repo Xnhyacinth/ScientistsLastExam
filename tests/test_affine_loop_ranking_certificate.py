@@ -4,6 +4,8 @@ from __future__ import annotations
 import importlib.util
 import sys
 import unittest
+from unittest.mock import patch
+from types import SimpleNamespace
 from fractions import Fraction
 from pathlib import Path
 
@@ -29,7 +31,15 @@ class AffineLoopRankingCertificateTests(unittest.TestCase):
             TASK / "verification/reference_ranking.py", "ranking_reference"
         )
         cls.probe = _load(TASK / "references/inverse_column_probe.py", "inverse_probe")
-        cls.lp = _load(ROOT / "tests/affine_ranking_lp.py", "affine_ranking_lp")
+        cls.lp = _load(TASK / "references/phase_lp_probe.py", "affine_ranking_lp")
+
+    def test_lp_execution_failure_is_not_infeasibility_evidence(self):
+        instance = self.evaluator.INSTANCES[0]
+        transitions = self.evaluator._parse_transitions(instance["transitions"], instance["dimension"])
+        with patch.object(self.lp, "linprog", return_value=SimpleNamespace(
+                success=False, message="iteration limit", status=1)):
+            with self.assertRaisesRegex(RuntimeError, "iteration limit"):
+                self.lp.exact_maximum_delta(transitions)
 
     def test_public_instances_do_not_disclose_the_score_one_optimum(self):
         for instance in self.evaluator.INSTANCES:
@@ -64,8 +74,8 @@ class AffineLoopRankingCertificateTests(unittest.TestCase):
             n = instance["dimension"]
             transitions = self.evaluator._parse_transitions(instance["transitions"], n)
             witness = self.lp.exact_maximum_delta(transitions)
-            self.assertTrue(witness is None or not witness.get("feasible")
-                            or witness.get("delta", 0) <= 0)
+            self.assertEqual(witness["delta"], 0)
+            self.assertEqual(witness["upper_bound"], 0)
 
     def test_inverse_column_enum_does_not_reach_score_one(self):
         reference = self.evaluator.evaluate(self.reference.build_ranking)

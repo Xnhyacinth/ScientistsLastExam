@@ -8,7 +8,7 @@ nested loop: one inner progress step per level, then a reset that copies the pro
 block onto the next inner block while that inner block is in an exit polyhedron `v_i ≤ 1`.
 A single linear ranking cannot serve both an inner decrease (needs a positive inner slope)
 and a reset (that slope increases). The Colón–Sipma / Podelski–Rybalchenko 1-ranking Farkas
-LP is infeasible on every instance.
+LP has an exactly certified maximum delta of zero on every instance.
 
 Progressing blocks use the mixed-sign circulant update with first row
 `(1/2, 1/8, -1/4, 1/16, 0, …)` and overcomplete guards `x_i + x_{i+1} ≥ 2` together with
@@ -16,7 +16,7 @@ rotated half-spaces. They are not `n` independent coordinate inequalities.
 
 Score one is the measured quality `Q*` of a verified nested lex ranking whose components
 are independent exact phase rankings. That is **not** a 1-ranking Farkas LP optimum of the
-whole system. Tests reconstruct `Q*` from `tests/affine_ranking_lp.py:phase_lex_ranking`
+whole system. Tests reconstruct `Q*` from `references/phase_lp_probe.py:phase_lex_ranking`
 and check a matching certificate; no complete instance-answer table is shipped. Public
 instances do not disclose `score_one_quality`.
 
@@ -58,7 +58,7 @@ overcomplete single-path family was flat because uniform already matched pairwis
 
 Axis-style depth-1 rankings cannot cover the reset. Inverse-column enum of `(I-A^T)^{-1}`
 on the first transition is a 1-ranking attempt and scores 0. The textbook exact Farkas LP
-on the whole transition system is infeasible (measured delta 0 on all four instances) and
+on the whole transition system has exact primal/dual bound delta=0 on all four instances and
 scores 0. Independent per-phase Farkas LPs reconstruct `Q*` and are disclosed as a residual
 lex method, not as the blocked 1-ranking shortcut.
 
@@ -84,3 +84,24 @@ linear ranking scored 1.0; disclosure cannot replace redesign. Option 2
 (lexicographic / multiphase ranking tuples). Instances are nested-reset loops that are
 not 1-ranking complete. The certificate is a lex tuple. The old 1-ranking Farkas LP
 scores 0.0. Score one is a verified nested lex ranking, not that LP.
+
+
+## September 12 complete sandbox counterexample
+
+The self-contained `references/phase_lp_probe.py` runs independent phase LPs using
+only public transitions. HiGHS uses one thread; each recovered primal identity,
+nonnegative variable, dual inequality and zero primal-dual gap is checked in Fractions.
+Solver or reconstruction errors raise and cannot be counted as infeasibility.
+
+The full Linux sandbox task returns **combined 1.0, valid 1, four valid certificates**,
+with the four exact qualities in the table above. The original default-thread helper
+failed with candidate_worker_exit; that failure is not an optimization score.
+This is a working replacement on the current nested family, not the missing historical
+155-line candidate. The strong phase-LP counterexample now participates in the declared
+shortcut gate, which fails. The task remains Draft: blocking a single global ranking
+has not produced resistance to a cheap phase decomposition.
+
+```sh
+uv run python -m sle eval --task ScientificComputing/AffineLoopRankingCertificate \
+  --allow-uncertified --candidate benchmarks/ComputerScience/AffineLoopRankingCertificate/references/phase_lp_probe.py --timeout 60
+```

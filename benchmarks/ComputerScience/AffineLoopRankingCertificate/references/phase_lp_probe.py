@@ -1,7 +1,7 @@
 """1-ranking Farkas LP over a whole nested transition system.
 
-Used only by tests. Feasibility here is the Colón–Sipma / Podelski–Rybalchenko
-lattice this task leaves: a single linear ranking on every transition at once.
+Public-input phase-LP counterexample for the nested-reset task.
+The whole-system LP also supplies a checked rational primal/dual bound.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def _gaussian(matrix, rhs):
 
 
 def exact_maximum_delta(transitions):
-    """Maximum delta of a single (r,s) that ranks every transition, or None."""
+    """Maximum delta with exactly checked primal and dual certificates."""
     n = len(transitions[0][2])
     m_list = [len(guards) for guards, _, _ in ((t[1], t[2], t[3]) for t in transitions)]
     # transitions: (name, guards, A, b)
@@ -105,9 +105,9 @@ def exact_maximum_delta(transitions):
     af = np.array([[float(x) for x in row] for row in A], dtype=float)
     bf = np.array([float(x) for x in rhs], dtype=float)
     result = linprog(-np.array(c), A_eq=af, b_eq=bf, bounds=[(0, None)] * nvars,
-                     method="highs")
+                     method="highs", options={"threads": 1})
     if not result.success:
-        return None
+        raise RuntimeError("LP execution failed: " + result.message)
     basic = []
     for idx in np.argsort(-np.abs(result.x)):
         trial = basic + [int(idx)]
@@ -117,30 +117,30 @@ def exact_maximum_delta(transitions):
             if len(basic) == len(A):
                 break
     if len(basic) != len(A):
-        return {
-            "r": [Fraction(0)] * n,
-            "s": Fraction(0),
-            "delta": Fraction(0),
-            "feasible": False,
-            "float_delta": float(result.x[n_delta]),
-        }
-    try:
-        x_basic = _gaussian([[A[i][j] for j in basic] for i in range(len(A))], rhs)
-    except RuntimeError:
-        return None
+        raise RuntimeError("LP basis reconstruction failed")
+    x_basic = _gaussian([[A[i][j] for j in basic] for i in range(len(A))], rhs)
     x = [Fraction(0)] * nvars
     for idx, value in zip(basic, x_basic):
         if value < 0:
-            if value > Fraction(-1, 10 ** 9):
-                value = Fraction(0)
-            else:
-                return None
+            raise RuntimeError("exact LP basis is not primal feasible")
         x[idx] = value
+    if any(sum(a * value for a, value in zip(row, x)) != b for row, b in zip(A, rhs)):
+        raise RuntimeError("exact LP primal identities failed")
+    # HiGHS minimizes -delta. Rationalize its dual and verify weak duality
+    # exactly; a feasible delta=0 alone is not a proof of a zero maximum.
+    dual = [Fraction(float(-v)).limit_denominator(10 ** 8) for v in result.eqlin.marginals]
+    if any(sum(A[i][j] * dual[i] for i in range(len(A))) < int(j == n_delta)
+           for j in range(nvars)):
+        raise RuntimeError("exact LP dual inequalities failed")
+    upper_bound = sum(b * y for b, y in zip(rhs, dual))
+    if upper_bound != x[n_delta]:
+        raise RuntimeError("exact LP primal-dual gap is nonzero")
     r = [x[n_rp + i] - x[n_rn + i] for i in range(n)]
     return {
         "r": r,
         "s": x[n_sp] - x[n_sn],
         "delta": x[n_delta],
+        "upper_bound": upper_bound,
         "feasible": x[n_delta] > 0,
         "nonneg_lambdas": [x[lam_off[t]:lam_off[t] + m_list[t]] for t in range(len(transitions))],
         "decrease_lambdas": [x[mu_off[t]:mu_off[t] + m_list[t]] for t in range(len(transitions))],
@@ -295,3 +295,7 @@ def one_ranking_as_lex(instance, evaluator):
             for t in range(n_trans)
         ],
     }
+
+
+def build_ranking(instance):
+    return phase_lex_ranking(instance)
