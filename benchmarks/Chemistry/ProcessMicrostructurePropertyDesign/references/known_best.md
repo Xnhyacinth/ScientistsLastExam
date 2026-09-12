@@ -80,3 +80,10 @@ For the reference, raw shifted/nominal hypervolume retention is
 These ratios use raw hypervolumes, not separately normalized score-one quantities.
 The declared-grid gate is only a reproducible control, not certification against all
 known archive searches or a substitute for model calibration.
+
+The stronger `references/pool_size_probe.py` is also self-contained: exactly the same
+public-proxy archive algorithm with pool_size=2048. Current Linux sandbox replay gives
+**0.999450803239**, valid=1, closely reproducing the attributed 2048-pool control above
+(the tiny difference follows 12-decimal hypervolume publication). It is included in the
+same machine guard, which now fails. The weaker blind grid cannot mask this near-reference
+control. This is a source-informed algorithm comparison, not a frontier-model draw.

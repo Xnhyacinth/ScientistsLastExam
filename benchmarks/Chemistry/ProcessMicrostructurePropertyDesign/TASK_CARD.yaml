@@ -109,5 +109,8 @@ shortcut_probe:
   - id: public_bounds_grid
     candidate: references/blind_grid_probe.py
     expected_score: 0.7182358238864364
+  - id: same_public_proxy_2048_pool
+    candidate: references/pool_size_probe.py
+    expected_score: 0.9994508032394852
   relative_margin: 0.2
   score_tolerance: 1.0e-06
