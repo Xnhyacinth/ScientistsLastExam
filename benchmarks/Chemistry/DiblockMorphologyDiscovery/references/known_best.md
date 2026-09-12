@@ -52,3 +52,12 @@ The amplitude cue in the synthetic traces remains a known limitation pending red
 The held-out numbers above use the fixed evaluator-only split; they are not fresh-seed,
 external-data, or model calibration results. No frontier-model draws or long-horizon runs
 have been performed. Calibration evidence remains missing and lineage is incomplete_legacy.
+
+## September 12 executable refusal ablation
+
+`references/no_refusal_probe.py` is a self-contained copy of the complete public-input
+matcher with only its two refusal exits changed to publish lamella. Full Linux sandbox
+scores **0.600000 development / 0.333333 heldout**, versus the full reference **1.0 / 1.0**.
+The shortcut declaration records this actual ablation, not a duplicate baseline.
+No scientific model or score was changed. Current model calibration and independent
+scientific admission are still missing; functional/declared-probe passes do not supply them.

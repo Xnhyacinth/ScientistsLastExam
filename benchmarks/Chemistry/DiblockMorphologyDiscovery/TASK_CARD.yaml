@@ -68,3 +68,16 @@ construction_audit:
   red_team_rounds: 1
   oracle_disagreement_status: not_quantified
   independent_recomputation_status: the reference, the baseline, the abstention normalisation and the three bad-candidate shapes are all runnable from this directory
+
+shortcut_probe:
+  schema_version: 1
+  metric: combined_score
+  reference:
+    candidate: verification/reference_morphology.py
+    expected_score: 1.0
+  probes:
+  - id: without_refusal
+    candidate: references/no_refusal_probe.py
+    expected_score: 0.6
+  relative_margin: 0.2
+  score_tolerance: 1.0e-06

@@ -101,3 +101,26 @@ Unimolecular Reactions in the Fall-off Range. II. Weak Collision Rate Constants*
 (1983). DOI 10.1002/bbpc.19830870219 is an unrelated journal notice and has been
 removed. The reduced symmetric formula is a benchmark approximation, not the full
 published law.
+
+## September 12 executable constant-Pr control
+
+`references/constant_pr_probe.py` supplies a complete related reconstruction: three
+pressure assays and a two-parameter fit with one shared log-Pr value. It is **not** the
+missing original C9 implementation. Its 17-point grid is -6 through -2 in increments
+of 0.25; development alone selects -4.0. Full Linux sandbox at that fixed setting gives
+**0.387565 development / 0.096163 heldout**, against reference **0.969831 / 0.719345**.
+The module's main command prints every grid row and its development-selected winner:
+`uv run python benchmarks/Chemistry/UnimolecularFalloffLaw/references/constant_pr_probe.py`.
+
+This supports the limited statement that this explicit constant-Pr control no longer
+beats the current reference. It does not certify the unavailable C9 source, independent
+parameter-world generalization, model difficulty or the small development budget effect.
+The existing 12-panel same-estimator test remains unchanged and passes. Its offsets and
+all earlier stronger strategies retain their original evidence scope.
+
+The self-contained `references/reduced_budget_probe.py` uses the same estimator with
+only eight assays. On the current frozen panel, the complete sandbox result is
+**0.932777666667 / 0.7035045** (valid=1), close to full-budget **0.969831 / 0.719345**.
+This stronger control is also declared and fails the 20% shortcut margin. The multi-panel
+mean effect reported above remains a different estimand and does not erase this result.
+The task is still blocked on meaningful budget dependence and independent calibration.
