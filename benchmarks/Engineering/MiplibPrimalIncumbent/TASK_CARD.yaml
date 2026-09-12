@@ -88,3 +88,16 @@ construction_audit:
   red_team_rounds: 1
   oracle_disagreement_status: baseline and 35-queen solver assignment pass all parsed bounds and rows
   independent_recomputation_status: archive/content hashes, dimensions, official optimum and sandbox milp probe are recorded; external review pending
+
+shortcut_probe:
+  schema_version: 1
+  metric: combined_score
+  reference:
+    candidate: references/milp_probe.py
+    expected_score: 0.517511
+  probes:
+  - id: greedy_two_exchange
+    candidate: references/local_search_probe.py
+    expected_score: 0.704163
+  relative_margin: 0.2
+  score_tolerance: 1.0e-06

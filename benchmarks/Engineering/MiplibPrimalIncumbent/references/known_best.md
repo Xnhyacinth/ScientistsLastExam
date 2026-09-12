@@ -85,3 +85,23 @@ through `python -m sle eval` with a 180-second timeout, it finds **38 queens**, 
 **-38**, log-gap score **0.704163**, valid with zero constraint violation. This is an
 algorithm probe, not a model result or a timing comparison with the maintainer's different
 configurations.
+
+## September 12 integration and scope
+
+The task wrapper now uses the shared trusted entrypoint. A real baseline canary test
+checks candidate isolation, search-visible metrics only and equality with direct trusted
+evaluation. The old wrapper leaked per-instance diagnostics into its public metrics file.
+The local-search replay again gives **38 queens / 0.704163 / valid 1**.
+
+The logarithmic map changes displayed score gaps but leaves only 41 attainable integer
+objective levels (including zero); the final region still has 38, 39 and 40 queens.
+It is not a mechanism-level difficulty repair. The library MILP is a runnable control,
+whereas the proven optimum is an external anchor, not an executed reference candidate.
+Data redistribution rights, useful headroom and calibration remain blocked. FourSetting
+is already on main and is not counted again as a new task of this PR.
+
+The current 240-second, one-thread MILP sandbox replay gives **35 queens / 0.517511**.
+The declared reference is this executed library control, not the theoretical optimum.
+The faster local-search probe exceeds it, so the strong shortcut guard is expected to
+fail. Its wall-time stopping rule also requires deterministic replay checking; any
+variation must be reported as such rather than replacing failed observations.
