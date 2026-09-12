@@ -60,7 +60,6 @@ class TaskContributionGateTests(unittest.TestCase):
             "Gravitation/PTAHellingsDowns",
             "Physics/ComplexBoseLaw",
             "MaterialsScience/QuinaryConvexHull",
-            "ChemicalKinetics/UnimolecularFalloffLaw",
             "PolymerScience/DiblockMorphologyDiscovery",
             "Mathematics/HeavyTailEvidence",
         ):

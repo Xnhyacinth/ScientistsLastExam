@@ -46,7 +46,6 @@ CHINESE_NAMES = {
     "CausalDiscovery/SurvivorshipConfoundedDesign": "幸存者偏差下的效应估计",
     "DataPrivacy/SparseVectorAudit": "稀疏向量技术的差分隐私审计",
     "ChemicalKinetics/ReactionMechanismFitting": "反应机理辨识",
-    "ChemicalKinetics/UnimolecularFalloffLaw": "单分子降压律",
     "ChemicalProcess/DistillationColumnDesign": "精馏塔设计",
     "Chemistry/LennardJonesCluster": "Lennard-Jones 团簇",
     "ClimateScience/EnergyBalanceModel": "能量平衡模型辨识",
@@ -166,9 +165,6 @@ CHINESE_BRIEFS = {
     "ChemicalKinetics/ReactionMechanismFitting": (
         "自选温度、初始混合与采样时刻,从公开一阶反应库里认出稀疏反应网络与其温度依赖",
         "机制恢复 + 外推;库外世界须拒答"),
-    "ChemicalKinetics/UnimolecularFalloffLaw": (
-        "在有限次 (T,P) 测定下区分 Lindemann 与 Troe 降压,并恢复 300 K 的 k_inf 与 Pr;双通道或负压阶须拒答",
-        "机制恢复 + 双通道/负压阶拒答;不是反应网络辨识,也不是酶动力学"),
     "ChemicalProcess/DistillationColumnDesign": (
         "混合整数精馏塔设计:塔板数与进料位置离散,兼顾纯度回收约束与再沸冷凝能耗",
         "年化成本;留出迁移与密封变工况分列,无上限"),

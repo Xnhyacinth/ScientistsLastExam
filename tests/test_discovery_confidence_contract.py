@@ -15,7 +15,6 @@ EVALUATORS = (
     "benchmarks/Physics/ComplexBoseLaw/verification/evaluator.py",
     "benchmarks/Physics/LookElsewhereAnomaly/verification/evaluator.py",
     "benchmarks/Physics/PTAHellingsDowns/verification/evaluator.py",
-    "benchmarks/Chemistry/UnimolecularFalloffLaw/verification/evaluator.py",
     "benchmarks/Chemistry/DiblockMorphologyDiscovery/verification/evaluator.py",
     "benchmarks/Mathematics/HeavyTailEvidence/verification/evaluator.py",
 )
